@@ -64,7 +64,7 @@ Busca los gemelos terrestres de un sitio de la Luna o de Marte.
   "results": [
     {
       "patch_id": "earth-60-000123", "body": "earth", "lat": 31.77, "lon": -113.5,
-      "region": "Sonora, México", "score": 0.87,
+      "region": "Sonora, Mexico", "score": 0.87,
       "scores": {"terrain": 0.91, "materials": 0.78, "thermal": 0.35, "operations": 0.88},
       "not_comparable": ["gravity", "vacuum", "radiation"]
     }

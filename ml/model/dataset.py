@@ -114,6 +114,6 @@ def iter_all(pset, batch=512, device="cuda"):
     """Recorre un conjunto completo en orden (para embeber). Incluye holdout."""
     n = len(pset.patches)
     for a in range(0, n, batch):
-        z = torch.from_numpy(np.asarray(pset.patches[a:a + batch])).unsqueeze(1)
+        z = torch.from_numpy(np.array(pset.patches[a:a + batch])).unsqueeze(1)
         px = torch.full((len(z),), pset.scale_m)
         yield a, z.to(device), px.to(device)

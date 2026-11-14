@@ -113,6 +113,6 @@ marca de agua (reglas del reto).
 
 | Fuente | Para qué | Nota |
 | --- | --- | --- |
-| Natural Earth admin-1 (10m) | Nombre del estado/país en `region` (solo etiquetas) | Dominio público; citar en referencias |
+| Natural Earth admin-1 (10m), `https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip` | `region` = "Estado, País" y columna `country` (`ml/data/add_regions.py`) | Dominio público; descargado en `data/raw/earth/naturalearth/`; citar en referencias |
 | Pesos de ImageNet (torchvision) | Inicialización de la ResNet-18 | Citar en referencias |
 | GLiM / mapas geológicos del USGS | Dimensión `materials` | **Decisión pendiente** (`ml/CLAUDE.md` §6.3) |
