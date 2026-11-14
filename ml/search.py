@@ -10,7 +10,10 @@ Escalas (la petición indica cuál; por defecto 1000):
     (Luna al sur de 80° S; Tierra en la caja de México y alrededores).
     Fuera de cobertura no se inventa nada: se devuelve un aviso.
 
-Métodos de ranking (por defecto "hybrid", la red de seguridad):
+Métodos de ranking de la dimensión terreno (por defecto "rrf"):
+  - "rrf":      Reciprocal Rank Fusion de la fórmula base y la red, k = 60 fijo
+                (sin ajustar pesos): 1/(60 + lugar en la red) + 1/(60 + lugar en
+                la fórmula);
   - "hybrid":   la fórmula base preselecciona los N candidatos físicamente
                 compatibles (relieve, pendientes, rugosidad) y la red los
                 reordena por coseno de embeddings;
@@ -112,6 +115,10 @@ class Searcher:
         elif method == "hybrid":
             pre = np.argpartition(dist, min(n_candidates, len(T) - 1))[:n_candidates]
             order = pre[np.argsort(-cos[pre])]
+        elif method == "rrf":
+            r_net = np.empty(len(T), np.int64); r_net[np.argsort(-cos)] = np.arange(1, len(T) + 1)
+            r_base = np.empty(len(T), np.int64); r_base[np.argsort(dist)] = np.arange(1, len(T) + 1)
+            order = np.argsort(-(1.0 / (60 + r_net) + 1.0 / (60 + r_base)))
         elif method == "random":
             order = (rng or np.random.default_rng(0)).permutation(len(T))
         else:
@@ -119,7 +126,7 @@ class Searcher:
         return T, order, cos, dist
 
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="rover",
-               method="hybrid", n_candidates=500, scale_m=1000):
+               method="rrf", n_candidates=500, scale_m=1000):
         if scale_m not in SCALES:
             raise ValueError(f"scale_m debe ser uno de {SCALES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
@@ -175,7 +182,7 @@ def main():
     ap.add_argument("--targets", nargs="*", default=None)
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--profile", default="rover", choices=list(PROFILES))
-    ap.add_argument("--method", default="hybrid", choices=["hybrid", "net", "baseline", "random"])
+    ap.add_argument("--method", default="rrf", choices=["rrf", "hybrid", "net", "baseline", "random"])
     ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()

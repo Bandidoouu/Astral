@@ -21,7 +21,14 @@
         "distance_km": 21.4
       }
     },
-    "scale_m": 1000
+    "scale_m": 1000,
+    "attributes": {
+      "tmax_k": 305.4,
+      "tmin_k": 38.1,
+      "trange_k": 267.3,
+      "albedo": 0.24,
+      "ice_distance_km": 3.2
+    }
   },
   "results": [
     {
@@ -34,15 +41,26 @@
       "score": 0.87,
       "scores": {
         "terrain": 0.91,
-        "materials": null,
         "thermal": null,
-        "operations": 0.88
+        "operations": 0.88,
+        "albedo": null
       },
       "not_comparable": [
         "gravity",
         "vacuum",
         "radiation"
-      ]
+      ],
+      "no_data": [
+        "thermal",
+        "albedo"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null
+      }
     },
     {
       "patch_id": "earth-1000-004512",
@@ -54,15 +72,26 @@
       "score": 0.81,
       "scores": {
         "terrain": 0.84,
-        "materials": null,
         "thermal": null,
-        "operations": 0.86
+        "operations": 0.86,
+        "albedo": null
       },
       "not_comparable": [
         "gravity",
         "vacuum",
         "radiation"
-      ]
+      ],
+      "no_data": [
+        "thermal",
+        "albedo"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null
+      }
     },
     {
       "patch_id": "mars-1000-004187",
@@ -74,15 +103,26 @@
       "score": 0.74,
       "scores": {
         "terrain": 0.78,
-        "materials": null,
         "thermal": null,
-        "operations": 0.69
+        "operations": 0.69,
+        "albedo": null
       },
       "not_comparable": [
         "gravity",
         "vacuum",
         "radiation"
-      ]
+      ],
+      "no_data": [
+        "thermal",
+        "albedo"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null
+      }
     }
   ],
   "warnings": [],

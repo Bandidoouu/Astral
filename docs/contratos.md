@@ -88,8 +88,12 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
   "results": [
     {
       "patch_id": "earth-1000-004123", "body": "earth", "lat": 31.77, "lon": -113.5,
-      "region": "Sonora, Mexico", "scale_m": 1000, "score": 0.87,
-      "scores": {"terrain": 0.91, "materials": null, "thermal": null, "operations": 0.88},
+      "region": "Sonora, Mexico", "scale_m": 1000, "score": 0.81,
+      "scores": {"terrain": 0.91, "operations": 0.88, "thermal": 0.42, "albedo": null},
+      "no_data": ["albedo"],
+      "weights_used": {"terrain": 0.5, "operations": 0.444, "thermal": 0.056},
+      "attributes": {"tmax_k": 331.2, "tmin_k": 268.9, "trange_k": 62.3, "albedo": null,
+                     "ice_distance_km": null},
       "not_comparable": ["gravity", "vacuum", "radiation"]
     }
   ],
@@ -105,32 +109,50 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
 - `warnings`: avisos legibles, p. ej. punto fuera de cobertura o índice de 500 m aún
   no disponible, o escala de 60 m pedida fuera de cobertura. El frontend los
   muestra, no son errores.
-- `score`: total ponderado según el perfil (§4). `scores`: cada dimensión de 0 a 1.
-- Una dimensión que todavía no existe (p. ej. `materials` antes de decidirla) va como
-  `null` y el frontend la muestra como "no disponible".
+- **Requisito central: la búsqueda no es solo de forma.** La red se encarga
+  únicamente de `terrain`; las demás dimensiones se calculan aparte con datos de los
+  portales oficiales (§4).
+- `scores`: cada dimensión de 0 a 1, **o `null` = "sin dato"** (no hay medición en
+  alguno de los dos lugares). **Nunca se inventa un valor.** `no_data` lista las
+  dimensiones en `null`; el frontend las muestra como "Sin dato" / "No data".
+- `score`: total ponderado por el perfil (§4) **solo con las dimensiones que tienen
+  dato**; sus pesos se renormalizan y se devuelven en `weights_used`.
+- `attributes`: valores crudos del parche resultado (kelvin, albedo sin unidades,
+  km), también `null` si faltan. `query.attributes` trae los del punto consultado.
 - `not_comparable` siempre incluye `gravity`, `vacuum` (si interviene la Luna) o
   `atmosphere` (si interviene Marte) y `radiation`.
 
 ## 4. Puntaje por dimensión y perfiles de misión
 
-| Dimensión | Cálculo | Quién lo calcula |
+| Dimensión | Cálculo | Datos |
 | --- | --- | --- |
-| `terrain` | Coseno entre embeddings de la red (FAISS) | ML (índice) + Backend (consulta) |
-| `operations` | Pendiente media, fracción del parche bajo 8° (aterrizaje) y bajo 15° (rover), rugosidad | Backend con estadísticas que entrega ML |
-| `thermal` | Diferencia normalizada de temperatura máxima, mínima y rango diario (Diviner contra MODIS) | Backend |
-| `materials` | Decisión pendiente (`ml/CLAUDE.md` §6.3) | Por definir |
+| `terrain` | Ranking de forma: **fusión RRF** (k = 60 fijo) de la red y la fórmula base; el puntaje mostrado es el coseno de la red | Red de ASTRAL + fórmula base |
+| `operations` | Parecido de pendiente media, fracción del parche bajo 8° (aterrizaje) y bajo 15° (rover) y rugosidad | El relieve de cada parche |
+| `thermal` | Parecido de temperatura máxima, mínima y rango: `exp(-|ΔT| / 50 K)` promediado | Tierra: MODIS MOD11C3 (LST 2023). Luna: Diviner (PRP polar + GCP global). Marte: TES (bloque 4) |
+| `albedo` | Parecido de albedo: `exp(-|Δalbedo| / 0.1)` | Tierra: MODIS MCD43C3 (infrarrojo cercano). Luna: LOLA `ldam` (1064 nm). Marte: TES |
+| ~~`materials`~~ | Fuera de alcance (minerales). Se quita | — |
 
-Total = suma ponderada según el perfil (pesos iniciales, ajustables por el equipo):
+**Atributos solo del sitio** (no son una comparación): `ice_distance_km` en la Luna,
+distancia a las zonas donde Diviner indica hielo estable a ≤ 1 m de profundidad.
 
-| Perfil | terrain | materials | thermal | operations |
+Total = suma ponderada según el perfil **con las dimensiones que tienen dato**
+(pesos iniciales, ajustables por el equipo):
+
+| Perfil | terrain | operations | thermal | albedo |
 | --- | --- | --- | --- | --- |
-| `rover` | 0.45 | 0.10 | 0.05 | 0.40 |
-| `isru` | 0.20 | 0.50 | 0.20 | 0.10 |
-| `habitat` | 0.25 | 0.20 | 0.25 | 0.30 |
-| `eva` | 0.40 | 0.40 | 0.05 | 0.15 |
-| `astrobiology` (solo Marte) | 0.25 | 0.50 | 0.25 | 0.00 |
+| `rover` | 0.45 | 0.40 | 0.05 | 0.10 |
+| `isru` | 0.20 | 0.10 | 0.20 | 0.50 |
+| `habitat` | 0.25 | 0.30 | 0.25 | 0.20 |
+| `eva` | 0.40 | 0.15 | 0.05 | 0.40 |
+| `astrobiology` (solo Marte) | 0.25 | 0.00 | 0.25 | 0.50 |
 
-Si una dimensión es `null`, su peso se reparte proporcionalmente entre las demás.
+## 4b. Capa de aptitud para base (polo sur lunar; Marte después)
+
+Reglas transparentes, **no la red**. Cada criterio de 0 a 1 con pesos visibles; ML
+exporta un raster por criterio y uno del total en `data/artifacts/suitability/`
+(GeoTIFF en estereográfica polar sur + PNG para el frontend + JSON con pesos, reglas
+y el puntaje de los candidatos de la NASA). **Es una sugerencia, no una elección
+final:** faltan iluminación y visibilidad de la Tierra, que no están en los portales.
 
 Siempre no comparables: gravedad (Luna 0.17 g, Marte 0.38 g), atmósfera (vacío en la
 Luna, ~6 mbar en Marte) y radiación.
@@ -149,4 +171,5 @@ Luna, ~6 mbar en Marte) y radiación.
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
 | 2026-11-14 | Versión inicial | Todos | — |
+| 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
