@@ -5,7 +5,9 @@ Rejilla: estereográfica polar sur de LOLA a 480 m (8 x 8 píxeles de 60 m).
 Criterios (cada uno de 0 a 1; pesos visibles en WEIGHTS):
   landing      fracción de la celda con pendiente < 8°  (LOLA 60 m)
   rover        fracción de la celda con pendiente < 15° (LOLA 60 m)
-  ice          exp(-d / 5 km), d = distancia a hielo estable a <= 1 m (Diviner PRP)
+  ice          exp(-d / 5 km), d = distancia a hielo estable EN SUPERFICIE (Diviner PRP,
+               ice_depth = 0; coherente con la dimensión de hielo). Con "<= 1 m" casi
+               todo el polo quedaba cerca del hielo y la capa saturaba en 1.0
   temperature  según la máxima anual de Diviner PRP: 0 si <= 110 K (sombra
                permanente: sin energía solar), sube lineal hasta 1 en 200 K,
                1 entre 200 y 330 K, baja lineal a 0 en 390 K
@@ -108,8 +110,12 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with rasterio.open(DIV) as ds:
         prof = ds.profile.copy()
-        tmax, ice_km = ds.read(2), ds.read(4)
+        tmax, surf = ds.read(2), ds.read(5)
         T, crs = ds.transform, CRS.from_wkt(ds.crs.to_wkt())
+    from scipy import ndimage
+    covered = np.isfinite(surf)
+    ice_km = (ndimage.distance_transform_edt(~(np.nan_to_num(surf) > 0)) * T.a / 1000).astype(np.float32)
+    ice_km[~covered] = np.nan
     f8, f15 = slope_fractions()
     n = min(f8.shape[0], tmax.shape[0])
     f8, f15, tmax, ice_km = f8[:n, :n], f15[:n, :n], tmax[:n, :n], ice_km[:n, :n]
@@ -168,7 +174,7 @@ def main():
     info = dict(weights=WEIGHTS, rules={
         "landing": "fraction of 60 m pixels with slope < 8 deg (LOLA)",
         "rover": "fraction of 60 m pixels with slope < 15 deg (LOLA)",
-        "ice": f"exp(-d / {ICE_SCALE_KM} km), d = distance to Diviner stable ice at <= 1 m depth",
+        "ice": f"exp(-d / {ICE_SCALE_KM} km), d = distance to Diviner surface-stable ice (ice depth 0 m)",
         "temperature": "Diviner annual max: 0 at <=110 K, 1 from 200 to 330 K, 0 at 390 K",
         "total": "weighted mean where all criteria have data"},
         missing=["illumination (hours of sunlight)", "Earth visibility (communications)"],
