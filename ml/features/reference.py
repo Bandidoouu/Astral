@@ -56,6 +56,11 @@ def _reference(body, var, n=200_000, seed=0):
         a[a == nod] = np.nan
     a[a < -1e30] = np.nan
     a *= scale
+    if body == "earth" and var == "precip_mm":
+        # la precipitación de GPM cubre también el océano: la referencia es solo tierra
+        # firme (celdas con temperatura de MODIS), como las demás variables terrestres
+        with rasterio.open(F / "earth_climate_005deg.tif") as ds:
+            a[~np.isfinite(ds.read(1))] = np.nan
     lat = np.linspace(90, -90, H, endpoint=False) - 90 / H     # equirectangular global
     w = np.repeat(np.cos(np.radians(lat))[:, None], a.shape[1], 1)
     ok = np.isfinite(a)
