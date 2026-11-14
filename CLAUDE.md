@@ -61,7 +61,7 @@ Si no, no es prioridad.
 
 ```text
 Astral/
-├── CLAUDE.md              ← este archivo (reglas de todo el equipo)
+├── CLAUDE.md              ← este archivo (reglas de todo el equipo; AGENTS.md es un enlace a él)
 ├── README.md              ← presentación del proyecto (en inglés, lo ven los jueces)
 ├── CONTRIBUTING.md        ← cómo trabajar: ramas, commits, PRs, avisos
 ├── docs/
@@ -151,13 +151,14 @@ README, gráficas, etiquetas, la interfaz y el video. La documentación interna
 
 ## 5. Checkpoints del equipo
 
-**Estado del frente de ML (H7):** v2 a 60 m en producción (prueba ciega: la red deja El
+**Estado del frente de ML (H8.5):** v2 a 60 m en producción (prueba ciega: la red deja El
 Pinacate en el lugar 147 de 55,444 contra 320 de la fórmula); v3 multimodal probado y
 descartado por validación. Por recomendación de un mentor, los resultados hacia la
 Tierra salen solo de zonas prometedoras (MODIS MCD12C1: desiertos, matorral disperso,
-pastizal, hielo; ~49% de los parches) y la búsqueda tendrá `scale_mode`
-(`same_size` / `gravity_scaled`). Siguen la validación y el entrenamiento de 1 km, los
-modos de escala y la aptitud de Marte (solo MOLA y Mars Odyssey). Detalle completo:
+pastizal, hielo; ~49% de los parches) y la búsqueda tiene `scale_mode`
+(`same_size` / `gravity_scaled`). Escala de 1 km lista (red propia de 3 cuerpos:
+Olympus Mons → Mauna Loa en el lugar 1 de 7,669; Pinacate ciego en 0.48%), con
+`gravity_scaled` y capa de aptitud de Marte (MOLA + Mars Odyssey). Paquete `release/v2-1km`. Detalle completo:
 `ml/CLAUDE.md` §1b.
 
 

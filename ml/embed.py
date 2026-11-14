@@ -29,9 +29,12 @@ from ml.model.dataset import PatchSet, iter_all
 from ml.model.net import Encoder, MultimodalEncoder, load_any_encoder
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
-INDEX_SETS = {60: ["earth_60", "moon_60"], 1000: ["earth_1000", "moon_1000", "mars_1000"]}
+# earth_1000_val: parches centrados en los análogos conocidos (Mauna Loa, Scablands, ...),
+# que el índice global no trae (p. ej. Hawái tiene demasiado océano para la rejilla)
+INDEX_SETS = {60: ["earth_60", "moon_60"],
+              1000: ["earth_1000", "earth_1000_val", "moon_1000", "mars_1000"]}
 # scale_mode = gravity_scaled: ventanas de la Luna 6x y de Marte 2.6x (mismo modelo, sin reentrenar)
-GRAVITY_SETS = ["earth_1000", "moon_6050", "mars_2640"]
+GRAVITY_SETS = ["earth_1000", "earth_1000_val", "moon_6050", "mars_2640"]
 
 
 def load_encoder(path, device="cuda"):
