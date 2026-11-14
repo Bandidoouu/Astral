@@ -182,11 +182,7 @@ class Searcher:
             raise ValueError(method)
         return T, order, cos, dist
 
-<<<<<<< HEAD
-    def search(self, body, lat, lon, target_bodies=None, k=10, profile="rover",
-=======
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="general",
->>>>>>> main
                method="rrf", n_candidates=500, scale_m=1000):
         if scale_m not in SCALES:
             raise ValueError(f"scale_m debe ser uno de {SCALES}")
@@ -252,11 +248,7 @@ def main():
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--targets", nargs="*", default=None)
     ap.add_argument("--k", type=int, default=5)
-<<<<<<< HEAD
-    ap.add_argument("--profile", default="rover", choices=list(PROFILES))
-=======
     ap.add_argument("--profile", default="general", choices=list(PROFILES))
->>>>>>> main
     ap.add_argument("--method", default="rrf", choices=["rrf", "hybrid", "net", "baseline", "random"])
     ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
     ap.add_argument("--tag", default="")
