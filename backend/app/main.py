@@ -1,11 +1,21 @@
 """Aplicación FastAPI de ASTRAL: CORS y routers de la API."""
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import galaxy, patches
+from app.api import galaxy, patches, similar
 from app.api.patches import HEIGHT_HEADERS
+from app.services.artifacts import get_searcher
 
-app = FastAPI(title="ASTRAL API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_searcher()  # carga única al arrancar
+    yield
+
+
+app = FastAPI(title="ASTRAL API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +28,7 @@ app.add_middleware(
 
 app.include_router(galaxy.router)
 app.include_router(patches.router)
+app.include_router(similar.router)
 
 
 @app.get("/api/health")
