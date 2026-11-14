@@ -354,6 +354,9 @@ corriendo), H12 (búsqueda de punta a punta), H16 (MVP), H20 (congelamiento), H2
   memoria) con la ablación, la prueba de v2 y descargas corriendo juntas; se perdió
   un archivo recién escrito (`fetch_nasadem.py` quedó vacío). Después de un
   reinicio, revisar que no haya archivos truncados (`git ls-files | xargs wc -c`).
+- **Hacer commit ANTES de cambiar de rama.** Un `git switch` con cambios sin guardar
+  se los lleva a la otra rama, y un `git add -A` ahí los mete en el commit equivocado
+  (así se quedó la fusión RRF fuera de `main` un rato).
 - Datos de agencias asociadas que se pueden citar: Kaguya (JAXA) dentro de
   SLDEM2015; ESA (Copernicus DEM, WorldCover) si se usan. CSA RADARSAT contra
   Mini-RF de LRO queda como extra después de H16.

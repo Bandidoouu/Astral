@@ -10,7 +10,10 @@ Escalas (la petición indica cuál; por defecto 1000):
     (Luna al sur de 80° S; Tierra en la caja de México y alrededores).
     Fuera de cobertura no se inventa nada: se devuelve un aviso.
 
-Métodos de ranking (por defecto "hybrid", la red de seguridad):
+Métodos de ranking de la dimensión terreno (por defecto "rrf"):
+  - "rrf":      Reciprocal Rank Fusion de la fórmula base y la red, k = 60 fijo
+                (sin ajustar pesos): 1/(60 + lugar en la red) + 1/(60 + lugar en
+                la fórmula);
   - "hybrid":   la fórmula base preselecciona los N candidatos físicamente
                 compatibles (relieve, pendientes, rugosidad) y la red los
                 reordena por coseno de embeddings;
@@ -35,19 +38,27 @@ import pandas as pd
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 BODIES = ("earth", "moon", "mars")
 RADIUS_KM = {"earth": 6371.0, "moon": 1737.4, "mars": 3389.5}
-NOT_COMPARABLE = {"moon": ["gravity", "vacuum", "radiation"],
-                  "mars": ["gravity", "atmosphere", "radiation"],
-                  "earth": ["gravity", "atmosphere", "radiation"]}
-PROFILES = {      # "materials" (minerales) quedó fuera de alcance; el albedo toma su lugar
-    "rover": dict(terrain=0.45, operations=0.40, thermal=0.05, albedo=0.10),
-    "isru": dict(terrain=0.20, operations=0.10, thermal=0.20, albedo=0.50),
-    "habitat": dict(terrain=0.25, operations=0.30, thermal=0.25, albedo=0.20),
-    "eva": dict(terrain=0.40, operations=0.15, thermal=0.05, albedo=0.40),
-    "astrobiology": dict(terrain=0.25, operations=0.00, thermal=0.25, albedo=0.50),
+# lo que nunca se puede comparar con datos orbitales (se lista en cada resultado)
+NOT_COMPARABLE = {"moon": ["dust_and_wind", "subsurface", "gravity", "vacuum", "radiation"],
+                  "mars": ["dust_and_wind", "subsurface", "gravity", "atmosphere", "radiation"],
+                  "earth": ["dust_and_wind", "subsurface", "gravity", "atmosphere", "radiation"]}
+DIMENSIONS = ["terrain", "operations", "thermal", "albedo", "ice", "soil", "aridity"]
+# Ningún perfil le da más de 0.3 al terreno. "general" (por defecto): pesos iguales.
+PROFILES = {
+    "general": {d: 1 / len(DIMENSIONS) for d in DIMENSIONS},
+    "rover": dict(terrain=0.30, operations=0.30, thermal=0.05, albedo=0.05, ice=0.05, soil=0.15, aridity=0.10),
+    "isru": dict(terrain=0.10, operations=0.10, thermal=0.10, albedo=0.15, ice=0.35, soil=0.15, aridity=0.05),
+    "habitat": dict(terrain=0.15, operations=0.25, thermal=0.25, albedo=0.05, ice=0.15, soil=0.10, aridity=0.05),
+    "eva": dict(terrain=0.30, operations=0.20, thermal=0.05, albedo=0.15, ice=0.05, soil=0.20, aridity=0.05),
+    "astrobiology": dict(terrain=0.10, operations=0.00, thermal=0.15, albedo=0.10, ice=0.30, soil=0.10, aridity=0.25),
 }
+assert all(abs(sum(w.values()) - 1) < 1e-9 and w["terrain"] <= 0.3 for w in PROFILES.values())
+ICE_SCALE = 0.2             # exp(-|Δ fracción de hielo| / 0.2)
+PRECIP_SCALE_MM = 250.0     # exp(-|Δ precipitación anual| / 250 mm)
 THERMAL_SCALE_K = 50.0      # exp(-|ΔT| / 50 K), promediado en tmax, tmin y rango
 ALBEDO_SCALE = 0.1          # exp(-|Δalbedo| / 0.1)
-ATTR_COLS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km"]
+ATTR_COLS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km",
+             "ice_frac", "soil_raw", "soil_pct", "precip_mm"]
 
 
 def _num(v):
@@ -60,6 +71,26 @@ def thermal_score(fq, ft):
         return None
     d = [abs(fq[c] - ft[c]) for c in ("tmax_k", "tmin_k", "trange_k")]
     return float(np.mean(np.exp(-np.asarray(d) / THERMAL_SCALE_K)))
+
+
+def _both(fq, ft, c):
+    return np.isfinite(fq[c]) and np.isfinite(ft[c])
+
+
+def ice_score(fq, ft):
+    return float(np.exp(-abs(fq["ice_frac"] - ft["ice_frac"]) / ICE_SCALE)) if _both(fq, ft, "ice_frac") else None
+
+
+def soil_score(fq, ft):
+    """Percentil de rocosidad dentro de cada cuerpo (ATI en la Tierra, rocas de Diviner
+    en la Luna, inercia térmica de TES en Marte)."""
+    return float(1 - abs(fq["soil_pct"] - ft["soil_pct"])) if _both(fq, ft, "soil_pct") else None
+
+
+def aridity_score(fq, ft):
+    if not _both(fq, ft, "precip_mm"):
+        return None
+    return float(np.exp(-abs(fq["precip_mm"] - ft["precip_mm"]) / PRECIP_SCALE_MM))
 
 
 def albedo_score(fq, ft):
@@ -141,14 +172,18 @@ class Searcher:
         elif method == "hybrid":
             pre = np.argpartition(dist, min(n_candidates, len(T) - 1))[:n_candidates]
             order = pre[np.argsort(-cos[pre])]
+        elif method == "rrf":
+            r_net = np.empty(len(T), np.int64); r_net[np.argsort(-cos)] = np.arange(1, len(T) + 1)
+            r_base = np.empty(len(T), np.int64); r_base[np.argsort(dist)] = np.arange(1, len(T) + 1)
+            order = np.argsort(-(1.0 / (60 + r_net) + 1.0 / (60 + r_base)))
         elif method == "random":
             order = (rng or np.random.default_rng(0)).permutation(len(T))
         else:
             raise ValueError(method)
         return T, order, cos, dist
 
-    def search(self, body, lat, lon, target_bodies=None, k=10, profile="rover",
-               method="hybrid", n_candidates=500, scale_m=1000):
+    def search(self, body, lat, lon, target_bodies=None, k=10, profile="general",
+               method="rrf", n_candidates=500, scale_m=1000):
         if scale_m not in SCALES:
             raise ValueError(f"scale_m debe ser uno de {SCALES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
@@ -185,11 +220,11 @@ class Searcher:
                 row = si.meta.iloc[T[j]]
                 ops = float(1.0 / (1.0 + np.sqrt(((si.ops[T[j]] - si.ops[q]) ** 2).mean())))
                 ft = dict(zip(ATTR_COLS, si.attrs[T[j]]))
-                th, al = thermal_score(fq, ft), albedo_score(fq, ft)
-                scores = dict(terrain=round(float(np.clip(cos[j], 0, 1)), 4),
-                              operations=round(ops, 4),
-                              thermal=None if th is None else round(th, 4),
-                              albedo=None if al is None else round(al, 4))
+                raw = dict(terrain=float(np.clip(cos[j], 0, 1)), operations=ops,
+                           thermal=thermal_score(fq, ft), albedo=albedo_score(fq, ft),
+                           ice=ice_score(fq, ft), soil=soil_score(fq, ft),
+                           aridity=aridity_score(fq, ft))
+                scores = {d: None if raw[d] is None else round(raw[d], 4) for d in DIMENSIONS}
                 avail = {d: w for d, w in weights.items() if scores[d] is not None and w > 0}
                 tot = sum(avail.values())
                 score = sum(scores[d] * w for d, w in avail.items()) / tot if tot else 0.0
@@ -213,8 +248,8 @@ def main():
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--targets", nargs="*", default=None)
     ap.add_argument("--k", type=int, default=5)
-    ap.add_argument("--profile", default="rover", choices=list(PROFILES))
-    ap.add_argument("--method", default="hybrid", choices=["hybrid", "net", "baseline", "random"])
+    ap.add_argument("--profile", default="general", choices=list(PROFILES))
+    ap.add_argument("--method", default="rrf", choices=["rrf", "hybrid", "net", "baseline", "random"])
     ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
