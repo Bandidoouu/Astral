@@ -212,6 +212,10 @@ primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de con
 demo del frontend devuelve el sitio curado más cercano. Metadatos de aptitud para servir:
 `suitability/api_moon_south.json`, `api_mars.json` (copias en `contracts/`).
 
+**Grad-CAM** (`ml/gradcam_pairs.py`, rama `ml/gradcam`): 102 figuras (17 sitios curados ×
+2 destinos × 3 primeros, escala 1000) en `data/artifacts/gradcam/{query}__{result}.png` +
+`index.json` (15.6 MB, fuera de git). Sin revisar visualmente todavía.
+
 ### Siguientes pasos (en orden de prioridad)
 
 1. **Esperar confirmación** de Backend (pasar `scale_mode` a `searcher.search`) y de
