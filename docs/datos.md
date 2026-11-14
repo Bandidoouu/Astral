@@ -48,6 +48,9 @@ validamos con análogos fuera de la cobertura de NASADEM.
 | Luna, temperatura polar sur | Diviner PRP sur, `dlre_prp_south` (`urn:nasa:pds:lro_diviner_derived1`) | PDS Geosciences (LRO) | `data/raw/moon/diviner/dlre_prp_south.{tab,xml,lbl}` |
 | Luna, relieve latitudes medias 512 px/° (~59 m) | SLDEM2015 (LOLA + Kaguya TC de **JAXA**): mosaicos `00n_30n_270_315` (Montes Marius), `00n_30n_000_045` (Mare Tranquillitatis), `30n_60n_315_360` (Mare Imbrium) | PDS Geosciences (LRO) | `data/raw/moon/sldem2015/sldem2015_512_*_float.{img,lbl,xml}` |
 
+| Luna, relieve global 64 px/° (~474 m) | LOLA GDR cilíndrico `ldem_64_float` (km) | PDS Geosciences (LRO) | `data/raw/moon/lola_global/ldem_64_float.{img,lbl,xml}` |
+| Tierra, análogos conocidos | NASADEM_HGT: Arizona (Meteor Crater y campo volcánico de San Francisco, caja -112.4, 34.7, -110.6, 35.8) y Death Valley (-117.5, 35.8, -116.4, 37.0) | NASA Earthdata | `data/raw/earth/analogs/{arizona,deathvalley}/` |
+
 **Fuera de la lista oficial, apartado:** `data/raw/_no_oficial/jezero.tif` (blend
 MOLA-HRSC del USGS). No se usa.
 
@@ -73,6 +76,16 @@ wget -c $B/dlre_prp_south.tab $B/dlre_prp_south.xml $B/dlre_prp_south.lbl
 B=https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/sldem2015/tiles/float_img
 for t in 00n_30n_270_315 00n_30n_000_045 30n_60n_315_360; do for e in img lbl xml; do
   wget -c $B/sldem2015_512_${t}_float.$e; done; done
+```
+
+```bash
+# Luna: LOLA global cilíndrico 64 px/grado, en km (PDS Geosciences)
+B=https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/float_img
+wget -c $B/ldem_64_float.lbl $B/ldem_64_float.xml $B/ldem_64_float.img
+
+# Tierra: NASADEM alrededor de análogos conocidos (NASA Earthdata)
+python -m ml.data.fetch_nasadem --name arizona --bbox -112.4 34.7 -110.6 35.8
+python -m ml.data.fetch_nasadem --name deathvalley --bbox -117.5 35.8 -116.4 37.0
 ```
 
 ```python
