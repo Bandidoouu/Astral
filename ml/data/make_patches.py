@@ -46,7 +46,15 @@ SOURCES = {
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--body", choices=list(SOURCES), required=True)
+    p.add_argument("--body", choices=["moon", "earth", "mars"], required=True)
+    p.add_argument("--src", default=None,
+                   help="raster fuente (por defecto, el de SOURCES para el cuerpo)")
+    p.add_argument("--to-m", type=float, default=None,
+                   help="factor a metros (1000 para LOLA/SLDEM en km)")
+    p.add_argument("--scale", type=int, default=SCALE_M, help="m/px esperado")
+    p.add_argument("--region", default=None, help="etiqueta para la columna region")
+    p.add_argument("--id-offset", type=int, default=0,
+                   help="suma al índice del patch_id para que no choque con otros conjuntos")
     p.add_argument("--patch", type=int, default=128)
     p.add_argument("--stride", type=int, default=128,
                    help="128 = rejilla sin traslape (índice); <128 = con traslape")
@@ -73,10 +81,19 @@ def write_npy_from_raw(raw_path, npy_path, n, patch):
 
 def main():
     a = parse_args()
-    src = SOURCES[a.body]
+    default_src = a.src is None
+    src = dict(SOURCES.get(a.body, {}))
+    if a.src:
+        src["path"] = a.src
+    if a.to_m is not None:
+        src["to_m"] = a.to_m
+    if a.region:
+        src["region"] = a.region
+    assert {"path", "to_m", "region"} <= set(src), "faltan --src/--to-m/--region"
+    SCALE = a.scale
     P, S = a.patch, a.stride
     a.out_dir.mkdir(parents=True, exist_ok=True)
-    tag = f"{a.body}_{SCALE_M}{a.suffix}"
+    tag = f"{a.body}_{SCALE}{a.suffix}"
     raw_path = a.out_dir / f"patches_{tag}.raw.tmp"
     npy_path = a.out_dir / f"patches_{tag}.npy"
     meta_path = a.out_dir / f"meta_{tag}.parquet"
@@ -87,7 +104,7 @@ def main():
     gmin, gmax, gsum, gcount = np.inf, -np.inf, 0.0, 0
 
     with rasterio.Env(GDAL_CACHEMAX=1024), rasterio.open(ROOT / src["path"]) as ds:
-        assert abs(ds.res[0] - SCALE_M) < 1e-6 and abs(ds.res[1] - SCALE_M) < 1e-6, ds.res
+        assert abs(ds.res[0] - SCALE) < 1e-6 and abs(ds.res[1] - SCALE) < 1e-6, ds.res
         crs = CRS.from_wkt(ds.crs.to_wkt())
         to_geo = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
         crs_str = ds.crs.to_string() if ds.crs.to_epsg() else crs.to_proj4()
@@ -116,7 +133,7 @@ def main():
                 lats = np.asarray(lats)
                 for k, c in enumerate(cols):
                     stats["grid"] += 1
-                    if a.body == "moon" and lats[k] > a.moon_max_lat:
+                    if a.body == "moon" and default_src and lats[k] > a.moon_max_lat:
                         stats["outside"] += 1
                         continue
                     x0 = (c - c0) * S
@@ -127,9 +144,9 @@ def main():
                         stats["nodata"] += 1
                         continue
                     elev = tile.astype(np.float64) * src["to_m"]
-                    if a.body == "moon":
-                        # Sanidad: LOLA viene en km relativos a 1737.4 km.
-                        assert np.abs(tile).max() < 25, "¿LOLA no viene en km?"
+                    if src["to_m"] == 1000:
+                        # Sanidad: LOLA/SLDEM vienen en km relativos a 1737.4 km.
+                        assert np.abs(tile).max() < 25, "¿la fuente no viene en km?"
                     if a.body == "earth" and (elev <= 0).mean() > a.max_water_frac:
                         stats["water"] += 1
                         continue
@@ -142,7 +159,7 @@ def main():
                         _, _, d = geod.inv(PINACATE[1], PINACATE[0], lons[k], lats[k])
                         holdout = d / 1000.0 < HOLDOUT_KM
                     rows_meta.append(dict(
-                        body=a.body, scale_m=SCALE_M, lat=float(lats[k]), lon=float(lons[k]),
+                        body=a.body, scale_m=SCALE, lat=float(lats[k]), lon=float(lons[k]),
                         crs=crs_str, x=float(xs[k]), y=float(ys[k]),
                         region="El Pinacate, Sonora" if holdout else src["region"],
                         holdout=holdout, elev_mean_m=mean,
@@ -158,7 +175,9 @@ def main():
         raise SystemExit(f"Sin parches válidos. {stats}")
     write_npy_from_raw(raw_path, npy_path, n, P)
     meta = pd.DataFrame(rows_meta)
-    meta.insert(0, "patch_id", [f"{a.body}-{SCALE_M}-{i:06d}" for i in range(n)])
+    meta.insert(0, "patch_id", [f"{a.body}-{SCALE}-{a.id_offset + i:06d}" for i in range(n)])
+    meta["src"] = tag
+    meta["src_idx"] = np.arange(n)
     meta.to_parquet(meta_path, index=False)
 
     summary = dict(body=a.body, n_patches=n, **stats,
