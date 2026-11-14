@@ -47,9 +47,48 @@ albedo) e hidrógeno de Mars Odyssey, todo del PDS. Minerales: fuera de alcance.
 ## 1b. Estado actual (para retomar después de /compact) · 2026-11-14 17:15 (~H8)
 
 **Cambios por recomendación de un mentor (17:00), orden vigente:** (1) máscara de zonas
-prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) · (3) entrenamiento de 1 km
-con la receta de v2 · (4) modos de escala `same_size` / `gravity_scaled` · (5) aptitud de
-Marte. **Recorte de alcance:** Marte solo con las dimensiones de su capa de aptitud
+prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) ✅ · (3) entrenamiento de 1 km
+con la receta de v2 ✅ · (4) modos de escala `same_size` / `gravity_scaled` ✅ · (5) aptitud
+de Marte ✅. Paquete vigente: **`release/v2-1km`** (60 m + 1 km + gravity, 233 MB).
+
+**Resultados de 1 km (17:30):** run `main1000v2` (12 épocas, 3 cuerpos, `--matched
+--aux-weight 0.1 --lambda-max 0.3`, ~1 min/época). Regla fija → **época 4**
+(`encoder_v2_1000.pt`, validación 5.78%). Red sola, percentil mediano entre 7,669:
+
+| Pareja | v2 de 1 km (ép. 4) | v2 de 60 m sin reentrenar | fórmula | azar |
+| --- | --- | --- | --- | --- |
+| Olympus → Mauna Loa | **0.01% (lugar 1, 7/7 top 50)** | 0.35% | 22.4% (lugar 1,720) | 12.0% |
+| Canales → Scablands | **1.92%** | 8.91% | 20.3% | 9.3% |
+| Dunas → Sahara/Namib | 1.08% | 0.87% | 0.35% | 3.0% |
+| Mares → basaltos | 25.8% | 13.7% | 10.8% | 4.4% |
+| Marius → San Francisco | **0.14%** | 0.25% | 2.6% | 8.1% |
+| **Ciega: Marius → Pinacate** | **0.48%** | 0.80% | 15.4% | 8.8% |
+
+El modelo de 60 m gana el PROMEDIO (4.82% contra 5.78%) solo por los mares, donde los
+dos quedan peor que el azar; el de 1 km gana 4 de 5 parejas y la ciega. **Decisión
+provisional: 1 km usa `encoder_v2_1000.pt`** (se entrenó para esta escala); Esteban puede
+cambiarlo reembebiendo con `encoder_v2sel.pt`.
+
+**Modos de escala** (`scale_mode`, solo a 1 km; índice `*_1000_gravity`: Tierra 1 km,
+Luna 6.05 km/px = 774 km, Marte 2.64 km/px = 338 km, mismo modelo, pendientes con el
+píxel real). Validación: red sola same_size 5.78% / gravity 8.07%; **RRF (método por
+defecto) same_size 4.42% / gravity 2.16%**. Olympus → Mauna Loa: lugar 1 con la red en
+los dos modos; con RRF lugar 4 (same_size) y 2 (gravity). Por defecto sigue `same_size`.
+
+**Índice de 1 km:** incluye los 63 parches centrados en los análogos conocidos
+(`earth_1000_val`): Hawái no entra en la rejilla global (demasiado océano). La máscara
+mide la fracción prometedora **sobre tierra firme** (el agua no cuenta; < 10% de tierra
+no pasa): 60 m 27,282 / 54,993 (49.6%), 1 km 3,792 / 7,606 (49.9%), sitios 52 / 63
+(el Deccan queda fuera: hoy es cultivo). Regiones con Natural Earth (`add_regions
+--max-nearest-km 150`).
+
+**Aptitud de Marte** (`ml/suitability_mars.py`): pendiente MOLA < 2° (0.30) y < 5° (0.20)
+a ~926 m (a esa base la mediana es ~0.5°: 8°/15° no distinguían nada), altitud ≤ −1 km
+→ 1, ≥ +1 km → 0 (0.20), hidrógeno GRS 2 → 7% en peso (0.30, solo 60° N–60° S). Percentil
+contra Marte: Gusev 99.8, Meridiani 95.3, Arcadia 95.1, InSight 92.7, Erebus 85.5,
+Utopia 75.5, Deuteronilus 73.1, Mawrth 73.1, Jezero 46.4, Gale 43.7 (cráteres elegidos
+por ciencia, no por facilidad). En la búsqueda: `h2o_wt_pct` e `ice` = índice de
+hidrógeno; temperatura, albedo y suelo de Marte = sin dato. **Recorte de alcance:** Marte solo con las dimensiones de su capa de aptitud
 (pendiente y altitud de MOLA, hidrógeno de Mars Odyssey); el resto queda "sin dato"
 (TES fuera). **v3 a 1 km queda fuera.** Release al cerrar cada bloque.
 

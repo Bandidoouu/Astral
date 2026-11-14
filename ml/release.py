@@ -21,7 +21,14 @@ PER_SCALE = ["meta_{s}.parquet", "emb_{s}.npy", "index_{s}.faiss", "baseline_fea
 SUIT = ["suitability/moon_south_{k}.tif", "suitability/moon_south_{k}.png"]
 SUIT_K = ["landing", "rover", "ice", "temperature", "total"]
 SUIT_EXTRA = ["suitability/suitability_moon.json", "suitability/recommended_zones.json",
-              "suitability/suitability_candidates.png", "earth_landcover_005deg.tif"]
+              "suitability/suitability_candidates.png", "earth_landcover_005deg.tif",
+              "suitability/suitability_mars.json", "suitability/suitability_mars_candidates.png",
+              "suitability/mars_h2o_wt_pct.tif"]
+SUIT_MARS = ["suitability/mars_{k}.tif", "suitability/mars_{k}.png"]
+SUIT_MARS_K = ["landing", "rover", "elevation", "hydrogen", "total"]
+GRAVITY = ["meta_1000_gravity.parquet", "emb_1000_gravity.npy", "index_1000_gravity.faiss",
+           "baseline_feat_1000_gravity.npy", "baseline_feat_1000_gravity.json",
+           "features_1000_gravity.parquet"]
 
 README = """# Paquete ASTRAL para Backend: {version}
 
@@ -44,7 +51,8 @@ Generado: {date}. Encoder: `{encoder}`. Escalas: {scales}.
 | `baseline_feat_{{s}}.npy/.json` | Fórmula base (para la fusión RRF y `operations`) |
 | `features_{{s}}.parquet` | Temperatura, albedo, hielo, suelo y aridez por parche (`NaN` = sin dato) |
 | `earth_landcover_005deg.tif` | Máscara de zonas prometedoras (MODIS MCD12C1): clase IGBP y % prometedor; la búsqueda la usa para el aviso del clic |
-| `suitability/` | Capa de aptitud lunar (GeoTIFF + PNG), reglas y pesos, candidatos de la NASA, `recommended_zones.json` |
+| `*_1000_gravity.*` | Índice para `scale_mode = gravity_scaled` (Luna con ventanas de 774 km, Marte de 338 km) |
+| `suitability/` | Capas de aptitud de la Luna (polo sur) y Marte (global 0.25°) (GeoTIFF + PNG), reglas y pesos, candidatos de la NASA, `recommended_zones.json` |
 
 `manifest.json` lista cada archivo con su tamaño y SHA-256 para verificar la copia.
 
@@ -69,12 +77,17 @@ def main():
     ap.add_argument("--version", required=True)
     ap.add_argument("--encoder", required=True, help="nombre del encoder en data/artifacts/")
     ap.add_argument("--scales", type=int, nargs="+", default=[60])
+    ap.add_argument("--extra-encoders", nargs="*", default=[], help="otros encoders (p. ej. el de 60 m)")
     ap.add_argument("--notes", default="Precipitación de la Tierra pendiente (aridez = sin dato).")
     a = ap.parse_args()
     out = ART / "release" / a.version
     out.mkdir(parents=True, exist_ok=True)
     files = [f.format(s=s) for s in a.scales for f in PER_SCALE]
     files += [f.format(k=k) for k in SUIT_K for f in SUIT] + SUIT_EXTRA + [a.encoder]
+    files += [f.format(k=k) for k in SUIT_MARS_K for f in SUIT_MARS]
+    if 1000 in a.scales:
+        files += GRAVITY
+    files += a.extra_encoders
     manifest = dict(version=a.version, encoder=a.encoder, scales=a.scales,
                     created=dt.datetime.now().isoformat(timespec="seconds"), files=[])
     missing = []

@@ -11,9 +11,11 @@ zonas donde un análogo tiene sentido. Clases IGBP:
   también se van (no están en la lista de las que se quedan): 6 matorral cerrado,
              8 sabana arbolada, 9 sabana
 
-Un parche es prometedor si al menos la mitad de su área (porcentajes por clase de
-`Land_Cover_Type_1_Percent`, celdas dentro de su ventana) es de clases que se quedan.
-El agua (océano incluido) cuenta como no prometedora.
+Un parche es prometedor si al menos la mitad de su área DE TIERRA FIRME (porcentajes
+por clase de `Land_Cover_Type_1_Percent`, celdas dentro de su ventana; el agua no
+cuenta en el denominador) es de clases que se quedan. Así una isla volcánica como
+Hawái no se descarta por el océano que la rodea. Si la ventana es casi toda agua
+(< 10% de tierra), no pasa.
 
   python -m ml.features.earth_landcover --build
   python -m ml.features.earth_landcover --annotate data/artifacts/meta_60.parquet
@@ -59,7 +61,8 @@ def build():
     major = _sds("Majority_Land_Cover_Type_1")[0].astype(np.uint8)          # (3600, 7200)
     pct = _sds("Land_Cover_Type_1_Percent").astype(np.float32)              # (17, 3600, 7200)
     keep = pct[list(KEEP)].sum(0) / 100.0
-    prof = dict(driver="GTiff", height=3600, width=7200, count=2, dtype="uint8",
+    water = pct[0] / 100.0
+    prof = dict(driver="GTiff", height=3600, width=7200, count=3, dtype="uint8",
                 crs="EPSG:4326", transform=from_origin(-180, 90, 0.05, 0.05),
                 compress="deflate", tiled=True)
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -68,6 +71,8 @@ def build():
         ds.write(np.round(keep * 100).astype(np.uint8), 2)
         ds.set_band_description(1, "igbp_majority_class")
         ds.set_band_description(2, "promising_pct")
+        ds.write(np.round(water * 100).astype(np.uint8), 3)
+        ds.set_band_description(3, "water_pct")
     land = major != 0
     print(f"-> {OUT}; tierra firme prometedora (por área de celda): "
           f"{100 * (keep[land] >= MIN_FRAC).mean():.1f}% de las celdas de tierra")
@@ -78,6 +83,7 @@ class LandCover:
         with rasterio.open(path) as ds:
             self.major = ds.read(1)
             self.keep = ds.read(2).astype(np.float32) / 100.0
+            self.water = ds.read(3).astype(np.float32) / 100.0
 
     @staticmethod
     def _rc(lat, lon):
@@ -101,7 +107,11 @@ class LandCover:
         cols = np.arange(c0, c0 + int(round(2 * dlon / 0.05)) + 1) % 7200
         w = np.cos(np.radians(90 - (rows + 0.5) * 0.05))[:, None]
         k = self.keep[np.ix_(rows, cols)]
-        return float((k * w).sum() / (w.sum() * len(cols)))
+        land = 1.0 - self.water[np.ix_(rows, cols)]
+        land_area = float((land * w).sum())
+        if land_area < 0.10 * float(w.sum() * len(cols)):
+            return 0.0
+        return float((k * w).sum() / land_area)
 
 
 def annotate(meta, lc=None):

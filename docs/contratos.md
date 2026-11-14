@@ -171,13 +171,22 @@ perfil le da más de 0.3 al terreno.
 | `eva` | 0.30 | 0.20 | 0.05 | 0.15 | 0.05 | 0.20 | 0.05 |
 | `astrobiology` | 0.10 | 0.00 | 0.15 | 0.10 | 0.30 | 0.10 | 0.25 |
 
-## 4b. Capa de aptitud para base (polo sur lunar; Marte después)
+## 4b. Capa de aptitud para base (polo sur lunar y Marte)
 
 Reglas transparentes, **no la red**. Cada criterio de 0 a 1 con pesos visibles; ML
 exporta un raster por criterio y uno del total en `data/artifacts/suitability/`
 (GeoTIFF en estereográfica polar sur + PNG para el frontend + JSON con pesos, reglas
 y el puntaje de los candidatos de la NASA). **Es una sugerencia, no una elección
 final:** faltan iluminación y visibilidad de la Tierra, que no están en los portales.
+
+**Marte** (`suitability/mars_{landing,rover,elevation,hydrogen,total}.{tif,png}`, rejilla
+global de 0.25° en grados, `suitability_mars.json`, `suitability_mars_candidates.png`):
+pendiente de MOLA < 2° (aterrizaje, 0.30) y < 5° (rover, 0.20) a ~926 m de base,
+altitud baja (1 en ≤ −1 km, 0 en ≥ +1 km, 0.20) e hidrógeno de Mars Odyssey GRS (0 en
+≤ 2% en peso de agua equivalente, 1 en ≥ 7%, 0.30; solo entre 60° N y 60° S). Recorte
+de alcance: sin TES, minerales, polvo ni radiación. En la búsqueda, los parches de Marte
+traen `h2o_wt_pct` en `attributes` y la dimensión `ice` sale del índice de hidrógeno;
+`thermal`, `albedo` y `soil` de Marte son `null`.
 
 **Lo que nunca se puede comparar** (va en `not_comparable` de cada resultado):
 `dust_and_wind` (polvo y viento), `subsurface` (subsuelo), `gravity` (Luna 0.17 g,
@@ -200,5 +209,6 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | 2026-11-14 | Versión inicial | Todos | — |
 | 2026-11-14 | Dimensiones `ice`, `soil`, `aridity`; perfil por defecto `general` (pesos iguales; terreno ≤ 0.3 en todos los perfiles); `not_comparable` agrega `dust_and_wind` y `subsurface` | Backend, Frontend | Pendiente |
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
+| 2026-11-14 | `window_km` por parche; capa de aptitud de Marte (§4b); `h2o_wt_pct` en `attributes`; índice `gravity_scaled` disponible a 1 km | Backend, Frontend | Pendiente |
 | 2026-11-14 | Zonas prometedoras de la Tierra (máscara MCD12C1): `query.land_cover`, aviso si el clic cae fuera, `land_cover` por resultado, columnas `lc_*` y `promising` en `meta`; `scale_mode` (`same_size` / `gravity_scaled`) en la petición y en `query` | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
