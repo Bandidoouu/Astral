@@ -5,7 +5,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from app.core.config import ARTIFACTS_DIR, EMB_DIM, SCALES
+from app.core.config import get_artifacts_dir
+
+SCALES = (60, 500)
+EMB_DIM = 128
 
 try:
     import faiss
@@ -14,10 +17,11 @@ except ImportError:
 
 
 def artifact_paths(scale: int) -> dict[str, Path]:
+    base = get_artifacts_dir()
     return {
-        "emb": ARTIFACTS_DIR / f"emb_{scale}.npy",
-        "index": ARTIFACTS_DIR / f"index_{scale}.faiss",
-        "meta": ARTIFACTS_DIR / f"meta_{scale}.parquet",
+        "emb": base / f"emb_{scale}.npy",
+        "index": base / f"index_{scale}.faiss",
+        "meta": base / f"meta_{scale}.parquet",
     }
 
 REQUIRED_COLUMNS = ("patch_id", "body", "lat", "lon", "region")
@@ -61,5 +65,5 @@ def load_scale(scale: int) -> ScaleArtifacts:
 def get_artifacts() -> dict[int, ScaleArtifacts]:
     loaded = {s: load_scale(s) for s in SCALES if artifact_paths(s)["emb"].exists()}
     if not loaded:
-        raise RuntimeError(f"No hay artefactos en {ARTIFACTS_DIR}")
+                raise RuntimeError(f"No hay artefactos en {get_artifacts_dir()}")
     return loaded
