@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+"""Características no geométricas por parche (todas con datos de los portales oficiales).
+
+Para cada parche de data/artifacts/meta_{scale}.parquet se muestrea su huella real
+(malla de 9 x 9 puntos en su proyección azimutal local) sobre cada rejilla y se
+promedia; si menos de la mitad de los puntos tienen dato, el valor es NaN
+("sin dato"). Nunca se rellena ni se interpola fuera de la cobertura.
+
+  Tierra: tmax_k, tmin_k, trange_k (MODIS MOD11C3), albedo (MODIS MCD43C3, NIR)
+  Luna:   tmax_k, tmin_k, trange_k (Diviner GCP; en el polo sur, tmax de la PRP),
+          tavg_k (PRP, solo polo sur), albedo (LOLA ldam: polar 1 km o global 10 px/°),
+          ice_distance_km (PRP: distancia mínima a hielo estable a <= 1 m, solo polo sur)
+  Marte:  pendiente (bloque 4) -> todo NaN por ahora
+
+Salida: data/artifacts/features_{scale}.parquet (patch_id + columnas, mismo orden que meta).
+
+  python -m ml.features.patch_features --scale 60
+"""
+import argparse
+import os
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import rasterio
+from pyproj import CRS, Transformer
+
+from ml.data.make_patches_global import RADIUS_M, laea_inverse
+
+ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[2]))
+F = ROOT / "data/features"
+COLS = ["tmax_k", "tmin_k", "trange_k", "tavg_k", "albedo", "ice_distance_km"]
+
+
+class Grid:
+    """Rejilla cualquiera (geográfica o proyectada) leída completa en memoria."""
+
+    def __init__(self, path, band, body):
+        with rasterio.open(path) as ds:
+            self.a = ds.read(band).astype(np.float32)
+            self.T = ds.transform
+            nod = ds.nodata
+            crs = CRS.from_wkt(ds.crs.to_wkt())
+        if nod is not None and np.isfinite(nod):
+            self.a[self.a == nod] = np.nan
+        self.a[self.a < -1e30] = np.nan
+        geo = CRS.from_proj4(f"+proj=longlat +R={RADIUS_M[body]:.0f} +no_defs") \
+            if body != "earth" else CRS.from_epsg(4326)
+        self.tr = None if crs.is_geographic else Transformer.from_crs(geo, crs, always_xy=True)
+
+    def sample(self, lon, lat):
+        if self.tr is not None:
+            x, y = self.tr.transform(lon, lat)
+        else:
+            x, y = lon, lat
+        c = np.floor((x - self.T.c) / self.T.a).astype(int)
+        r = np.floor((y - self.T.f) / self.T.e).astype(int)
+        H, W = self.a.shape
+        ok = (r >= 0) & (r < H) & (c >= 0) & (c < W)
+        out = np.full(np.shape(lon), np.nan, np.float32)
+        out[ok] = self.a[r[ok], c[ok]]
+        return out
+
+
+def footprint(lat, lon, scale_m, body, n=9, patch=128):
+    half = patch * scale_m / 2
+    g = np.linspace(-half, half, n)
+    gx, gy = np.meshgrid(g, g)
+    return laea_inverse(gx.ravel(), gy.ravel(), lat, lon, RADIUS_M[body])
+
+
+def reduce(vals, how="mean", min_frac=0.5):
+    ok = np.isfinite(vals)
+    if ok.mean() < min_frac:
+        return np.nan
+    return float(np.nanmin(vals) if how == "min" else np.nanmean(vals))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--scale", type=int, default=60)
+    ap.add_argument("--tag", default="")
+    a = ap.parse_args()
+    art = ROOT / "data/artifacts"
+    meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
+    out = pd.DataFrame({"patch_id": meta.patch_id})
+    for c in COLS:
+        out[c] = np.nan
+
+    grids = {
+        "earth": {"tmax_k": Grid(F / "earth_climate_005deg.tif", 1, "earth"),
+                  "tmin_k": Grid(F / "earth_climate_005deg.tif", 2, "earth"),
+                  "trange_k": Grid(F / "earth_climate_005deg.tif", 3, "earth"),
+                  "albedo": Grid(F / "earth_climate_005deg.tif", 4, "earth")},
+        "moon": {"tmax_k": Grid(F / "moon_thermal_global_05deg.tif", 1, "moon"),
+                 "tmin_k": Grid(F / "moon_thermal_global_05deg.tif", 2, "moon"),
+                 "trange_k": Grid(F / "moon_thermal_global_05deg.tif", 3, "moon"),
+                 "albedo": Grid(ROOT / "data/raw/moon/lola_albedo/ldam_10_float.lbl", 1, "moon"),
+                 "polar_tavg": Grid(F / "moon_polar_south_480m.tif", 1, "moon"),
+                 "polar_tmax": Grid(F / "moon_polar_south_480m.tif", 2, "moon"),
+                 "polar_ice": Grid(F / "moon_polar_south_480m.tif", 4, "moon"),
+                 "polar_albedo": Grid(ROOT / "data/raw/moon/lola_albedo/ldam_50s_1000m_float.lbl", 1, "moon")},
+    }
+    for i, row in enumerate(meta.itertuples()):
+        if row.body not in grids:
+            continue                                       # Marte: bloque 4
+        G = grids[row.body]
+        la, lo = footprint(row.lat, row.lon, row.scale_m, row.body)
+        if row.body == "earth":
+            for c in ["tmax_k", "tmin_k", "trange_k", "albedo"]:
+                out.iat[i, out.columns.get_loc(c)] = reduce(G[c].sample(lo, la))
+        else:
+            vals = {c: reduce(G[c].sample(lo, la)) for c in ["tmax_k", "tmin_k", "albedo"]}
+            if row.lat <= -76:                             # cobertura de la PRP sur
+                pt = reduce(G["polar_tmax"].sample(lo, la))
+                if np.isfinite(pt):
+                    vals["tmax_k"] = pt
+                vals["tavg_k"] = reduce(G["polar_tavg"].sample(lo, la))
+                vals["ice_distance_km"] = reduce(G["polar_ice"].sample(lo, la), "min")
+                pa = reduce(G["polar_albedo"].sample(lo, la))
+                if np.isfinite(pa):
+                    vals["albedo"] = pa
+            if np.isfinite(vals["tmax_k"]) and np.isfinite(vals["tmin_k"]):
+                vals["trange_k"] = vals["tmax_k"] - vals["tmin_k"]
+            for c, v in vals.items():
+                out.iat[i, out.columns.get_loc(c)] = v
+        if i % 10000 == 0:
+            print(f"  {i}/{len(meta)}", flush=True)
+
+    out.to_parquet(art / f"features_{a.scale}{a.tag}.parquet", index=False)
+    summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
+        lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
+    print(summ.T.to_string())
+    print("->", art / f"features_{a.scale}{a.tag}.parquet")
+
+
+if __name__ == "__main__":
+    main()
