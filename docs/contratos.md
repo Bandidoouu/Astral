@@ -99,8 +99,38 @@ Total = suma ponderada según el perfil (pesos iniciales, ajustables por el equi
 
 Si una dimensión es `null`, su peso se reparte proporcionalmente entre las demás.
 
+**Normalización de `operations` (Backend).** El parche se describe con las
+estadísticas crudas que ML guarda en `meta_{scale}.parquet` y
+`baseline_feat_{scale}.npy`/`.json`: pendiente media (`slope_mean`, grados),
+fracción bajo 8° (`slope_frac_0_2 + slope_frac_2_5 + slope_frac_5_8`), fracción
+bajo 15° (la anterior `+ slope_frac_8_15`) y rugosidad (`expm1(log_rough_mean)`,
+metros). Para un par query/result:
+
+```text
+s_slope = exp(-|Δslope_mean| / 10°)
+s_land  = exp(-|Δfrac_under_8| / 0.20)
+s_rover = exp(-|Δfrac_under_15| / 0.20)
+s_rough = exp(-|Δroughness_m| / scale_m)
+
+operations = 0.20*s_slope + 0.25*s_land + 0.30*s_rover + 0.25*s_rough
+```
+
+Todas las componentes quedan en 0-1. Si falta cualquiera de las cuatro
+estadísticas en alguno de los dos parches, `operations = null`.
+
+**Normalización de `thermal` (Backend).** Se compara `tmax_k`, `tmin_k` y
+`trange_k` (Diviner en la Luna, MODIS en la Tierra; Marte sin TES = `null`):
+
+```text
+thermal = mean(exp(-|ΔT| / 50 K))  sobre tmax, tmin y rango
+```
+
+Si falta `tmax_k` o `tmin_k` en cualquiera de los dos parches, `thermal = null`.
+
 Siempre no comparables: gravedad (Luna 0.17 g, Marte 0.38 g), atmósfera (vacío en la
-Luna, ~6 mbar en Marte) y radiación.
+Luna, ~6 mbar en Marte) y radiación. En la respuesta, `not_comparable` se arma con
+los cuerpos del par: Luna→Tierra = `["gravity", "vacuum", "radiation"]`; si el par
+involucra Marte se incluye `"atmosphere"`; si involucra Luna y Marte, ambos.
 
 ## 5. Otros endpoints (propuesta, a confirmar con Backend y Frontend)
 
@@ -108,11 +138,21 @@ Luna, ~6 mbar en Marte) y radiación.
 | --- | --- | --- |
 | `GET /api/health` | `{"status": "ok", "encoder_version": 1}` | Todos |
 | `GET /api/galaxy?scale=60` | `galaxy.json` (`contracts/galaxy.example.json`) | Frontend 3D |
-| `GET /api/patch/{patch_id}/heights` | Binario Float32 128x128 + cabeceras `X-Min`, `X-Max`, `X-M-Per-Px` | Frontend 3D |
+| `GET /api/patch/{patch_id}/heights` | Binario Float32 little-endian 128x128 + cabeceras `X-Min`, `X-Max`, `X-M-Per-Px`, `X-Width`, `X-Height`, `X-Dtype`, `X-Endianness` | Frontend 3D |
 | `GET /api/gradcam/{query_id}/{patch_id}` | PNG | Frontend UI |
+
+- **`galaxy.json`:** el backend busca primero `galaxy_{scale}.json`, luego
+  `galaxy.json` y, si no existen, devuelve el ejemplo de `contracts/` como mock.
+  Las escalas válidas son `60`, `500` y `1000`.
+- **Alturas:** el cuerpo de la respuesta son los bytes crudos; las cabeceras
+  `X-*` son accesibles desde el navegador (CORS las expone). El archivo
+  `heights/{patch_id}.json` (con el formato de `contracts/heights.example.json`)
+  es el *sidecar* que el backend valida y usa para llenar las cabeceras; no es
+  la respuesta HTTP.
 
 ## 6. Historial de cambios de contrato
 
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
 | 2026-11-14 | Versión inicial | Todos | — |
+| 2026-11-14 | Definir normalización de `operations` y `thermal`, formato binario de `heights` con sidecar, y resolución `galaxy_{scale}.json` → `galaxy.json` → mock | Backend, Frontend, ML | Pendiente |
