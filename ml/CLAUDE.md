@@ -102,13 +102,13 @@ Para premios globales es obligatorio usar datos de la NASA; ya se cumple.
 
 ### 6.2 Datos pendientes
 
-- **Diviner (LRO), temperatura lunar polar.** En PDS Geosciences:
+- **Diviner (LRO), temperatura lunar polar.** (PRP sur descargándose en `data/raw/moon/diviner/`.) En PDS Geosciences:
   `https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/`
   (`data_derived_prp/dlre_prp_south.tab`, ~605 MB, y `data_derived_pcp/`).
   Son tablas PDS4 con su `.xml` (`uv pip install pds4_tools`). Los organizadores
   destacan los productos polares de Diviner para comparar con ambientes terrestres
   extremadamente fríos o con hielo: la dimensión térmica debe usarlos.
-- **SLDEM2015 (LOLA + Kaguya de JAXA), latitudes medias de la Luna:**
+- **SLDEM2015 (LOLA + Kaguya de JAXA), latitudes medias de la Luna** (Marius, Tranquillitatis e Imbrium descargándose en `data/raw/moon/sldem2015/`):
   `https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/sldem2015/`.
   Bajar solo los mosaicos de los Montes Marius (~14° N, 304° E) y uno o dos de
   mares lunares, para la prueba ciega.

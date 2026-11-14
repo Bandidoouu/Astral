@@ -1,8 +1,13 @@
 # Datos de ASTRAL: fuentes oficiales
 
 **Regla del equipo:** todo dato que use la red, el backend o el frontend sale de los
-recursos oficiales que lista el reto. No estamos limitados a ellos, pero **sí tenemos
-que usarlos**, y cualquier fuente fuera de la lista se justifica y se cita.
+recursos que lista el reto. No estamos limitados a ellos, y cualquier fuente fuera
+de la lista se justifica y se cita.
+
+**Lo único obligatorio es usar datos de la NASA, y ya se cumple** (LOLA, MOLA,
+NASADEM y MODIS). Diviner y los recursos de agencias asociadas (ESA, JAXA, CSA)
+**no son obligatorios**: suman porque los organizadores los destacan, pero son
+opcionales.
 Antes de bajar algo nuevo, agrégalo a este archivo con su portal, su enlace y el
 comando exacto (reproducibilidad = puntos de *Validity*).
 
@@ -18,16 +23,18 @@ comando exacto (reproducibilidad = puntos de *Validity*).
 | **NASA Worldview** | https://worldview.earthdata.nasa.gov | Imagen satelital real de cada análogo en la tarjeta de resultados (frontend) | 🔲 Pendiente (frontend) |
 | **NASA PDS** | https://pds.nasa.gov · nodo de Geociencias: https://pds-geosciences.wustl.edu | Relieve de Marte (MOLA MEGDR) y de la Luna (LOLA) | ✅ Descargado |
 | **NASA LRO** | https://lunar.gsfc.nasa.gov | LOLA (relieve polar 60 m); Mini-RF (radar) como extra | ✅ LOLA descargado |
-| **NASA LRO Diviner** | https://www.diviner.ucla.edu · datos en PDS Geosciences | **Temperatura polar lunar: dimensión `thermal`** (los organizadores lo destacan para comparar con ambientes fríos o con hielo) | ⚠️ **Pendiente, prioridad alta** |
+| **NASA LRO Diviner** | https://www.diviner.ucla.edu · datos en PDS Geosciences | Temperatura polar lunar para la dimensión `thermal` (los organizadores lo destacan para comparar con ambientes fríos o con hielo; opcional) | ⏳ Descargando (PRP sur) |
 | ESA Copernicus Data Space Ecosystem | https://dataspace.copernicus.eu | Copernicus DEM GLO-30 para análogos fuera de la cobertura de NASADEM (Haughton, Islandia, Valles Secos de McMurdo) | 🔲 Pendiente (validación) |
 | ESA Open Science Catalog | https://opensciencedata.esa.int | Opcional | — |
 | JAXA G-Portal | https://gportal.jaxa.jp | Opcional: temperatura o nieve de GCOM-C (SGLI) como segunda fuente térmica de sitios fríos | — |
 | CSA RADARSAT Constellation (RCM) / RADARSAT-1 | Enlaces en la página del reto | Opcional después de H16: radar SAR terrestre contra Mini-RF de LRO | — |
 | CSA SAR Python Tutorial | Enlace en la página del reto | Referencia si se hace lo de RADARSAT | — |
 
-**Mínimo para la entrega:** Earthdata Search, PDS, LRO y **Diviner** (NASA), más al
-menos **un recurso de agencia asociada**: Copernicus DEM de la ESA es el más natural
-porque ya lo necesitamos para validar.
+**Mínimo para la entrega:** datos de la NASA (ya se cumple con Earthdata y PDS/LRO).
+Diviner y las agencias asociadas son opcionales. **Ya usamos datos de JAXA** sin
+pasar por G-Portal: SLDEM2015 combina LOLA con la cámara de terreno de Kaguya
+(SELENE) de JAXA, y así se cita. Copernicus DEM de la ESA se agregaría solo si
+validamos con análogos fuera de la cobertura de NASADEM.
 
 ## 2. Inventario descargado (procedencia verificada)
 
@@ -37,6 +44,9 @@ porque ya lo necesitamos para validar.
 | Marte, relieve global 128 px/° | MOLA MEGDR `urn:nasa:pds:mgs_mola_topography_derived:data_meg128` | PDS Geosciences | `data/raw/mars/megt*hb.{img,xml}`, `mars_megdr.vrt` |
 | Tierra, relieve 30 m | NASADEM_HGT v001 (411 mosaicos, caja -118, 14, -86, 33) | NASA Earthdata (LP DAAC) | `data/raw/earth/dem/*.zip` → `mexico_{60,500}m.tif` |
 | Tierra, temperatura | MODIS Terra MOD11C3 v061, mensual 0.05°, 2023 | NASA Earthdata (LP DAAC) | `data/raw/earth/lst/*.hdf` |
+
+| Luna, temperatura polar sur | Diviner PRP sur, `dlre_prp_south` (`urn:nasa:pds:lro_diviner_derived1`) | PDS Geosciences (LRO) | `data/raw/moon/diviner/dlre_prp_south.{tab,xml,lbl}` |
+| Luna, relieve latitudes medias 512 px/° (~59 m) | SLDEM2015 (LOLA + Kaguya TC de **JAXA**): mosaicos `00n_30n_270_315` (Montes Marius), `00n_30n_000_045` (Mare Tranquillitatis), `30n_60n_315_360` (Mare Imbrium) | PDS Geosciences (LRO) | `data/raw/moon/sldem2015/sldem2015_512_*_float.{img,lbl,xml}` |
 
 **Fuera de la lista oficial, apartado:** `data/raw/_no_oficial/jezero.tif` (blend
 MOLA-HRSC del USGS). No se usa.
@@ -54,6 +64,17 @@ for lat in 88n 44n 00n 44s; do for lon in 000 090 180 270; do
   wget -c $B/megt${lat}${lon}hb.img $B/megt${lat}${lon}hb.xml; done; done
 ```
 
+```bash
+# Luna: Diviner, producto polar del sur (PDS Geosciences)
+B=https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp
+wget -c $B/dlre_prp_south.tab $B/dlre_prp_south.xml $B/dlre_prp_south.lbl
+
+# Luna: SLDEM2015, Montes Marius + dos mares (PDS Geosciences; incluye Kaguya de JAXA)
+B=https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/sldem2015/tiles/float_img
+for t in 00n_30n_270_315 00n_30n_000_045 30n_60n_315_360; do for e in img lbl xml; do
+  wget -c $B/sldem2015_512_${t}_float.$e; done; done
+```
+
 ```python
 # Tierra: NASADEM y MODIS (NASA Earthdata, mismo catálogo que Earthdata Search)
 import earthaccess
@@ -67,15 +88,11 @@ earthaccess.download(lst, "./lst")
 
 ## 3. Pendientes, en orden de prioridad
 
-1. **Diviner polar (LRO, PDS Geosciences):**
-   `https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/`
-   (`data_derived_prp/dlre_prp_south.tab` y `data_derived_pcp/`). Sin esto la
-   dimensión `thermal` no tiene lado lunar.
-2. **SLDEM2015 (LOLA + Kaguya de JAXA, PDS Geosciences):** mosaicos de los Montes
-   Marius para la prueba ciega de El Pinacate.
-   `https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/sldem2015/`
-3. **Copernicus DEM GLO-30 (ESA, Copernicus Data Space):** Haughton, Islandia, Valles
-   Secos de McMurdo. **Es nuestro recurso de agencia asociada.**
+1. ~~Diviner PRP sur~~ y ~~SLDEM2015 (Marius + mares)~~: descargándose (§2).
+   Falta procesarlos: Diviner → dimensión `thermal`; SLDEM2015 → parches de la prueba ciega.
+2. Diviner `data_derived_pcp/` (productos polares acumulados), si el PRP no alcanza.
+3. **Copernicus DEM GLO-30 (ESA, opcional):** Haughton, Islandia, Valles Secos de
+   McMurdo, solo si validamos fuera de la cobertura de NASADEM.
 4. **NASADEM alrededor de análogos conocidos** (Earthdata): Meteor Crater, Death
    Valley, Atacama, Mauna Kea, Lonar, campo volcánico de San Francisco.
 5. **Worldview / GIBS (frontend):** imagen real de cada análogo para las tarjetas.

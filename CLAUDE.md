@@ -102,8 +102,9 @@ archivo, comandos de descarga y pendientes). Resumen:
 
 - NASA: **Earthdata Search, Worldview, PDS, LRO y LRO Diviner**. Agencias asociadas:
   ESA (Copernicus Data Space, Open Science Catalog), JAXA (G-Portal), CSA (RADARSAT).
-- No estamos limitados a esa lista, pero **sí tenemos que usarla**: la entrega debe
-  incluir Diviner y al menos un recurso de agencia asociada (Copernicus DEM de la ESA).
+- No estamos limitados a esa lista. **Lo único obligatorio es usar datos de la NASA,
+  y ya se cumple.** Diviner y las agencias asociadas son opcionales; ya usamos datos
+  de JAXA a través de SLDEM2015 (LOLA + Kaguya).
 - Aplica también al frontend: texturas de los globos e imágenes de los análogos
   salen de Worldview/GIBS, LRO y PDS.
 - Toda fuente fuera de la lista (p. ej. Natural Earth para nombres de estados) se
