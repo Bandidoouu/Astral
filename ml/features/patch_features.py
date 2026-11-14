@@ -10,7 +10,9 @@ promedia; si menos de la mitad de los puntos tienen dato, el valor es NaN
   Luna:   tmax_k, tmin_k, trange_k (Diviner GCP; en el polo sur, tmax de la PRP),
           tavg_k (PRP, solo polo sur), albedo (LOLA ldam: polar 1 km o global 10 px/°),
           ice_distance_km (PRP: distancia mínima a hielo estable a <= 1 m, solo polo sur)
-  Marte:  pendiente (bloque 4) -> todo NaN por ahora
+  Marte:  h2o_wt_pct (Mars Odyssey GRS, 5x5°, 60° N a 60° S) e ice_frac = índice de
+          hidrógeno 0 en <= 2% en peso, 1 en >= 7% (misma regla que la capa de aptitud).
+          Recorte de alcance: temperatura, albedo y suelo de Marte = sin dato.
 
 Salida: data/artifacts/features_{scale}.parquet (patch_id + columnas, mismo orden que meta).
 Con --meta/--out sirve para cualquier conjunto de parches (entrenamiento, evaluación).
@@ -33,7 +35,7 @@ from ml.data.make_patches_global import RADIUS_M, laea_inverse
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[2]))
 F = ROOT / "data/features"
 COLS = ["tmax_k", "tmin_k", "trange_k", "tavg_k", "albedo", "ice_distance_km",
-        "ice_frac", "soil_raw", "soil_pct", "precip_mm"]
+        "ice_frac", "soil_raw", "soil_pct", "precip_mm", "h2o_wt_pct"]
 # Luna y Marte: sin precipitación líquida por definición física (no es un dato inventado)
 PRECIP_BY_DEFINITION = {"moon": 0.0, "mars": 0.0}
 
@@ -144,10 +146,31 @@ def _load_grids():
     }
 
 
+def _mars_h2o():
+    a = np.loadtxt(ROOT / "data/raw/mars/grs/h2o_sr_5x5.tab")
+    g = np.full((36, 72), np.nan, np.float32)
+    v = a[a[:, 2] < 9999]
+    g[((90 - v[:, 0]) // 5).astype(int), (v[:, 1] // 5).astype(int)] = v[:, 2]
+    return g
+
+
 def _fill(meta, out, grids):
+    h2o = None
     for i, row in enumerate(meta.itertuples()):
+        if row.body == "mars":
+            if h2o is None:
+                h2o = _mars_h2o()
+            la, lo = footprint(row.lat, row.lon, row.scale_m, row.body)
+            r = np.clip(((90 - la) // 5).astype(int), 0, 35)
+            c = np.clip(((lo % 360) // 5).astype(int), 0, 71)
+            w = reduce(h2o[r, c])
+            out.iat[i, out.columns.get_loc("h2o_wt_pct")] = w
+            out.iat[i, out.columns.get_loc("ice_frac")] = (np.clip((w - 2) / 5, 0, 1)
+                                                         if np.isfinite(w) else np.nan)
+            out.iat[i, out.columns.get_loc("precip_mm")] = PRECIP_BY_DEFINITION["mars"]
+            continue
         if row.body not in grids:
-            continue                                       # Marte: bloque 4
+            continue
         G = grids[row.body]
         la, lo = footprint(row.lat, row.lon, row.scale_m, row.body)
         if row.body == "earth":

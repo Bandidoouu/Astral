@@ -20,12 +20,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
     ap.add_argument("--epochs", type=int, nargs="+", required=True)
+    ap.add_argument("--scale", type=int, default=60, choices=[60, 1000])
     a = ap.parse_args()
     art = ROOT / "data/artifacts"
     rows = []
     for e in a.epochs:
         enc = art / f"checkpoints/{a.run}/encoder_ep{e:02d}.pt"
         tag = f"{a.run}_ep{e:02d}"
+        if a.scale == 1000:      # validación de 1 km (ml/CLAUDE.md §1c): 5 parejas, red sola
+            subprocess.run([sys.executable, "-m", "ml.evaluate_1km", "--encoder", str(enc), "--tag", tag],
+                           check=True, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            r = json.loads((art / f"val_1000_{tag}.json").read_text())
+            per = {p: v["net"]["median_pct"] for p, v in r["results"].items()}
+            rows.append((e, per, r["val_score"]))
+            print(f"ep{e:02d}  " + "  ".join(f"{p} {v:.2f}%" for p, v in per.items())
+                  + f"  promedio {r['val_score']:.3f}%", flush=True)
+            continue
         subprocess.run([sys.executable, "-m", "ml.evaluate", "--encoder", str(enc), "--tag", tag,
                         "--val-only"], check=True, cwd=ROOT, stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL)
@@ -34,10 +44,12 @@ def main():
         rows.append((e, sf, cr, (sf + cr) / 2))
         print(f"ep{e:02d}  San Francisco {sf:.3f}%  cráteres {cr:.3f}%  promedio {(sf + cr) / 2:.3f}%",
               flush=True)
-    best = min(rows, key=lambda x: x[3])
-    print(f"ELEGIDA: época {best[0]} (promedio {best[3]:.3f}%)")
+    best = min(rows, key=lambda x: x[-1])
+    print(f"ELEGIDA: época {best[0]} (promedio {best[-1]:.3f}%)")
+    rule = ("mean of net median percentiles over the 5 1-km validation pairs" if a.scale == 1000
+            else "mean of net median percentiles, SF + craters")
     (art / f"checkpoints/{a.run}/selected_epoch.json").write_text(
-        json.dumps(dict(epoch=best[0], rows=rows, rule="mean of net median percentiles, SF + craters")))
+        json.dumps(dict(epoch=best[0], rows=rows, rule=rule)))
 
 
 if __name__ == "__main__":

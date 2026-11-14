@@ -30,6 +30,8 @@ from ml.model.net import Encoder, MultimodalEncoder, load_any_encoder
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 INDEX_SETS = {60: ["earth_60", "moon_60"], 1000: ["earth_1000", "moon_1000", "mars_1000"]}
+# scale_mode = gravity_scaled: ventanas de la Luna 6x y de Marte 2.6x (mismo modelo, sin reentrenar)
+GRAVITY_SETS = ["earth_1000", "moon_6050", "mars_2640"]
 
 
 def load_encoder(path, device="cuda"):
@@ -84,13 +86,14 @@ def main():
     ap.add_argument("--scale", type=int, default=60)
     ap.add_argument("--tag", default="", help="sufijo de salida, p. ej. _abl")
     ap.add_argument("--tta", type=int, default=4)
+    ap.add_argument("--gravity", action="store_true", help="índice gravity_scaled (usar con --tag _gravity)")
     ap.add_argument("--batch", type=int, default=512)
     a = ap.parse_args()
 
     enc = load_encoder(a.encoder)
     d = ROOT / "data/patches"
     embs, metas = [], []
-    for name in INDEX_SETS[a.scale]:
+    for name in (GRAVITY_SETS if a.gravity else INDEX_SETS[a.scale]):
         pset = PatchSet.load(d / f"patches_{name}.npy", d / f"meta_{name}.parquet",
                              exclude_holdout=False)
         if is_multimodal(enc):

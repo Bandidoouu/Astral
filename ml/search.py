@@ -58,7 +58,7 @@ PRECIP_SCALE_MM = 250.0     # exp(-|Δ precipitación anual| / 250 mm)
 THERMAL_SCALE_K = 50.0      # exp(-|ΔT| / 50 K), promediado en tmax, tmin y rango
 ALBEDO_SCALE = 0.1          # exp(-|Δalbedo| / 0.1)
 ATTR_COLS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km",
-             "ice_frac", "soil_raw", "soil_pct", "precip_mm"]
+             "ice_frac", "soil_raw", "soil_pct", "precip_mm", "h2o_wt_pct"]
 
 
 def _num(v):
@@ -126,15 +126,16 @@ class ScaleIndex:
         art = Path(art or ROOT / "data/artifacts")
         meta = pd.read_parquet(art / f"meta_{scale}{tag}.parquet")
         emb = np.load(art / f"emb_{scale}{tag}.npy")
-        feat = np.load(art / f"baseline_feat_{scale}.npy")
-        names = json.loads((art / f"baseline_feat_{scale}.json").read_text())["names"]
+        bt = tag if (art / f"baseline_feat_{scale}{tag}.npy").exists() else ""
+        feat = np.load(art / f"baseline_feat_{scale}{bt}.npy")
+        names = json.loads((art / f"baseline_feat_{scale}{bt}.json").read_text())["names"]
         assert len(meta) == len(emb) == len(feat), "artefactos desalineados"
         ops = feat[:, [names.index(n) for n in OPS_FEATURES]]
         fp = art / f"features_{scale}{tag}.parquet"
         if fp.exists():
             f = pd.read_parquet(fp)
             assert (f.patch_id.values == meta.patch_id.values).all(), "features desalineadas"
-            attrs = f[ATTR_COLS].to_numpy(np.float64)
+            attrs = f.reindex(columns=ATTR_COLS).to_numpy(np.float64)   # columnas nuevas = NaN
         else:
             attrs = np.full((len(meta), len(ATTR_COLS)), np.nan)
         return cls(scale, meta, emb, feat, ops, attrs)

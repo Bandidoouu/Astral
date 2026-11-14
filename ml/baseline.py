@@ -75,30 +75,32 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale", type=int, default=60)
     ap.add_argument("--batch", type=int, default=1024)
+    ap.add_argument("--tag", default="", help="p. ej. _gravity (Luna y Marte con ventanas escaladas)")
     a = ap.parse_args()
 
     art = ROOT / "data/artifacts"
-    meta = pd.read_parquet(art / f"meta_{a.scale}.parquet")
+    meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
     out = np.zeros((len(meta), len(NAMES)), np.float32)
     # los parches están en archivos por cuerpo; meta trae el índice dentro de cada uno
     for body, g in meta.groupby("body", sort=False):
-        arr = np.load(ROOT / f"data/patches/patches_{body}_{a.scale}.npy", mmap_mode="r")
+        px_m = int(g.scale_m.iloc[0])                    # gravity_scaled: 6050 (Luna), 2640 (Marte)
+        arr = np.load(ROOT / f"data/patches/patches_{body}_{px_m}.npy", mmap_mode="r")
         local = g.patch_id.str.split("-").str[2].astype(int).to_numpy()
         rows = g.index.to_numpy()
         for s in range(0, len(g), a.batch):
             z = torch.from_numpy(np.array(arr[local[s:s + a.batch]])).unsqueeze(1).cuda()
-            px = torch.full((len(z),), float(a.scale), device="cuda")
+            px = torch.full((len(z),), float(px_m), device="cuda")
             out[rows[s:s + a.batch]] = features(z, px).cpu().numpy()
         print(f"{body}: {len(g)} parches")
 
     assert np.isfinite(out).all()
     mu, sd = out.mean(0), out.std(0) + 1e-8
     std_feat = (out - mu) / sd
-    np.save(art / f"baseline_feat_{a.scale}.npy", std_feat.astype(np.float32))
-    (art / f"baseline_feat_{a.scale}.json").write_text(json.dumps(
+    np.save(art / f"baseline_feat_{a.scale}{a.tag}.npy", std_feat.astype(np.float32))
+    (art / f"baseline_feat_{a.scale}{a.tag}.json").write_text(json.dumps(
         dict(names=NAMES, mean=mu.tolist(), std=sd.tolist(), slope_bins=SLOPE_BINS), indent=2))
     print(pd.DataFrame(out, columns=NAMES).groupby(meta.body.values).median().T.round(3).to_string())
-    print("->", art / f"baseline_feat_{a.scale}.npy")
+    print("->", art / f"baseline_feat_{a.scale}{a.tag}.npy")
 
 
 if __name__ == "__main__":
