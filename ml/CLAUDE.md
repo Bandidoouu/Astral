@@ -41,10 +41,10 @@ Diviner; cada criterio de 0 a 1 con pesos visibles; rasters del polo sur por cri
 y del total; se superponen los candidatos de la NASA y se mide si caen en zonas de
 puntaje alto. **Faltan la iluminación y la visibilidad de la Tierra porque no están en
 los portales del reto: por eso la capa es una sugerencia, no una elección final.**
-Marte: la misma capa con MOLA (pendiente y altitud baja), TES (inercia térmica y
-albedo) e hidrógeno de Mars Odyssey, todo del PDS. Minerales: fuera de alcance.
+Marte: la misma idea con MOLA (pendiente y altitud baja) e hidrógeno de Mars Odyssey
+(TES quedó fuera por recorte de alcance; ver §1b). Minerales: fuera de alcance.
 
-## 1b. Estado actual (para retomar después de /compact) · 2026-11-14 17:15 (~H8)
+## 1b. Estado actual (para retomar después de /compact o con otro agente) · 2026-11-14 17:40 (~H8.5)
 
 **Cambios por recomendación de un mentor (17:00), orden vigente:** (1) máscara de zonas
 prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) ✅ · (3) entrenamiento de 1 km
@@ -134,12 +134,11 @@ canales 8.9%, dunas 0.87%, mares → basaltos 13.7% (peor que el azar, 4.4%: a 1
 basaltos terrestres están erosionados y los mares son planos), Marius → San Francisco
 0.25%; validación 4.82%. Ciega (referencia): Pinacate 0.80% con la red, 15.4% con la fórmula.
 
-**Plan y orden:** (A) v2 a 60 m ✅ · (B) v3 multimodal a 60 m ✅ (perdió) · **(C) escala
-de 1 km con la receta de v2** ← siguiente · (D) Marte con todas sus dimensiones ·
-(E) Antártida con Copernicus DEM si da tiempo. MVP en **H16 ≈ 01:15**; si algo lo
-amenaza, parar y avisar a Esteban. Dar tiempos antes de cada bloque. Revisar el
-espacio de Windows (`df -h /mnt/c`) antes de cada descarga. Publicar un paquete
-`release/` al cerrar cada bloque.
+**Historial del plan:** (A) v2 a 60 m ✅ · (B) v3 multimodal a 60 m ✅ (perdió) · luego
+los cinco bloques del mentor de arriba ✅. MVP en **H16 ≈ 01:15**; si algo lo amenaza,
+parar y avisar a Esteban. Dar tiempos antes de cada bloque. Revisar el espacio de
+Windows (`df -h /mnt/c`) antes de cada descarga. Publicar un paquete `release/` al
+cerrar cada bloque. **Un proceso pesado a la vez** (WSL tiene 12 GB).
 
 **Modelos (60 m, Luna ↔ Tierra):**
 
@@ -185,24 +184,81 @@ Mouton 73%, Amundsen 70%, Nobile 40%, de Gerlache 25%, **Shackleton 7%, Malapert
 (probablemente por la iluminación, que no tenemos). `ml/recommended_zones.py` → 15
 zonas. Es una sugerencia: faltan iluminación y visibilidad de la Tierra.
 
-**Escala de 1 km (bloque C):** parches LISTOS en `data/patches/*_1000*`: Luna (2,311
-índice / 9,246 entrenamiento), Marte (8,828 / 35,316) y Tierra (7,606 / 30,390; generada
-con `make_patches_global --body earth --spacing-km 128|64 --max-nodata-frac 0.2`, ~4 GB
-de RAM, 5 min). Falta: características (`patch_features`) por conjunto, entrenar 3 clases
-con `--matched --aux-weight 0.1 --lambda-max 0.3` en ciclo corto, `select_epoch`
-(la validación actual es de 60 m: definir una de 1 km), embed, baseline y release.
-SRTMGL30 no trae Antártida; el océano vale 0 (se trata como agua).
+**Parches de 1 km** (`data/patches/`, fuera de git): índice `earth_1000` (7,606),
+`earth_1000_val` (63, sitios análogos, ids ≥ 900000, columna `analog_site`), `moon_1000`
+(2,311), `mars_1000` (8,828); entrenamiento `*_1000_train` (Tierra 30,390, Luna 9,246,
+Marte 35,316); gravity `moon_6050` (2,187), `mars_2640` (8,792) y sus `_val`. SRTMGL30
+no trae Antártida; el océano vale 0 (se trata como agua). Regiones de Luna y Marte
+siguen como "Moon"/"Mars" (sin nombres de accidentes).
 
-**Marte (bloque D), por bajar del PDS:** TES (inercia térmica y albedo), hidrógeno de
-Mars Odyssey (GRS). Minerales (EMIT contra CRISM): deseable, fuera de alcance.
+**Artefactos vigentes** (`data/artifacts/`): `encoder_v2sel.pt` (60 m),
+`encoder_v2_1000.pt` (1 km y gravity), `{meta,emb,index,baseline_feat,features}_60*`,
+`..._1000*`, `..._1000_gravity*`, `earth_landcover_005deg.tif` (3 bandas: clase IGBP,
+% prometedor, % agua), `suitability/` (Luna y Marte), `val_1000_*.json`,
+`checkpoints/main1000v2/`. Paquete para Backend: **`release/v2-1km`** (47 archivos,
+233 MB). Anteriores: `v2-60m`, `v2-60m-r2`, `v2-60m-r3` (máscara).
 
 **Ramas y PR:** trabajar solo en ramas `ml/...`; commit ANTES de cambiar de rama; Claude
-abre los PR con `~/.local/bin/gh pr create`, **las fusiones las hace una persona**.
-PR #1 (contrato) fusionado; **PR #2 `ml/v2-eval-release` abierto**; `ml/v3-multimodal`
-lleva v3, aridez con GPM, percentiles globales y `patch_features` generalizado.
+abre los PR con `~/.local/bin/gh pr create` (para editar un PR usar `gh api -X PATCH
+repos/Bandidoouu/Astral/pulls/N`, porque `gh pr edit` falla por Projects classic);
+**las fusiones las hace una persona**. PR #1 y #2 fusionados. **PR #3**
+(`ml/v3-multimodal`) abierto. **PR #4** (`ml/earth-mask`, sale de #3: fusionar #3
+primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de contrato
+(esperan confirmación de Backend y Frontend). Rama actual: `ml/earth-mask`.
 
-**Paquetes para Backend:** `release/v2-60m`, `release/v2-60m-r2` (con aridez y
-percentiles globales; el vigente).
+### Siguientes pasos (en orden de prioridad)
+
+1. **Esperar confirmación** de Backend (pasar `scale_mode` a `searcher.search`) y de
+   Frontend (`window_km`, aviso de cobertura) sobre el PR #4; ayudar a Backend a cargar
+   `release/v2-1km`. Esteban fusiona #3 y luego #4.
+2. **Decisión pendiente de Esteban:** modelo de 1 km. Vigente `encoder_v2_1000.pt` (gana
+   4 de 5 parejas y la ciega); el de 60 m gana el promedio solo por los mares. Para
+   cambiar: reembeber con `encoder_v2sel.pt` (comandos abajo) y volver a publicar.
+3. **Unificar idioma de `warnings`** en `ml/search.py`: los nuevos están en inglés, los
+   viejos en español; lo que ve el jurado va en inglés (§4.4 de la raíz).
+4. Nombres de regiones para Luna y Marte (hoy "Moon"/"Mars"), si da tiempo.
+5. Figura en inglés de la validación de 1 km (formato de `ml/evaluate.py --plot-only`)
+   para el pitch: Olympus → Mauna Loa en el lugar 1 vs fórmula 1,720.
+6. Después de H16: Grad-CAM y UMAP (`galaxy.json`), §13. Antártida con Copernicus DEM
+   solo si sobra tiempo (requiere cuenta de Esteban).
+7. Pendientes para Ciencia: confirmar coordenadas de candidatos (Luna y Marte) y el
+   criterio de hielo lunar.
+
+### Comandos para retomar (desde `~/astral`, venv en `.venv`)
+
+```bash
+git pull && git switch ml/earth-mask          # o la rama que toque; nunca trabajar en main
+~/.local/bin/gh pr list --state all --limit 5
+
+# probar la búsqueda (60 m y 1 km, ambos modos)
+python -m ml.search --body mars --lat 18.65 --lon -133.8 --targets earth --k 5
+python -m ml.search --body mars --lat 18.65 --lon -133.8 --targets earth --k 5 --scale-mode gravity_scaled
+python -m ml.search --body moon --lat -89.6 --lon 129.8 --targets earth --k 5 --scale 60
+
+# validación de 1 km (la ciega --blind solo UNA vez por modelo)
+python -m ml.evaluate_1km --encoder data/artifacts/encoder_v2_1000.pt --tag v2_1000
+python -m ml.evaluate_1km --encoder data/artifacts/encoder_v2_1000.pt --tag v2_1000 --scale-mode gravity_scaled
+
+# rehacer los índices de 1 km con otro encoder E (unos 2 min en total)
+E=data/artifacts/encoder_v2_1000.pt
+python -m ml.embed --encoder $E --scale 1000
+python -m ml.embed --encoder $E --scale 1000 --gravity --tag _gravity
+python -m ml.baseline --scale 1000 && python -m ml.baseline --scale 1000 --tag _gravity
+python -m ml.features.patch_features --scale 1000
+python -m ml.features.patch_features --scale 1000 --tag _gravity
+
+# máscara (si cambian parches terrestres): anotar meta de parches ANTES de embed
+python -m ml.features.earth_landcover --annotate data/patches/meta_earth_1000.parquet
+
+# capas de aptitud y paquete
+python -m ml.suitability_mars
+python -m ml.release --version v2-1km --encoder encoder_v2_1000.pt \
+    --extra-encoders encoder_v2sel.pt --scales 60 1000 --notes "..."
+
+# reentrenar 1 km (solo si se decide; ~1 min/época, nada pesado en paralelo)
+python -m ml.train --run R --scale 1000 --epochs 12 --matched --aux-weight 0.1 --lambda-max 0.3 --version 2
+python -m ml.select_epoch --run R --scale 1000 --epochs 2 4 6 8 10 12
+```
 
 ## 2. Cómo trabajar aquí (reglas para Claude Code)
 
