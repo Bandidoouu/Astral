@@ -26,27 +26,53 @@ import torch
 
 from ml.model.channels import make_channels
 from ml.model.dataset import PatchSet, iter_all
-from ml.model.net import Encoder
+from ml.model.net import Encoder, MultimodalEncoder, load_any_encoder
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 INDEX_SETS = {60: ["earth_60", "moon_60"], 1000: ["earth_1000", "moon_1000", "mars_1000"]}
 
 
 def load_encoder(path, device="cuda"):
-    enc = Encoder(pretrained=False)
-    enc.load_state_dict(torch.load(path, map_location="cpu"))
+    """Carga v1/v2 (solo forma) o v3 (multimodal) según los pesos."""
+    enc = load_any_encoder(torch.load(path, map_location="cpu"))
     return enc.to(device).eval().to(memory_format=torch.channels_last)
+
+
+def is_multimodal(enc):
+    return isinstance(enc, MultimodalEncoder)
+
+
+def tab_used_for(encoder_path):
+    """Dimensiones que usó v3 al entrenar: <encoder>.tab_used.json o tab_used.json en
+    la carpeta del checkpoint."""
+    import json
+    p = Path(encoder_path)
+    for c in (p.with_suffix(".tab_used.json"), p.parent / "tab_used.json"):
+        if c.exists():
+            return json.loads(c.read_text())
+    raise FileNotFoundError(f"no encuentro tab_used.json para {p}")
+
+
+def prepare_tab(pset, encoder_path):
+    from ml.features.reference import mask_dims
+    pset.attach_tab()
+    pset.tab = mask_dims(pset.tab, tab_used_for(encoder_path))
+    return pset
 
 
 @torch.no_grad()
 def embed_set(enc, pset, batch=512, tta=4, device="cuda"):
     out = np.zeros((len(pset.patches), 128), np.float32)
-    for a, z, px in iter_all(pset, batch, device):
+    mm = is_multimodal(enc)
+    assert not mm or pset.tab is not None, f"v3 necesita el vector tabular de {pset.name}"
+    for a, z, px, *rest in iter_all(pset, batch, device):
+        tab = rest[0] if rest else None
         acc = 0
         for k in range(tta):
             x = make_channels(torch.rot90(z.float(), k, dims=(2, 3)), px)
+            x = x.contiguous(memory_format=torch.channels_last)
             with torch.autocast("cuda", dtype=torch.bfloat16):
-                acc = acc + enc(x.contiguous(memory_format=torch.channels_last)).float()
+                acc = acc + (enc(x, tab) if mm else enc(x)).float()
         out[a:a + len(z)] = torch.nn.functional.normalize(acc, dim=1).cpu().numpy()
     return out
 
@@ -67,6 +93,8 @@ def main():
     for name in INDEX_SETS[a.scale]:
         pset = PatchSet.load(d / f"patches_{name}.npy", d / f"meta_{name}.parquet",
                              exclude_holdout=False)
+        if is_multimodal(enc):
+            prepare_tab(pset, a.encoder)
         t0 = time.time()
         e = embed_set(enc, pset, a.batch, a.tta)
         print(f"{name}: {len(e)} parches ({int(pset.meta.holdout.sum())} holdout) "

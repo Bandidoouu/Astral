@@ -94,11 +94,33 @@ def main():
     meta_path = a.meta or art / f"meta_{a.scale}{a.tag}.parquet"
     out_path = a.out or art / f"features_{a.scale}{a.tag}.parquet"
     meta = pd.read_parquet(meta_path)
+    out = compute(meta)
+    out.to_parquet(out_path, index=False)
+    summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
+        lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
+    print(summ.T.to_string())
+    print("->", out_path)
+
+
+_GRIDS = {}
+
+
+def compute(meta):
+    """Características de cualquier DataFrame de metadatos (body, lat, lon, scale_m)."""
     out = pd.DataFrame({"patch_id": meta.patch_id})
     for c in COLS:
         out[c] = np.nan
 
-    grids = {
+    if not _GRIDS:
+        _GRIDS.update(_load_grids())
+    grids = _GRIDS
+    for c in COLS:
+        out[c] = np.nan
+    return _fill(meta, out, grids)
+
+
+def _load_grids():
+    return {
         "earth": {"tmax_k": Grid(F / "earth_climate_005deg.tif", 1, "earth"),
                   "tmin_k": Grid(F / "earth_climate_005deg.tif", 2, "earth"),
                   "trange_k": Grid(F / "earth_climate_005deg.tif", 3, "earth"),
@@ -120,6 +142,9 @@ def main():
                  "soil_raw": Grid(ROOT / "data/raw/moon/diviner_ra/dgdr_ra_avg_cyl_032_img.lbl", 1,
                                   "moon", scale=0.001)},
     }
+
+
+def _fill(meta, out, grids):
     for i, row in enumerate(meta.itertuples()):
         if row.body not in grids:
             continue                                       # Marte: bloque 4
@@ -148,7 +173,7 @@ def main():
                 vals["trange_k"] = vals["tmax_k"] - vals["tmin_k"]
             for c, v in vals.items():
                 out.iat[i, out.columns.get_loc(c)] = v
-        if i % 10000 == 0:
+        if i % 10000 == 0 and len(meta) > 1:
             print(f"  {i}/{len(meta)}", flush=True)
 
     # percentil de "rocosidad" dentro de cada cuerpo (ATI y abundancia de rocas no son
@@ -160,11 +185,7 @@ def main():
     for b in np.unique(body):
         m = body == b
         out.loc[m, "soil_pct"] = percentile(b, "soil_raw", out.loc[m, "soil_raw"].to_numpy())
-    out.to_parquet(out_path, index=False)
-    summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
-        lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
-    print(summ.T.to_string())
-    print("->", out_path)
+    return out
 
 
 if __name__ == "__main__":

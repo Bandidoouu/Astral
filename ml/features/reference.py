@@ -87,6 +87,24 @@ def percentile(body, var, values):
     return out
 
 
+def dims_available_everywhere(tabs, min_frac=0.5):
+    """Regla: una dimensión entra a la red solo si TODOS los cuerpos la tienen en al
+    menos min_frac de sus parches. Si no, su patrón de "sin dato" delataría el planeta
+    sin decir nada del lugar (p. ej. suelo en el polo lunar, aridez sin GPM)."""
+    n = len(TAB_VARS)
+    return np.array([min(1 - t[:, n + j].mean() for t in tabs) >= min_frac for j in range(n)])
+
+
+def mask_dims(tab, used):
+    """Apaga las dimensiones no usadas para TODOS por igual (percentil 0, marca 1)."""
+    n = len(TAB_VARS)
+    tab = tab.copy()
+    off = ~np.asarray(used, bool)
+    tab[:, :n][:, off] = 0.0
+    tab[:, n:][:, off] = 1.0
+    return tab
+
+
 def tab_vector(body, feats):
     """feats: DataFrame con las columnas de patch_features -> array (N, 14) float32."""
     n = len(feats)

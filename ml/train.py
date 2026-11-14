@@ -29,7 +29,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from ml.model.channels import make_views, relief_slope_targets
 from ml.model.dataset import BODY_ID, BalancedLoader, default_sources, make_strata
-from ml.model.net import AstralNet, nt_xent
+from ml.model.net import AstralNet, nt_xent, tab_dropout
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 
@@ -55,6 +55,10 @@ def parse_args():
     p.add_argument("--nbins", type=int, default=8)
     p.add_argument("--aux-weight", type=float, default=0.0,
                    help="v2: peso de la cabeza auxiliar (log relieve y pendiente)")
+    p.add_argument("--multimodal", action="store_true",
+                   help="v3: ResNet + rama MLP con las dimensiones por parche")
+    p.add_argument("--tab-dropout", type=float, default=0.2,
+                   help="v3: probabilidad de ocultar cada dimensión (aumentación)")
     p.add_argument("--steps-per-epoch", type=int, default=None)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--version", type=int, default=None,
@@ -77,7 +81,15 @@ def main():
     torch.backends.cudnn.allow_tf32 = True
     dev = "cuda"
 
-    sets = default_sources(a.scale, exclude_holdout=True)
+    sets = default_sources(a.scale, exclude_holdout=True, with_tab=a.multimodal)
+    tab_used = None
+    if a.multimodal:
+        from ml.features.reference import TAB_VARS, dims_available_everywhere, mask_dims
+        tab_used = dims_available_everywhere([s.tab for s in sets])
+        for s in sets:
+            s.tab = mask_dims(s.tab, tab_used)
+        print("[v3] dimensiones en la red:", [v for v, u in zip(TAB_VARS, tab_used) if u],
+              "| fuera (no las tienen todos los cuerpos):", [v for v, u in zip(TAB_VARS, tab_used) if not u])
     bodies = [s.body for s in sets]
     lut = torch.full((len(BODY_ID),), -1, dtype=torch.long)
     for i, b in enumerate(bodies):
@@ -90,7 +102,8 @@ def main():
     print(f"cuerpos={bodies} parches={[len(s.idx) for s in sets]} "
           f"lote={a.per_body * len(sets)} pasos/época={steps} total={total}")
 
-    model = AstralNet(n_bodies=len(sets), n_aux=2 if a.aux_weight > 0 else 0)
+    model = AstralNet(n_bodies=len(sets), n_aux=2 if a.aux_weight > 0 else 0,
+                      tab_dim=sets[0].tab.shape[1] if a.multimodal else 0)
     model = model.to(dev).to(memory_format=torch.channels_last)
     disc_params = list(model.disc.parameters())
     disc_ids = {id(q) for q in disc_params}
@@ -115,7 +128,10 @@ def main():
         start_epoch, gstep = ck["epoch"] + 1, ck["gstep"]
         print(f"reanudando desde época {start_epoch}")
     with open(run_dir / "config.json", "w") as f:
-        json.dump(vars(a) | {"bodies": bodies, "steps_per_epoch": steps}, f, indent=2)
+        json.dump(vars(a) | {"bodies": bodies, "steps_per_epoch": steps,
+                             "tab_used": None if tab_used is None else tab_used.tolist()}, f, indent=2)
+    if tab_used is not None:
+        (ck_dir / "tab_used.json").write_text(json.dumps(tab_used.tolist()))
     tb = SummaryWriter(run_dir)
     chance = 100.0 / len(sets)
 
@@ -123,7 +139,7 @@ def main():
         model.train()
         t0 = time.time()
         acc = dict(con=0.0, dis=0.0, aux=0.0, hit=0, n=0, std=0.0)
-        for i, (z, px, body) in enumerate(loader):
+        for i, (z, px, body, *rest) in enumerate(loader):
             progress = gstep / max(1, total)
             lam = 0.0 if a.no_disc else lambda_schedule(progress, a.lambda_max)
             with torch.no_grad():
@@ -132,9 +148,12 @@ def main():
                 x = torch.cat([x1, x2]).contiguous(memory_format=torch.channels_last)
                 tgt = (torch.cat([relief_slope_targets(za1, pa1), relief_slope_targets(za2, pa2)])
                        if a.aux_weight > 0 else None)
+                # v3: cada vista con su propio dropout de dimensiones
+                tab = (torch.cat([tab_dropout(rest[0], a.tab_dropout), tab_dropout(rest[0], a.tab_dropout)])
+                       if a.multimodal else None)
             y = lut[body].repeat(2)
             with torch.autocast("cuda", dtype=torch.bfloat16):
-                emb, proj, logits, aux = model(x, lam)
+                emb, proj, logits, aux = model(x, lam, tab=tab)
             B = z.shape[0]
             l_con = nt_xent(proj[:B].float(), proj[B:].float(), a.temperature)
             l_dis = F.cross_entropy(logits.float(), y)
@@ -185,6 +204,8 @@ def main():
     if a.version is not None:
         out = ROOT / f"data/artifacts/encoder_v{a.version}.pt"
         torch.save(model.encoder.state_dict(), out)
+        if tab_used is not None:
+            out.with_suffix(".tab_used.json").write_text(json.dumps(tab_used.tolist()))
         print("->", out)
     tb.close()
 
