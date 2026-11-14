@@ -66,6 +66,35 @@ celdas de tierra firme del mundo. Clic terrestre fuera de zona → la búsqueda 
 aviso y `query.land_cover`. Release `v2-60m-r3` (incluye `earth_landcover_005deg.tif`).
 
 
+## 1c. Validación de la escala de 1 km (definida ANTES de entrenar, 17:35)
+
+Script: `ml/evaluate_1km.py` (sitios y parejas en `SITES` / `PAIRS`). Cada sitio se
+corta en su centro exacto + anillo de 6 parches (`--make-centers` y
+`make_patches_global --centers`; conjuntos `*_1000_val`, ids ≥ 900000). Candidatos: los
+7,606 parches terrestres del índice + los de los sitios terrestres (7,669), **sin la
+máscara** de zonas prometedoras. Métrica: lugar del mejor parche del análogo para cada
+parche de consulta; percentil mediano. Cinco métodos (fórmula, red, filtro + red, RRF,
+azar).
+
+| Pareja | Consulta | Análogo terrestre |
+| --- | --- | --- |
+| `olympus_hawaii` | Olympus Mons | Mauna Loa |
+| `channels_scablands` | Kasei Valles, Ares Vallis | Channeled Scablands |
+| `dunes_sahara_namib` | Olympia Undae | Grand Erg Oriental / Occidental o Namib |
+| `maria_flood_basalts` | Imbrium, Serenitatis, Tranquillitatis | Columbia River o Deccan |
+| `marius_sf` | Montes Marius | Campo volcánico de San Francisco |
+| `marius_pinacate` | Montes Marius | **El Pinacate: prueba ciega, una vez por modelo** |
+
+**Regla para elegir época (fija, igual que v2):** menor promedio, sobre las 5 parejas de
+validación (sin Pinacate), del percentil mediano de la red sola. Pinacate sigue fuera
+del entrenamiento (holdout). Los demás sitios terrestres sí aparecen en el entrenamiento
+global (es autosupervisado: nunca se le dice qué es análogo de qué).
+
+Referencia (modelo v2 de 60 m sin reentrenar, red sola): Olympus → Hawái 0.35%,
+canales 8.9%, dunas 0.87%, mares → basaltos 13.7% (peor que el azar, 4.4%: a 1 km los
+basaltos terrestres están erosionados y los mares son planos), Marius → San Francisco
+0.25%; validación 4.82%. Ciega (referencia): Pinacate 0.80% con la red, 15.4% con la fórmula.
+
 **Plan y orden:** (A) v2 a 60 m ✅ · (B) v3 multimodal a 60 m ✅ (perdió) · **(C) escala
 de 1 km con la receta de v2** ← siguiente · (D) Marte con todas sus dimensiones ·
 (E) Antártida con Copernicus DEM si da tiempo. MVP en **H16 ≈ 01:15**; si algo lo
