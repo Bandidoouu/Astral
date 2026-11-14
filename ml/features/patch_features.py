@@ -13,8 +13,11 @@ promedia; si menos de la mitad de los puntos tienen dato, el valor es NaN
   Marte:  pendiente (bloque 4) -> todo NaN por ahora
 
 Salida: data/artifacts/features_{scale}.parquet (patch_id + columnas, mismo orden que meta).
+Con --meta/--out sirve para cualquier conjunto de parches (entrenamiento, evaluación).
 
   python -m ml.features.patch_features --scale 60
+  python -m ml.features.patch_features --meta data/patches/meta_moon_60_train.parquet \
+      --out data/patches/features_moon_60_train.parquet
 """
 import argparse
 import os
@@ -84,9 +87,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale", type=int, default=60)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--meta", type=Path, default=None, help="parquet de metadatos cualquiera")
+    ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args()
     art = ROOT / "data/artifacts"
-    meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
+    meta_path = a.meta or art / f"meta_{a.scale}{a.tag}.parquet"
+    out_path = a.out or art / f"features_{a.scale}{a.tag}.parquet"
+    meta = pd.read_parquet(meta_path)
     out = pd.DataFrame({"patch_id": meta.patch_id})
     for c in COLS:
         out[c] = np.nan
@@ -146,16 +153,18 @@ def main():
 
     # percentil de "rocosidad" dentro de cada cuerpo (ATI y abundancia de rocas no son
     # la misma magnitud física: se compara qué tan rocoso es un lugar PARA SU CUERPO)
+    # percentil contra la distribución GLOBAL del cuerpo (ml.features.reference), no
+    # dentro de este archivo: el mismo valor da el mismo percentil en cualquier conjunto
+    from ml.features.reference import percentile
     body = meta.body.to_numpy()
     for b in np.unique(body):
-        m = (body == b) & out.soil_raw.notna().to_numpy()
-        if m.any():
-            out.loc[m, "soil_pct"] = out.loc[m, "soil_raw"].rank(pct=True).to_numpy()
-    out.to_parquet(art / f"features_{a.scale}{a.tag}.parquet", index=False)
+        m = body == b
+        out.loc[m, "soil_pct"] = percentile(b, "soil_raw", out.loc[m, "soil_raw"].to_numpy())
+    out.to_parquet(out_path, index=False)
     summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
         lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
     print(summ.T.to_string())
-    print("->", art / f"features_{a.scale}{a.tag}.parquet")
+    print("->", out_path)
 
 
 if __name__ == "__main__":
