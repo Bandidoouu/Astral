@@ -14,9 +14,12 @@ relieve y devuelve sus gemelos; tiene que **ganarle a la fórmula base** y
 
 **Requisito central:** el usuario elige un punto en **cualquiera de los tres
 cuerpos** (Tierra, Luna o Marte) y recibe coincidencias en los otros dos (o en los
-que pida en `target_bodies`). Regla de escala por par: **Luna ↔ Tierra al sur de
-80° S a 60 m; todo lo demás a 500 m.** Búsqueda: `ml/search.py` (método por
-defecto `hybrid`: la fórmula base preselecciona ~500 candidatos y la red reordena).
+que pida en `target_bodies`), **en cualquier punto del globo**. Dos escalas:
+**1 km/px global** (los tres cuerpos, por defecto) y **60 m/px de detalle** (solo
+Luna ↔ Tierra y solo dentro de su cobertura: Luna al sur de 80° S, Tierra en la caja
+de México). Cada búsqueda indica su escala (`scale_m` = 1000 o 60). Búsqueda:
+`ml/search.py` (método por defecto `hybrid`: la fórmula base preselecciona ~500
+candidatos y la red reordena).
 
 ## 2. Cómo trabajar aquí (reglas para Claude Code)
 
@@ -143,7 +146,8 @@ Esteban antes de implementarla.
 | Escala | Compara | Ventana (128 px) | Fuentes |
 | --- | --- | --- | --- |
 | 60 m/px | Luna con Tierra | 7.68 km | LOLA polar (y SLDEM para Marius) contra `mexico_60m.tif` |
-| 500 m/px | **Tierra, Luna y Marte entre sí** | 64 km | `mexico_500m.tif`, MOLA MEGDR reproyectado por regiones (\|lat\| < 60° + regiones objetivo), LOLA global `ldem_64_float` (64 px/°, km) reproyectado por regiones |
+| **1000 m/px (global)** | **Tierra, Luna y Marte entre sí, en todo el globo** | 128 km | Tierra: SRTMGL30 (Earthdata, 30", de 90° N a 60° S: **sin Antártida**; al norte de 60° N viene rellenado con GTOPO30). Luna: LOLA `ldem_64_float` promediado a ~950 m (**LOLA no publica 32 px/°**; en km). Marte: MOLA MEGDR 128 px/° promediado a ~930 m. Cada parche se remuestrea en su propia proyección azimutal equivalente de Lambert centrada en él (sin distorsión, polos incluidos), con centros repartidos uniformemente en la esfera. |
+| ~~500 m/px~~ | Reemplazada por la escala global de 1 km | — | — |
 
 Por qué dos escalas: el relieve global de Marte en los portales oficiales es de
 ~463 m/px; la Luna permite 60 m/px, donde un cráter de 1.5 km ocupa ~25 píxeles.
