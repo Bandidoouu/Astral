@@ -127,6 +127,9 @@ def main():
     ap.add_argument("--n-candidates", type=int, default=500)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--plot-only", action="store_true", help="rehace la figura desde el JSON")
+    ap.add_argument("--val-only", action="store_true",
+                    help="solo la validación para ELEGIR época (no toca El Pinacate): "
+                         "Marius -> campo volcánico de San Francisco, y cráteres")
     a = ap.parse_args()
     art = ROOT / "data/artifacts"
     if a.plot_only:
@@ -168,6 +171,9 @@ def main():
     tests = [("blind_pinacate", q_emb["marius"], q_feat["marius"], is_pinacate),
              ("volcanic", q_emb["marius"], q_feat["marius"], is_pinacate | is_sf),
              ("craters", cr_emb, cr_feat, is_meteor)]
+    if a.val_only:
+        tests = [("val_sanfrancisco", q_emb["marius"], q_feat["marius"], is_sf),
+                 ("craters", cr_emb, cr_feat, is_meteor)]
     for name, QE, QF, mask in tests:
         R = {m: [] for m in METHODS}
         for qe, qf in zip(QE, QF):
@@ -184,6 +190,9 @@ def main():
 
     out = dict(encoder=str(a.encoder), tag=a.tag, n_candidates_total=N,
                hybrid_prefilter=a.n_candidates, results=results)
+    if a.val_only:
+        (art / f"val_60_{a.tag}.json").write_text(json.dumps(out, indent=2))
+        return
     (art / f"eval_60_{a.tag}.json").write_text(json.dumps(out, indent=2))
 
     plot(results, N, a.tag, art)
