@@ -1,43 +1,60 @@
-import fixture from './similar-response.any-body.json' with { type: 'json' };
+import precomputedFile from './precomputed-results.json' with { type: 'json' };
 import galaxyFixture from '../../../contracts/galaxy.example.json' with { type: 'json' };
-import type { Analog, Attributes, Body, GalaxyPoint, QueryPatch, SearchQuery, SearchResult } from '../api/types.ts';
+import type { Analog, Body, GalaxyPoint, Precomputed, SearchQuery, SearchResult, SimilarResponse } from '../api/types.ts';
 import { toApiRequest } from '../api/coordinates.ts';
 
 export const demoGalaxy = galaxyFixture as GalaxyPoint[];
-const noAttributes: Attributes = { tmax_k: null, tmin_k: null, trange_k: null, albedo: null, ice_distance_km: null, ice_frac: null, soil_raw: null, soil_pct: null, precip_mm: null };
-// Exact team fixture from main @ ccc87b9, plus one explicit Moon UI example.
-// Scores, weights and measurements are never recalculated in the browser.
-const examples: Record<Body, Analog[]> = {
-  earth: fixture.results.filter(r => r.body === 'earth') as Analog[],
-  mars: fixture.results.filter(r => r.body === 'mars') as Analog[],
-  moon: [{
-    patch_id: 'demo-moon-1000', body: 'moon', lat: -89.5, lon: 130, scale_m: 1000,
-    region: 'Lunar south pole · example', score: 0.82,
-    scores: { terrain: 0.86, operations: 0.79, thermal: null, albedo: null, ice: null, soil: null, aridity: null },
-    no_data: ['thermal', 'albedo', 'ice', 'soil', 'aridity'], attributes: { ...noAttributes },
-    not_comparable: ['dust_and_wind', 'subsurface', 'gravity', 'vacuum', 'radiation'],
-  }],
-};
+
+// Real outputs of the ASTRAL search (model v2, RRF, general profile, k = 10), precomputed
+// with `python -m ml.demo_results` for curated sites: Artemis candidates, Mars missions,
+// Earth analog stations. Scores are never recalculated in the browser.
+export interface CuratedSite {
+  id: string; name: string; group: string; body: Body; lat: number; lon: number;
+  responses: Record<string, SimilarResponse & { precomputed: Precomputed }>;
+}
+const precomputed = precomputedFile as unknown as { precomputed: Precomputed; sites: CuratedSite[] };
+export const curatedSites: CuratedSite[] = precomputed.sites;
+
+function angularDistanceDeg(aLat: number, aLon: number, bLat: number, bLon: number) {
+  const r = Math.PI / 180;
+  const c = Math.sin(aLat * r) * Math.sin(bLat * r) + Math.cos(aLat * r) * Math.cos(bLat * r) * Math.cos((bLon - aLon) * r);
+  return Math.acos(Math.min(1, Math.max(-1, c))) / r;
+}
+
+export function nearestCuratedSite(body: Body, lat: number, lon: number, scale: number) {
+  const key = String(scale);
+  return curatedSites.filter(s => s.body === body && s.responses[key])
+    .map(site => ({ site, distance: angularDistanceDeg(lat, lon, site.lat, site.lon) }))
+    .sort((a, b) => a.distance - b.distance)[0];
+}
+
 export function demoSearch(query: SearchQuery): SearchResult {
   toApiRequest(query);
-  if (query.scale_m === 60) {
+  const hit = nearestCuratedSite(query.body, query.lat, query.lon, query.scale_m);
+  if (!hit) {
     return {
       query: { ...query, method: 'rrf' }, results: [], demo: true,
-      warnings: ['No 60 m example index is bundled. Switch to Global (1 km) for the illustrative results.'],
+      warnings: [query.scale_m === 60
+        ? 'Offline mode: precomputed 60 m results exist only for the lunar south pole candidates and El Pinacate. Switch to Global (1 km).'
+        : 'Offline mode: no precomputed results for this body.'],
     };
   }
-  const results = query.target_bodies.flatMap(target => examples[target].slice(0, query.k))
-    .map(result => ({ ...result, scores: { ...result.scores }, attributes: { ...result.attributes },
-      not_comparable: ['dust_and_wind', 'subsurface', 'gravity', query.body === 'moon' || result.body === 'moon' ? 'vacuum' : 'atmosphere', 'radiation'],
-    }));
-  const patches: Partial<Record<Body, QueryPatch>> = {};
+  const response = hit.site.responses[String(query.scale_m)];
+  const results: Analog[] = query.target_bodies.flatMap(target =>
+    response.results.filter(r => r.body === target).slice(0, query.k));
+  const patches: SimilarResponse['query']['patches'] = {};
   for (const target of query.target_bodies) {
-    patches[target] = query.body === 'moon'
-      ? { ...fixture.query.patches.earth, scale_m: 1000 }
-      : { patch_id: `demo-${query.body}-1000`, scale_m: 1000, distance_km: 0 };
+    const patch = response.query.patches?.[target];
+    if (patch) patches[target] = patch;
   }
+  const { body, lat, lon, profile, scale_m, target_bodies } = query;
   return {
-    query: { ...query, method: 'hybrid', patches, attributes: query.body === 'moon' ? { ...fixture.query.attributes } : { ...noAttributes } },
-    results, warnings: [], demo: true,
+    query: { body, lat, lon, profile, scale_m, target_bodies, method: response.query.method, patches,
+      attributes: response.query.attributes },
+    results,
+    warnings: [`Offline mode: precomputed results of the ASTRAL model v2 for the nearest curated site, ${hit.site.name} (${hit.distance.toFixed(1)}° away). Ranking uses the general profile.`,
+      ...response.warnings],
+    demo: true,
+    precomputed: { ...response.precomputed, site: hit.site.name },
   };
 }

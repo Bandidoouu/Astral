@@ -30,7 +30,12 @@ export interface SimilarResponse {
   results: Analog[];
   warnings: string[];
 }
-export interface SearchResult extends SimilarResponse { demo: boolean }
+export interface Precomputed {
+  source: string; model: string; encoder?: string; release?: string; method?: string;
+  profile?: string; k?: number; generated: string; site?: string;
+}
+// demo = offline (no API). precomputed = the offline results are real model outputs.
+export interface SearchResult extends SimilarResponse { demo: boolean; precomputed?: Precomputed }
 export interface GalaxyPoint { id: string; body: Body; x: number; y: number; z: number }
 export type Criterion = 'landing' | 'rover' | 'ice' | 'temperature' | 'total';
 export interface Suitability {

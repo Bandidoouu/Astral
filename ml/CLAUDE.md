@@ -206,6 +206,12 @@ repos/Bandidoouu/Astral/pulls/N`, porque `gh pr edit` falla por Projects classic
 primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de contrato
 (esperan confirmación de Backend y Frontend). Rama actual: `ml/earth-mask`.
 
+**Demo sin API** (`ml/demo_results.py`, rama `ml/demo-results`): resultados reales
+(RRF, general, k = 10; 1000 same_size y gravity, 60 donde aplica) de 17 sitios curados en
+`frontend/src/mocks/precomputed-results.json` (campo `precomputed`, modelo v2); el modo
+demo del frontend devuelve el sitio curado más cercano. Metadatos de aptitud para servir:
+`suitability/api_moon_south.json`, `api_mars.json` (copias en `contracts/`).
+
 ### Siguientes pasos (en orden de prioridad)
 
 1. **Esperar confirmación** de Backend (pasar `scale_mode` a `searcher.search`) y de

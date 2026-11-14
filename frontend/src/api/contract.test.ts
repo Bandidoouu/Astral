@@ -41,19 +41,19 @@ test('reject mismatched scale, unrequested bodies, missing dimension fields and 
     assert.throws(() => parseSearchResponse(malformed, query), /contract/);
   }
 });
-test('demo honors destinations and per-body k without fabricating missing measurements', () => {
+test('offline demo serves precomputed v2 results that satisfy the contract', () => {
   for (const body of ['earth','moon','mars'] as Body[]) {
     const request = {...query, body, target_bodies:otherBodies(body), k:1};
     const data = demoSearch(request);
-    assert.equal(data.results.length, 2);
-    assert.ok(data.results.every(r => r.body !== body && r.scores.albedo === null));
+    assert.ok(data.results.length >= 1 && data.results.length <= 2);
+    assert.ok(data.results.every(r => r.body !== body));
+    assert.equal(data.precomputed?.model, 'v2');
     parseSearchResponse(data, request);
   }
-  assert.equal(demoSearch({...query, target_bodies:['mars']}).results.length, 1);
+  assert.ok(demoSearch({...query, target_bodies:['mars']}).results.every(r => r.body === 'mars'));
   const detail = demoSearch({...query, scale_m:60, target_bodies:['earth']});
-  assert.equal(detail.results.length, 0);
-  assert.ok(detail.warnings.length > 0);
-  assert.equal(detail.query.patches, undefined);
+  assert.ok(detail.results.length > 0 && detail.results.every(r => r.scale_m === 60));
+  parseSearchResponse(detail, {...query, scale_m:60, target_bodies:['earth']});
 });
 test('suitability metadata keeps missing candidate data null and rejects invalid weights', () => {
   const data = {weights:{landing:0.3,rover:0.2,ice:0.3,temperature:0.2},

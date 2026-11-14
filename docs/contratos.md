@@ -217,7 +217,19 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | `GET /api/galaxy?scale=60` | `galaxy.json` (`contracts/galaxy.example.json`) | Frontend 3D |
 | `GET /api/patch/{patch_id}/heights` | Binario Float32 128x128 + cabeceras `X-Min`, `X-Max`, `X-M-Per-Px` | Frontend 3D |
 | `GET /api/gradcam/{query_id}/{patch_id}` | PNG | Frontend UI |
+| `GET /api/suitability/moon_south` | `contracts/suitability_moon_south.json` (= `suitability/api_moon_south.json` del paquete) | Frontend UI |
+| `GET /api/suitability/moon_south/{criterion}` | PNG `suitability/moon_south_{criterion}.png` (`landing`, `rover`, `ice`, `temperature`, `total`) | Frontend UI |
+| `GET /api/suitability/mars` | `contracts/suitability_mars.json` (= `suitability/api_mars.json`) | Frontend UI |
+| `GET /api/suitability/mars/{criterion}` | PNG `suitability/mars_{criterion}.png` (`landing`, `rover`, `elevation`, `hydrogen`, `total`) | Frontend UI |
 
+- **`suitability`**: Backend solo sirve el JSON tal cual (criterios, pesos, reglas,
+  `missing`, `caveat`, `grid`, candidatos con `total_p90` y `percentile_vs_random`,
+  `recommended_zones` e `images`). Marte usa el mismo formato con sus criterios
+  (`landing`, `rover`, `elevation`, `hydrogen`); el validador del frontend hoy espera
+  los de la Luna y hay que generalizarlo para Marte.
+- **Resultados precalculados para la demo sin API:** `frontend/src/mocks/precomputed-results.json`
+  (`python -m ml.demo_results`): respuestas reales del contrato para 17 sitios curados,
+  cada una con `precomputed` (`model: "v2"`, encoder, método, fecha).
 - **`galaxy`**: se busca `galaxy_{scale}.json`; si no existe, `galaxy.json`; si
   tampoco, el ejemplo de `contracts/`. Así el frontend nunca se queda sin globos.
 - **`heights`**: el cuerpo es Float32 little-endian, 128×128, con las cabeceras

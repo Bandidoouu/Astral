@@ -23,7 +23,8 @@ SUIT_K = ["landing", "rover", "ice", "temperature", "total"]
 SUIT_EXTRA = ["suitability/suitability_moon.json", "suitability/recommended_zones.json",
               "suitability/suitability_candidates.png", "earth_landcover_005deg.tif",
               "suitability/suitability_mars.json", "suitability/suitability_mars_candidates.png",
-              "suitability/mars_h2o_wt_pct.tif"]
+              "suitability/mars_h2o_wt_pct.tif", "suitability/api_moon_south.json",
+              "suitability/api_mars.json"]
 SUIT_MARS = ["suitability/mars_{k}.tif", "suitability/mars_{k}.png"]
 SUIT_MARS_K = ["landing", "rover", "elevation", "hydrogen", "total"]
 GRAVITY = ["meta_1000_gravity.parquet", "emb_1000_gravity.npy", "index_1000_gravity.faiss",

@@ -1,0 +1,344 @@
+{
+ "weights": {
+  "landing": 0.3,
+  "rover": 0.2,
+  "ice": 0.3,
+  "temperature": 0.2
+ },
+ "rules": {
+  "landing": "fraction of 60 m pixels with slope < 8 deg (LOLA)",
+  "rover": "fraction of 60 m pixels with slope < 15 deg (LOLA)",
+  "ice": "exp(-d / 5.0 km), d = distance to Diviner surface-stable ice (ice depth 0 m)",
+  "temperature": "Diviner annual max: 0 at <=110 K, 1 from 200 to 330 K, 0 at 390 K",
+  "total": "weighted mean where all criteria have data"
+ },
+ "missing": [
+  "illumination (hours of sunlight)",
+  "Earth visibility (communications)"
+ ],
+ "caveat": "Suggestion, not a final site selection.",
+ "grid": {
+  "crs": "LOLA south polar stereographic",
+  "pixel_m": 480
+ },
+ "candidates": [
+  {
+   "name": "Shackleton rim",
+   "lat": -89.67,
+   "lon": 129.78,
+   "group": "named sites",
+   "zone": "rim",
+   "radius_km": 10.5,
+   "total_p90": 0.7,
+   "percentile_vs_random": 6.7,
+   "random_median": 0.769
+  },
+  {
+   "name": "Mons Mouton",
+   "lat": -84.6,
+   "lon": 31.0,
+   "group": "Artemis III 2024",
+   "zone": "massif",
+   "radius_km": 10.0,
+   "total_p90": 0.802,
+   "percentile_vs_random": 73.3,
+   "random_median": 0.752
+  },
+  {
+   "name": "Malapert Massif",
+   "lat": -86.0,
+   "lon": 3.0,
+   "group": "Artemis III 2024",
+   "zone": "massif",
+   "radius_km": 10.0,
+   "total_p90": 0.567,
+   "percentile_vs_random": 1.3,
+   "random_median": 0.752
+  },
+  {
+   "name": "Haworth (rim)",
+   "lat": -87.45,
+   "lon": -5.0,
+   "group": "Artemis III 2024",
+   "zone": "rim",
+   "radius_km": 25.5,
+   "total_p90": 0.826,
+   "percentile_vs_random": 91.3,
+   "random_median": 0.772
+  },
+  {
+   "name": "Nobile Rim",
+   "lat": -85.2,
+   "lon": 53.5,
+   "group": "Artemis III 2024",
+   "zone": "rim",
+   "radius_km": 36.5,
+   "total_p90": 0.769,
+   "percentile_vs_random": 40.0,
+   "random_median": 0.781
+  },
+  {
+   "name": "de Gerlache Rim",
+   "lat": -88.5,
+   "lon": -87.1,
+   "group": "Artemis III 2024",
+   "zone": "rim",
+   "radius_km": 16.2,
+   "total_p90": 0.737,
+   "percentile_vs_random": 25.3,
+   "random_median": 0.765
+  },
+  {
+   "name": "Faustini Rim",
+   "lat": -87.3,
+   "lon": 77.0,
+   "group": "Artemis III 2022",
+   "zone": "rim",
+   "radius_km": 19.5,
+   "total_p90": 0.843,
+   "percentile_vs_random": 93.3,
+   "random_median": 0.771
+  },
+  {
+   "name": "Amundsen Rim",
+   "lat": -84.5,
+   "lon": 82.8,
+   "group": "Artemis III 2022",
+   "zone": "rim",
+   "radius_km": 51.7,
+   "total_p90": 0.788,
+   "percentile_vs_random": 70.0,
+   "random_median": 0.768
+  }
+ ],
+ "candidate_coordinates": "approximate centers of named features; confirm with Science",
+ "body": "moon",
+ "region": "south_pole",
+ "recommended_zones": {
+  "description": "Top suitability zones, lunar south pole (transparent rules, not the network)",
+  "weights": {
+   "landing": 0.3,
+   "rover": 0.2,
+   "ice": 0.3,
+   "temperature": 0.2
+  },
+  "rules": {
+   "landing": "fraction of 60 m pixels with slope < 8 deg (LOLA)",
+   "rover": "fraction of 60 m pixels with slope < 15 deg (LOLA)",
+   "ice": "exp(-d / 5.0 km), d = distance to Diviner surface-stable ice (ice depth 0 m)",
+   "temperature": "Diviner annual max: 0 at <=110 K, 1 from 200 to 330 K, 0 at 390 K",
+   "total": "weighted mean where all criteria have data"
+  },
+  "min_separation_km": 15.0,
+  "zone_radius_km": 2.0,
+  "missing": [
+   "illumination (hours of sunlight)",
+   "Earth visibility (communications)"
+  ],
+  "caveat": "Suggestion, not a final site selection.",
+  "zones": [
+   {
+    "rank": 1,
+    "lat": -81.7109,
+    "lon": -174.9143,
+    "total": 0.929,
+    "scores": {
+     "landing": 0.919,
+     "rover": 0.993,
+     "ice": 0.735,
+     "temperature": 0.876
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 2,
+    "lat": -83.3088,
+    "lon": -151.1032,
+    "total": 0.921,
+    "scores": {
+     "landing": 0.951,
+     "rover": 1.0,
+     "ice": 0.731,
+     "temperature": 0.89
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 3,
+    "lat": -81.4012,
+    "lon": -4.5844,
+    "total": 0.919,
+    "scores": {
+     "landing": 0.989,
+     "rover": 0.999,
+     "ice": 0.763,
+     "temperature": 0.839
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 4,
+    "lat": -84.7984,
+    "lon": -48.8223,
+    "total": 0.918,
+    "scores": {
+     "landing": 0.962,
+     "rover": 1.0,
+     "ice": 0.782,
+     "temperature": 0.826
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 5,
+    "lat": -85.4357,
+    "lon": -101.6994,
+    "total": 0.917,
+    "scores": {
+     "landing": 0.948,
+     "rover": 0.989,
+     "ice": 0.734,
+     "temperature": 0.906
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 6,
+    "lat": -84.6251,
+    "lon": 83.3246,
+    "total": 0.917,
+    "scores": {
+     "landing": 0.823,
+     "rover": 0.992,
+     "ice": 0.728,
+     "temperature": 0.888
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 7,
+    "lat": -82.0552,
+    "lon": -55.9464,
+    "total": 0.917,
+    "scores": {
+     "landing": 0.939,
+     "rover": 1.0,
+     "ice": 0.798,
+     "temperature": 0.72
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 8,
+    "lat": -83.8719,
+    "lon": 90.2218,
+    "total": 0.916,
+    "scores": {
+     "landing": 0.95,
+     "rover": 0.98,
+     "ice": 0.756,
+     "temperature": 0.885
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 9,
+    "lat": -84.489,
+    "lon": 131.8589,
+    "total": 0.916,
+    "scores": {
+     "landing": 0.95,
+     "rover": 0.999,
+     "ice": 0.728,
+     "temperature": 0.883
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 10,
+    "lat": -85.8871,
+    "lon": -77.2202,
+    "total": 0.916,
+    "scores": {
+     "landing": 0.997,
+     "rover": 1.0,
+     "ice": 0.731,
+     "temperature": 0.862
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 11,
+    "lat": -84.9295,
+    "lon": 148.9136,
+    "total": 0.915,
+    "scores": {
+     "landing": 0.952,
+     "rover": 0.977,
+     "ice": 0.733,
+     "temperature": 0.851
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 12,
+    "lat": -85.5651,
+    "lon": 106.6895,
+    "total": 0.915,
+    "scores": {
+     "landing": 0.851,
+     "rover": 0.93,
+     "ice": 0.701,
+     "temperature": 0.985
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 13,
+    "lat": -80.5629,
+    "lon": 0.5274,
+    "total": 0.915,
+    "scores": {
+     "landing": 0.862,
+     "rover": 0.999,
+     "ice": 0.745,
+     "temperature": 0.875
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 14,
+    "lat": -80.7978,
+    "lon": 10.1333,
+    "total": 0.914,
+    "scores": {
+     "landing": 0.988,
+     "rover": 1.0,
+     "ice": 0.703,
+     "temperature": 0.864
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   },
+   {
+    "rank": 15,
+    "lat": -84.6325,
+    "lon": -77.6635,
+    "total": 0.913,
+    "scores": {
+     "landing": 0.91,
+     "rover": 0.998,
+     "ice": 0.756,
+     "temperature": 0.889
+    },
+    "why": "Strong on gentle slopes for landing (most of the area under 8\u00b0) and close to surface-accessible stable ice; no weak criterion."
+   }
+  ]
+ },
+ "images": {
+  "landing": "/api/suitability/moon_south/landing",
+  "rover": "/api/suitability/moon_south/rover",
+  "ice": "/api/suitability/moon_south/ice",
+  "temperature": "/api/suitability/moon_south/temperature",
+  "total": "/api/suitability/moon_south/total"
+ }
+}
