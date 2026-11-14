@@ -44,7 +44,7 @@ def main():
     for t in a.tags:
         p = art / f"emb_{a.scale}{t}.npy"
         if p.exists():
-            methods[f"red{t or '_v1'}"] = nn(np.load(p), True)
+            methods[f"red{t}" if t else "red (producción)"] = nn(np.load(p), True)
     methods["al azar"] = rng.choice(E, (len(Q), a.k))
     print(f"{'método':<16}{'relieve difiere (x)':>22}{'|Δ pendiente| (z)':>20}")
     for name, N in methods.items():

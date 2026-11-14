@@ -2,12 +2,13 @@
 """Rejillas lunares para las dimensiones térmica y de hielo (Diviner, LRO).
 
 1) Global (Diviner GCP, celdas de 0.5°, temperatura bolométrica en 96 horas locales):
-     tmax, tmin, trange por celda. Solo si >= 60% de las horas locales tienen dato;
+     tmax, tmin, trange por celda, e ice_surface_frac = 1 donde tmax < 110 K. Solo si >= 60% de las horas locales tienen dato;
      si no, NaN ("sin dato"). -> data/features/moon_thermal_global_05deg.tif
 2) Polo sur (Diviner PRP sur, triángulos de ~0.5 km): temperatura media y máxima
    anual, y profundidad de hielo estable (ice_depth; -999 = no estable), en la rejilla
    estereográfica polar de LOLA a 480 m (8 x 60 m). Hielo estable "accesible" =
    0 <= ice_depth <= 1 m. Distancia (km) a la celda con hielo estable más cercana.
+   ice_surface_frac = fracción de triángulos con hielo estable EN SUPERFICIE (ice_depth = 0).
      -> data/features/moon_polar_south_480m.tif
    La PRP no trae temperatura mínima: en el polo la mínima sale de la GCP.
 
@@ -60,8 +61,11 @@ def global_gcp():
     print(f"  celdas con < {int(MIN_LT_COVERAGE * 100)}% de horas locales -> sin dato: {int(poor.sum())}")
     tmax[poor] = np.nan
     tmin[poor] = np.nan
+    # hielo en superficie posible donde la máxima anual < 110 K (umbral de Diviner)
+    ice_surface = np.where(np.isfinite(tmax), (tmax < 110).astype(np.float32), np.nan)
     write(OUT / "moon_thermal_global_05deg.tif",
-          [("tmax_k", tmax), ("tmin_k", tmin), ("trange_k", tmax - tmin), ("n_localtimes", n.astype(np.float32))],
+          [("tmax_k", tmax), ("tmin_k", tmin), ("trange_k", tmax - tmin),
+           ("n_localtimes", n.astype(np.float32)), ("ice_surface_frac", ice_surface)],
           from_origin(-180, 90, 0.5, 0.5), "+proj=longlat +R=1737400 +no_defs", 720, 360)
 
 
@@ -97,6 +101,9 @@ def polar_prp():
                 / np.maximum(cnt, 1)).reshape(size, size)
     covered = (cnt > 0).reshape(size, size)
     ice_frac[~covered] = np.nan
+    surf = (np.bincount(idx, (ice == 0).astype(float), minlength=size * size)
+            / np.maximum(cnt, 1)).reshape(size, size)
+    surf[~covered] = np.nan
     ice_cell = np.nan_to_num(ice_frac) > 0
     dist_km = ndimage.distance_transform_edt(~ice_cell) * POLAR_PX / 1000
     dist_km = dist_km.astype(np.float32)
@@ -105,7 +112,7 @@ def polar_prp():
           f"({ice_cell.sum() * (POLAR_PX / 1000) ** 2:.0f} km²)")
     write(OUT / "moon_polar_south_480m.tif",
           [("tavg_k", tavg_g), ("tmax_k", tmax_g), ("ice_stable_frac", ice_frac),
-           ("ice_distance_km", dist_km)],
+           ("ice_distance_km", dist_km), ("ice_surface_frac", surf)],
           from_origin(x0, y0, POLAR_PX, POLAR_PX), crs.to_wkt(), size, size)
 
 

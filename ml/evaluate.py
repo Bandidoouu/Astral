@@ -14,7 +14,8 @@ Pruebas (a 60 m/px, ventanas de 7.68 km):
   volcanic:       Montes Marius -> El Pinacate o campo volcánico de San Francisco (AZ).
   craters:        cráteres simples de mares lunares (Tranquillitatis, Imbrium;
                   1-2.5 km) -> Meteor Crater (1.2 km).
-Métodos: fórmula base sola, red sola, filtro + red (hybrid) y azar.
+Métodos: fórmula base sola, red sola, filtro + red (hybrid), fusión RRF de la
+fórmula y la red (k = 60 fijo, sin ajustar pesos) y azar.
 
   python -m ml.evaluate --encoder data/artifacts/encoder_v2.pt --tag v2
 """
@@ -42,11 +43,21 @@ P = ROOT / "data/patches"
 MARIUS_CENTER, MARIUS_RADIUS_KM = (13.4, -55.6), 60.0
 SF_FIELD = dict(lat_min=35.15, lon_max=-111.25)     # campo volcánico de San Francisco
 METEOR = (35.0275, -111.0225)
-METHODS = ["baseline", "net", "hybrid", "random"]
+METHODS = ["baseline", "net", "hybrid", "rrf", "random"]
 LABELS = {"baseline": "Formula only (20 terrain stats)", "net": "Network only",
-          "hybrid": "Formula filter + network", "random": "Random"}
-COLORS = {"net": "#2a78d6", "hybrid": "#eb6834", "baseline": "#1baf7a", "random": "#8a8985"}
-MARKERS = {"net": "o", "hybrid": "D", "baseline": "s", "random": "x"}
+          "hybrid": "Formula filter + network", "rrf": "Rank fusion (formula + network)",
+          "random": "Random"}
+COLORS = {"net": "#2a78d6", "hybrid": "#eb6834", "baseline": "#1baf7a", "rrf": "#eda100",
+          "random": "#8a8985"}
+MARKERS = {"net": "o", "hybrid": "D", "baseline": "s", "rrf": "^", "random": "x"}
+RRF_K = 60
+
+
+def rrf_scores(cos, dist, k=RRF_K):
+    """Reciprocal Rank Fusion: 1/(k + lugar en la red) + 1/(k + lugar en la fórmula)."""
+    r_net = np.empty(len(cos), np.int64); r_net[np.argsort(-cos)] = np.arange(1, len(cos) + 1)
+    r_base = np.empty(len(dist), np.int64); r_base[np.argsort(dist)] = np.arange(1, len(dist) + 1)
+    return 1.0 / (k + r_net) + 1.0 / (k + r_base)
 
 
 def load_set(name, exclude_holdout=False):
@@ -94,6 +105,8 @@ def ranks_for(q_emb, q_feat, C_emb, C_feat, target_mask, n_cand, rng):
             r = n_cand + 1 + (dist[~pre] < dist[t]).sum()
         best = min(best, int(r))
     out["hybrid"] = best
+    fused = rrf_scores(cos, dist)
+    out["rrf"] = 1 + int(min((fused > fused[t]).sum() for t in tgt))
     perm_best = [1 + rng.permutation(N)[tgt].min() for _ in range(20)]
     out["random"] = int(np.median(perm_best))
     return out
@@ -114,6 +127,9 @@ def main():
     ap.add_argument("--n-candidates", type=int, default=500)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--plot-only", action="store_true", help="rehace la figura desde el JSON")
+    ap.add_argument("--val-only", action="store_true",
+                    help="solo la validación para ELEGIR época (no toca El Pinacate): "
+                         "Marius -> campo volcánico de San Francisco, y cráteres")
     a = ap.parse_args()
     art = ROOT / "data/artifacts"
     if a.plot_only:
@@ -155,6 +171,9 @@ def main():
     tests = [("blind_pinacate", q_emb["marius"], q_feat["marius"], is_pinacate),
              ("volcanic", q_emb["marius"], q_feat["marius"], is_pinacate | is_sf),
              ("craters", cr_emb, cr_feat, is_meteor)]
+    if a.val_only:
+        tests = [("val_sanfrancisco", q_emb["marius"], q_feat["marius"], is_sf),
+                 ("craters", cr_emb, cr_feat, is_meteor)]
     for name, QE, QF, mask in tests:
         R = {m: [] for m in METHODS}
         for qe, qf in zip(QE, QF):
@@ -171,6 +190,9 @@ def main():
 
     out = dict(encoder=str(a.encoder), tag=a.tag, n_candidates_total=N,
                hybrid_prefilter=a.n_candidates, results=results)
+    if a.val_only:
+        (art / f"val_60_{a.tag}.json").write_text(json.dumps(out, indent=2))
+        return
     (art / f"eval_60_{a.tag}.json").write_text(json.dumps(out, indent=2))
 
     plot(results, N, a.tag, art)
@@ -181,8 +203,8 @@ def plot(results, N, tag, art):
     titles = {"blind_pinacate": "Blind test: Marius Hills → El Pinacate\n(never seen in training)",
               "volcanic": "Volcanic: Marius Hills →\nEl Pinacate or San Francisco field",
               "craters": "Craters: lunar simple craters →\nMeteor Crater"}
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.2), sharey=True)
-    order = ["hybrid", "net", "baseline", "random"]
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.8), sharey=True)
+    order = [m for m in ["rrf", "hybrid", "net", "baseline", "random"] if m in results["craters"]]
     for ax, name in zip(axes, ["blind_pinacate", "volcanic", "craters"]):
         for i, m in enumerate(order):
             s = results[name][m]
