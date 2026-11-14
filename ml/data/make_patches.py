@@ -30,7 +30,7 @@ import rasterio
 from rasterio.windows import Window
 from pyproj import CRS, Geod, Transformer
 
-ROOT = Path(os.environ.get("ASTRAL_ROOT", Path.home() / "astral"))
+ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[2]))
 SCALE_M = 60
 PINACATE = (31.77, -113.50)  # lat, lon
 HOLDOUT_KM = 50.0

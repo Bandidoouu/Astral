@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Rechaza commits que pongan a una IA como autor o co-autor (regla del equipo ASTRAL).
+# Activar una vez por clon:  git config core.hooksPath .githooks
+AI='claude|anthropic|copilot|openai|chatgpt|gpt-[0-9]|gemini|cursor|codeium|tabnine|devin|\bai\b'
+if grep -Eiq "^[[:space:]]*co-authored-by:.*($AI)" "$1" \
+   || grep -Eiq "generated (with|by) .*($AI)" "$1"; then
+  echo "✋ Commit rechazado: ninguna IA puede aparecer como autor o co-autor (CLAUDE.md §4.2)." >&2
+  echo "   Quita la línea 'Co-Authored-By' / 'Generated with' del mensaje y vuelve a intentar." >&2
+  exit 1
+fi

@@ -31,7 +31,7 @@ from ml.model.channels import make_views
 from ml.model.dataset import BODY_ID, BalancedLoader, default_sources
 from ml.model.net import AstralNet, nt_xent
 
-ROOT = Path(os.environ.get("ASTRAL_ROOT", Path.home() / "astral"))
+ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 
 
 def parse_args():

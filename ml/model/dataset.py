@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-ROOT = Path(os.environ.get("ASTRAL_ROOT", Path.home() / "astral"))
+ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[2]))
 BODY_ID = {"earth": 0, "moon": 1, "mars": 2}
 
 

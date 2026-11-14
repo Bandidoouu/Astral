@@ -1,7 +1,32 @@
+# Datos, modelos y salidas: pesan GB, nunca van a git
 /data/
 /runs/
+/logs/
+*.pt
+*.pth
+*.faiss
+*.npy
+*.parquet
+
+# Python
 /.venv/
+.venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-/logs/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Entorno y editores
+.env
+.env.*
+!.env.example
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code: la configuración compartida sí va; la local no
+.claude/settings.local.json

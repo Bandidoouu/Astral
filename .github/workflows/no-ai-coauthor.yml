@@ -1,0 +1,33 @@
+name: no-ai-coauthor
+# Regla del equipo (CLAUDE.md §4.2): ninguna IA aparece como autor o co-autor.
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check commit messages
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          AI='claude|anthropic|copilot|openai|chatgpt|gpt-[0-9]|gemini|cursor|codeium|tabnine|devin|\bai\b'
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            RANGE="$HEAD"
+          else
+            RANGE="$BASE..$HEAD"
+          fi
+          bad=$(git log --format='%H %an <%ae>%n%B' "$RANGE" \
+                | grep -Ei "^[[:space:]]*co-authored-by:.*($AI)|generated (with|by) .*($AI)" || true)
+          authors=$(git log --format='%an <%ae>' "$RANGE" | grep -Ei "$AI" || true)
+          if [ -n "$bad$authors" ]; then
+            echo "::error::Hay commits con una IA como autor o co-autor:"
+            echo "$bad"; echo "$authors"
+            exit 1
+          fi
+          echo "OK: ningún commit tiene co-autores de IA."
