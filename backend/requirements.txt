@@ -1,7 +1,8 @@
-fastapi
-uvicorn
-faiss-cpu
-numpy
-pandas
-pyarrow
-pytest
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+numpy>=1.26
+pandas>=2.2
+pyarrow>=17
+faiss-cpu>=1.8
+httpx>=0.27
+pytest>=8
