@@ -52,6 +52,7 @@ Astral/
 ├── CONTRIBUTING.md        ← cómo trabajar: ramas, commits, PRs, avisos
 ├── docs/
 │   ├── arquitectura.md    ← cómo fluye todo: datos → red → API → 3D
+│   ├── datos.md           ← fuentes oficiales, procedencia y comandos de descarga
 │   └── contratos.md       ← FUENTE DE VERDAD de los formatos entre módulos
 ├── contracts/             ← ejemplos JSON reales de cada contrato (para mocks y pruebas)
 ├── ml/                    ← red neuronal (ver ml/CLAUDE.md)
@@ -94,11 +95,19 @@ de ML, siguen el mismo protocolo y nos avisan a nosotros.
 - El uso de IA sí se **declara en la página de envío** del hackathon, como piden las
   reglas; lo que no se hace es ponerla como contribuidor.
 
-### 4.3 Datos solo de fuentes oficiales del reto
+### 4.3 Datos de las fuentes oficiales del reto (obligatorio usarlas)
 
-NASA PDS, LRO / PDS Geosciences, NASA Earthdata, o agencias asociadas listadas en el
-reto (ESA Copernicus Data Space, JAXA G-Portal, CSA). Cualquier otra fuente (p. ej.
-límites de estados de Natural Earth para etiquetas) se cita en las referencias.
+**Fuente de verdad: `docs/datos.md`** (lista oficial con enlaces, procedencia de cada
+archivo, comandos de descarga y pendientes). Resumen:
+
+- NASA: **Earthdata Search, Worldview, PDS, LRO y LRO Diviner**. Agencias asociadas:
+  ESA (Copernicus Data Space, Open Science Catalog), JAXA (G-Portal), CSA (RADARSAT).
+- No estamos limitados a esa lista, pero **sí tenemos que usarla**: la entrega debe
+  incluir Diviner y al menos un recurso de agencia asociada (Copernicus DEM de la ESA).
+- Aplica también al frontend: texturas de los globos e imágenes de los análogos
+  salen de Worldview/GIBS, LRO y PDS.
+- Toda fuente fuera de la lista (p. ej. Natural Earth para nombres de estados) se
+  justifica y se cita. **Antes de bajar algo nuevo, se registra en `docs/datos.md`.**
 
 ### 4.4 Lo que ve el jurado va en inglés
 

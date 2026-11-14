@@ -84,6 +84,8 @@ Regla del equipo: todos los datos salen de los portales oficiales del reto
 (NASA PDS, LRO / PDS Geosciences, NASA Earthdata) o de los recursos de agencias
 asociadas listados en el reto (ESA Copernicus Data Space, JAXA G-Portal, CSA).
 Para premios globales es obligatorio usar datos de la NASA; ya se cumple.
+**Lista oficial completa, procedencia verificada y comandos de descarga:
+`docs/datos.md`.** Todo dato nuevo se registra ahí antes de usarlo.
 
 ### 6.1 Inventario descargado
 
@@ -96,7 +98,7 @@ Para premios globales es obligatorio usar datos de la NASA; ya se cumple.
 | Tierra | `data/raw/earth/mexico_dem.vrt`, `hgt/*.hgt`, `dem/*.zip` | Fuente: 411 mosaicos NASADEM_HGT en la caja (-118, 14, -86, 33). |
 | Tierra | `data/raw/earth/lst/*.hdf` | MODIS MOD11C3 (Terra), temperatura de superficie mensual, 0.05°, 12 meses de 2023. HDF4: si rasterio no lo abre, `uv pip install pyhdf`. Subdatasets `LST_Day_CMG`, `LST_Night_CMG` (escala 0.02, kelvin). |
 | Marte | `data/raw/mars/mars_megdr.vrt` | MOLA MEGDR (Mars Global Surveyor) de PDS Geosciences, 128 px/grado, 16 mosaicos `megt*hb.img` + `.xml`. 46080x22528, de 88° N a 88° S. Int16 en **metros** sobre el areoide. Proyección equirectangular en metros con píxel de 463.06 m medido en el ecuador: el píxel este-oeste real mide 463 * cos(lat). **Reproyectar cada región a una proyección métrica local antes de cortar parches.** |
-| Marte | `data/raw/mars/jezero.tif` | Recorte del blend MOLA-HRSC del USGS. **No usar** (no viene de los portales del reto). |
+| (apartado) | `data/raw/_no_oficial/jezero.tif` | Recorte del blend MOLA-HRSC del USGS. **No usar** (no viene de los portales del reto). |
 
 ### 6.2 Datos pendientes
 
