@@ -1,9 +1,10 @@
 """Puntajes por dimensión y por perfil de misión (docs/contratos.md §3-4).
 
 `terrain` llega ya calculado por FAISS (coseno de embeddings): aquí no se
-recalcula. `operations` compara estadísticas crudas de relieve entre los dos
-parches, `thermal` compara temperaturas (Diviner vs MODIS) y `materials` queda
-explícitamente en ``None`` hasta que ML decida la fuente (ml/CLAUDE.md §6.3).
+recalcula. Las demás dimensiones comparan características por parche calculadas
+por ML (``features_{scale}.parquet``) y estadísticas de relieve
+(``baseline_feat_{scale}.npy``). Una dimensión sin dato en cualquiera de los dos
+parches queda en ``None`` y no cuenta en el total.
 """
 from __future__ import annotations
 
@@ -18,19 +19,81 @@ import numpy as np
 import pandas as pd
 
 from app.core.config import get_artifacts_dir
-from app.services.thermal import ThermalStats
+from app.services.thermal import PatchAttributes, ThermalStats
+
+DIMENSIONS = ("terrain", "operations", "thermal", "albedo", "ice", "soil", "aridity")
 
 PROFILES: dict[str, dict[str, float]] = {
-    "rover": {"terrain": 0.45, "materials": 0.10, "thermal": 0.05, "operations": 0.40},
-    "isru": {"terrain": 0.20, "materials": 0.50, "thermal": 0.20, "operations": 0.10},
-    "habitat": {"terrain": 0.25, "materials": 0.20, "thermal": 0.25, "operations": 0.30},
-    "eva": {"terrain": 0.40, "materials": 0.40, "thermal": 0.05, "operations": 0.15},
-    "astrobiology": {"terrain": 0.25, "materials": 0.50, "thermal": 0.25, "operations": 0.00},
+    "general": {dimension: 1 / len(DIMENSIONS) for dimension in DIMENSIONS},
+    "rover": {
+        "terrain": 0.30,
+        "operations": 0.30,
+        "thermal": 0.05,
+        "albedo": 0.05,
+        "ice": 0.05,
+        "soil": 0.15,
+        "aridity": 0.10,
+    },
+    "isru": {
+        "terrain": 0.10,
+        "operations": 0.10,
+        "thermal": 0.10,
+        "albedo": 0.15,
+        "ice": 0.35,
+        "soil": 0.15,
+        "aridity": 0.05,
+    },
+    "habitat": {
+        "terrain": 0.15,
+        "operations": 0.25,
+        "thermal": 0.25,
+        "albedo": 0.05,
+        "ice": 0.15,
+        "soil": 0.10,
+        "aridity": 0.05,
+    },
+    "eva": {
+        "terrain": 0.30,
+        "operations": 0.20,
+        "thermal": 0.05,
+        "albedo": 0.15,
+        "ice": 0.05,
+        "soil": 0.20,
+        "aridity": 0.05,
+    },
+    "astrobiology": {
+        "terrain": 0.10,
+        "operations": 0.00,
+        "thermal": 0.15,
+        "albedo": 0.10,
+        "ice": 0.30,
+        "soil": 0.10,
+        "aridity": 0.25,
+    },
 }
 
-DIMENSIONS = ("terrain", "materials", "thermal", "operations")
+NOT_COMPARABLE = {
+    "moon": ["dust_and_wind", "subsurface", "gravity", "vacuum", "radiation"],
+    "mars": ["dust_and_wind", "subsurface", "gravity", "atmosphere", "radiation"],
+    "earth": ["dust_and_wind", "subsurface", "gravity", "atmosphere", "radiation"],
+}
+
+ATTRIBUTE_KEYS = (
+    "tmax_k",
+    "tmin_k",
+    "trange_k",
+    "albedo",
+    "ice_distance_km",
+    "ice_frac",
+    "soil_raw",
+    "soil_pct",
+    "precip_mm",
+)
 
 THERMAL_SCALE_K = 50.0
+ALBEDO_SCALE = 0.1
+ICE_SCALE = 0.2
+PRECIP_SCALE_MM = 250.0
 SLOPE_SCALE_DEG = 10.0
 FRACTION_SCALE = 0.20
 OPERATIONS_WEIGHTS = {
@@ -39,15 +102,6 @@ OPERATIONS_WEIGHTS = {
     "under_15": 0.30,
     "roughness": 0.25,
 }
-
-_OPS_SOURCE_COLUMNS = (
-    "slope_mean",
-    "slope_frac_0_2",
-    "slope_frac_2_5",
-    "slope_frac_5_8",
-    "slope_frac_8_15",
-)
-
 
 @dataclass(frozen=True)
 class PatchRecord:
@@ -78,16 +132,10 @@ def _clip01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
 
-def not_comparable_for(*bodies: str) -> list[str]:
-    """Límites físicos que la Tierra no puede replicar, según los cuerpos del par."""
-    involved = set(bodies)
-    result = ["gravity"]
-    if "moon" in involved:
-        result.append("vacuum")
-    if "mars" in involved:
-        result.append("atmosphere")
-    result.append("radiation")
-    return result
+def not_comparable_for(query_body: str, result_body: str) -> list[str]:
+    """Lista del cuerpo no terrestre del par (igual que ml.search)."""
+    key = result_body if query_body == "earth" else query_body
+    return list(NOT_COMPARABLE.get(key, NOT_COMPARABLE["earth"]))
 
 
 def effective_weights(
@@ -174,6 +222,60 @@ def thermal_score(
     )
 
 
+def albedo_score(
+    query: PatchAttributes | None, result: PatchAttributes | None
+) -> float | None:
+    if query is None or result is None:
+        return None
+    q_albedo, r_albedo = _finite(query.albedo), _finite(result.albedo)
+    if q_albedo is None or r_albedo is None:
+        return None
+    return _clip01(math.exp(-abs(q_albedo - r_albedo) / ALBEDO_SCALE))
+
+
+def ice_score(
+    query: PatchAttributes | None, result: PatchAttributes | None
+) -> float | None:
+    if query is None or result is None:
+        return None
+    q_ice, r_ice = _finite(query.ice_frac), _finite(result.ice_frac)
+    if q_ice is None or r_ice is None:
+        return None
+    return _clip01(math.exp(-abs(q_ice - r_ice) / ICE_SCALE))
+
+
+def soil_score(
+    query: PatchAttributes | None, result: PatchAttributes | None
+) -> float | None:
+    if query is None or result is None:
+        return None
+    q_soil, r_soil = _finite(query.soil_pct), _finite(result.soil_pct)
+    if q_soil is None or r_soil is None:
+        return None
+    return _clip01(1.0 - abs(q_soil - r_soil))
+
+
+def aridity_score(
+    query: PatchAttributes | None, result: PatchAttributes | None
+) -> float | None:
+    if query is None or result is None:
+        return None
+    q_precip, r_precip = _finite(query.precip_mm), _finite(result.precip_mm)
+    if q_precip is None or r_precip is None:
+        return None
+    return _clip01(math.exp(-abs(q_precip - r_precip) / PRECIP_SCALE_MM))
+
+
+def attributes_dict(attributes: PatchAttributes | None) -> dict[str, float | None]:
+    if attributes is None:
+        return {key: None for key in ATTRIBUTE_KEYS}
+    result: dict[str, float | None] = {}
+    for key in ATTRIBUTE_KEYS:
+        value = _finite(getattr(attributes, key, None))
+        result[key] = None if value is None else round(value, 3)
+    return result
+
+
 def score_pair(
     query: PatchRecord,
     result: PatchRecord,
@@ -183,8 +285,8 @@ def score_pair(
     scale_m: float,
     query_ops: OpsStats | None = None,
     result_ops: OpsStats | None = None,
-    query_thermal: ThermalStats | None = None,
-    result_thermal: ThermalStats | None = None,
+    query_attrs: PatchAttributes | None = None,
+    result_attrs: PatchAttributes | None = None,
 ) -> dict:
     """Devuelve el objeto ``results[]`` del contrato para un par query/result."""
     if profile not in PROFILES:
@@ -193,18 +295,21 @@ def score_pair(
     if terrain_value is None:
         raise ValueError("terrain similarity must be a finite number")
 
-    scores: dict[str, float | None] = {
-        "terrain": round(_clip01(terrain_value), 4),
-        "materials": None,
-        "thermal": None,
-        "operations": None,
+    q_thermal = query_attrs.thermal() if query_attrs is not None else None
+    r_thermal = result_attrs.thermal() if result_attrs is not None else None
+    raw: dict[str, float | None] = {
+        "terrain": _clip01(terrain_value),
+        "operations": operations_score(query_ops, result_ops, scale_m),
+        "thermal": thermal_score(q_thermal, r_thermal),
+        "albedo": albedo_score(query_attrs, result_attrs),
+        "ice": ice_score(query_attrs, result_attrs),
+        "soil": soil_score(query_attrs, result_attrs),
+        "aridity": aridity_score(query_attrs, result_attrs),
     }
-    thermal_value = thermal_score(query_thermal, result_thermal)
-    operations_value = operations_score(query_ops, result_ops, scale_m)
-    if thermal_value is not None:
-        scores["thermal"] = round(_clip01(thermal_value), 4)
-    if operations_value is not None:
-        scores["operations"] = round(_clip01(operations_value), 4)
+    scores = {
+        dimension: None if raw[dimension] is None else round(_clip01(raw[dimension]), 4)
+        for dimension in DIMENSIONS
+    }
 
     weights = effective_weights(scores, profile)
     total = (
@@ -218,13 +323,21 @@ def score_pair(
         "lat": round(float(result.lat), 4),
         "lon": round(float(result.lon), 4),
         "region": result.region,
+        "scale_m": int(round(float(scale_m))),
         "score": round(_clip01(total), 4),
         "scores": scores,
         "not_comparable": not_comparable_for(query.body, result.body),
+        "no_data": [dimension for dimension in DIMENSIONS if scores[dimension] is None],
+        "weights_used": {
+            dimension: round(weight, 3) for dimension, weight in weights.items()
+        },
+        "attributes": attributes_dict(result_attrs),
     }
 
 
-def _ops_from_raw(slope_mean: float, under_8: float, under_15: float, roughness_m: float) -> OpsStats | None:
+def _ops_from_raw(
+    slope_mean: float, under_8: float, under_15: float, roughness_m: float
+) -> OpsStats | None:
     values = (slope_mean, under_8, under_15, roughness_m)
     if any(_finite(value) is None for value in values):
         return None

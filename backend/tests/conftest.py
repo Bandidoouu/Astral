@@ -16,10 +16,10 @@ def artifacts_dir(tmp_path, monkeypatch):
     root = tmp_path / "artifacts"
     root.mkdir()
     monkeypatch.setenv("ASTRAL_ARTIFACTS", str(root))
-    thermal._load_thermal_file.cache_clear()
+    thermal._load_features_file.cache_clear()
     scoring._load_operations_cached.cache_clear()
     yield root
-    thermal._load_thermal_file.cache_clear()
+    thermal._load_features_file.cache_clear()
     scoring._load_operations_cached.cache_clear()
 
 

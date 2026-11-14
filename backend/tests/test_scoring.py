@@ -6,56 +6,99 @@ import pandas as pd
 import pytest
 
 from app.services.scoring import (
+    DIMENSIONS,
     PROFILES,
     OpsStats,
     PatchRecord,
+    albedo_score,
+    aridity_score,
+    attributes_dict,
     effective_weights,
+    ice_score,
     load_operations,
     not_comparable_for,
     operations_score,
     score_pair,
+    soil_score,
     thermal_score,
 )
-from app.services.thermal import ThermalStats
+from app.services.thermal import PatchAttributes, ThermalStats
 
 QUERY = PatchRecord("moon-60-002461", "moon", -89.5, 130.0, "Shackleton")
 RESULT = PatchRecord("earth-60-000123", "earth", 31.77, -113.5, "Sonora, Mexico")
 OPS = OpsStats(slope_mean=5.0, frac_under_8=0.6, frac_under_15=0.75, roughness_m=10.0)
+ATTRS = PatchAttributes(
+    tmax_k=300.0,
+    tmin_k=200.0,
+    trange_k=100.0,
+    tavg_k=250.0,
+    albedo=0.2,
+    ice_distance_km=3.2,
+    ice_frac=0.1,
+    soil_raw=0.5,
+    soil_pct=0.5,
+    precip_mm=100.0,
+)
 THERMAL = ThermalStats(tmax_k=300.0, tmin_k=200.0, trange_k=100.0)
 
 
 def _scores(**overrides):
-    values = {"terrain": 0.9, "materials": None, "thermal": 0.5, "operations": 0.8}
+    values = {dimension: 0.9 for dimension in DIMENSIONS}
     values.update(overrides)
     return values
 
 
-def test_terrain_is_used_directly():
-    result = score_pair(
+def _pair(profile="rover", attrs=ATTRS, ops=OPS, scale_m=60):
+    return score_pair(
         QUERY,
         RESULT,
-        terrain=0.91234,
-        profile="rover",
-        scale_m=60,
-        query_ops=OPS,
-        result_ops=OPS,
-        query_thermal=THERMAL,
-        result_thermal=THERMAL,
+        terrain=0.91,
+        profile=profile,
+        scale_m=scale_m,
+        query_ops=ops,
+        result_ops=ops,
+        query_attrs=attrs,
+        result_attrs=attrs,
     )
-    assert result["scores"]["terrain"] == 0.9123
 
 
-def test_materials_is_always_null():
-    result = score_pair(
-        QUERY,
-        RESULT,
-        terrain=0.5,
-        profile="isru",
-        scale_m=60,
-        query_ops=OPS,
-        result_ops=OPS,
-    )
-    assert result["scores"]["materials"] is None
+def test_terrain_is_used_directly_and_materials_is_gone():
+    result = _pair()
+    assert result["scores"]["terrain"] == 0.91
+    assert "materials" not in result["scores"]
+    assert set(result["scores"]) == set(DIMENSIONS)
+
+
+def test_all_dimensions_with_identical_patch():
+    result = _pair()
+    assert result["scores"] == {
+        "terrain": 0.91,
+        "operations": 1.0,
+        "thermal": 1.0,
+        "albedo": 1.0,
+        "ice": 1.0,
+        "soil": 1.0,
+        "aridity": 1.0,
+    }
+    assert result["no_data"] == []
+    assert result["scale_m"] == 60
+    assert result["attributes"]["tmax_k"] == 300.0
+    assert result["attributes"]["ice_distance_km"] == 3.2
+
+
+@pytest.mark.parametrize(
+    "profile,expected",
+    [
+        ("general", 6.91 / 7),
+        ("rover", 0.91 * 0.30 + 0.70),
+        ("isru", 0.91 * 0.10 + 0.90),
+        ("habitat", 0.91 * 0.15 + 0.85),
+        ("eva", 0.91 * 0.30 + 0.70),
+        ("astrobiology", 0.91 * 0.10 + 0.90),
+    ],
+)
+def test_weighted_total_per_profile(profile, expected):
+    assert _pair(profile)["score"] == pytest.approx(expected, abs=1e-4)
 
 
 def test_operations_identical_is_one():
@@ -91,62 +134,51 @@ def test_thermal_derives_range_and_handles_missing():
     assert thermal_score(missing, other) is None
 
 
-@pytest.mark.parametrize("profile", list(PROFILES))
-def test_weights_redistribute_when_materials_is_null(profile):
-    weights = effective_weights(_scores(materials=None), profile)
-    assert "materials" not in weights
-    assert sum(weights.values()) == pytest.approx(1.0)
-    assert all(weight > 0 for weight in weights.values())
+def test_albedo_ice_soil_and_aridity_scores():
+    other = PatchAttributes(albedo=0.3, ice_frac=0.3, soil_pct=0.7, precip_mm=350.0)
+    assert albedo_score(ATTRS, other) == pytest.approx(math.exp(-1))
+    assert ice_score(ATTRS, other) == pytest.approx(math.exp(-1))
+    assert soil_score(ATTRS, other) == pytest.approx(0.8)
+    assert aridity_score(ATTRS, other) == pytest.approx(math.exp(-1))
+    assert albedo_score(ATTRS, PatchAttributes()) is None
+    assert ice_score(None, other) is None
 
 
 @pytest.mark.parametrize("profile", list(PROFILES))
-def test_weights_redistribute_when_materials_and_thermal_are_null(profile):
-    weights = effective_weights(_scores(materials=None, thermal=None), profile)
-    assert "materials" not in weights
-    assert "thermal" not in weights
+def test_weights_redistribute_when_attributes_are_missing(profile):
+    weights = effective_weights(
+        _scores(thermal=None, albedo=None, ice=None, soil=None, aridity=None),
+        profile,
+    )
+    expected = {"terrain"} if profile == "astrobiology" else {"terrain", "operations"}
+    assert set(weights) == expected
     assert sum(weights.values()) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("profile", list(PROFILES))
+def test_weights_redistribute_to_terrain_only(profile):
+    weights = effective_weights(
+        _scores(operations=None, thermal=None, albedo=None, ice=None, soil=None, aridity=None),
+        profile,
+    )
+    assert weights == {"terrain": pytest.approx(1.0)}
 
 
 def test_astrobiology_excludes_zero_weight_operations():
-    weights = effective_weights(_scores(materials=None), "astrobiology")
+    weights = effective_weights(_scores(), "astrobiology")
     assert "operations" not in weights
     assert sum(weights.values()) == pytest.approx(1.0)
 
 
-def test_score_pair_rover_with_redistribution():
-    result = score_pair(
-        QUERY,
-        RESULT,
-        terrain=0.91,
-        profile="rover",
-        scale_m=60,
-        query_ops=OPS,
-        result_ops=OPS,
-        query_thermal=THERMAL,
-        result_thermal=THERMAL,
-    )
-    assert result["scores"] == {
-        "terrain": 0.91,
-        "materials": None,
-        "thermal": 1.0,
-        "operations": 1.0,
-    }
-    assert result["score"] == pytest.approx(0.955, abs=1e-4)
-    assert result["not_comparable"] == ["gravity", "vacuum", "radiation"]
-
-
-def test_score_pair_without_thermal_redistributes():
-    result = score_pair(
-        QUERY,
-        RESULT,
-        terrain=0.91,
-        profile="rover",
-        scale_m=60,
-        query_ops=OPS,
-        result_ops=OPS,
-    )
+def test_score_pair_without_attributes_redistributes():
+    result = _pair(attrs=None)
     assert result["scores"]["thermal"] is None
-    expected = (0.91 * 0.45 + 1.0 * 0.40) / 0.85
+    assert result["scores"]["albedo"] is None
+    assert result["scores"]["ice"] is None
+    assert result["scores"]["soil"] is None
+    assert result["scores"]["aridity"] is None
+    assert result["no_data"] == ["thermal", "albedo", "ice", "soil", "aridity"]
+    expected = (0.91 * 0.30 + 1.0 * 0.30) / 0.60
     assert result["score"] == pytest.approx(expected, abs=1e-4)
 
 
@@ -157,16 +189,22 @@ def test_unknown_profile_and_invalid_terrain():
         score_pair(QUERY, RESULT, terrain=float("nan"), profile="rover", scale_m=60)
 
 
-def test_not_comparable_by_body():
-    assert not_comparable_for("moon", "earth") == ["gravity", "vacuum", "radiation"]
-    assert not_comparable_for("mars", "earth") == ["gravity", "atmosphere", "radiation"]
-    assert not_comparable_for("mars", "moon") == [
-        "gravity",
-        "vacuum",
-        "atmosphere",
-        "radiation",
-    ]
-    assert not_comparable_for("earth", "mars") == ["gravity", "atmosphere", "radiation"]
+def test_not_comparable_by_pair():
+    moon_earth = ["dust_and_wind", "subsurface", "gravity", "vacuum", "radiation"]
+    mars_earth = ["dust_and_wind", "subsurface", "gravity", "atmosphere", "radiation"]
+    assert not_comparable_for("moon", "earth") == moon_earth
+    assert not_comparable_for("mars", "earth") == mars_earth
+    assert not_comparable_for("earth", "moon") == moon_earth
+    assert not_comparable_for("earth", "mars") == mars_earth
+    assert not_comparable_for("mars", "moon") == mars_earth
+    assert not_comparable_for("moon", "mars") == moon_earth
+
+
+def test_attributes_dict_rounds_and_keeps_nulls():
+    values = attributes_dict(ATTRS)
+    assert values["tmax_k"] == 300.0
+    assert values["soil_raw"] == 0.5
+    assert attributes_dict(None) == {key: None for key in values}
 
 
 def _write_operations_artifacts(root, scale=60):
