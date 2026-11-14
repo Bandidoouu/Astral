@@ -4,9 +4,11 @@
 Requisito central: el usuario elige un punto en CUALQUIERA de los tres cuerpos y
 recibe coincidencias en los otros dos (o en los que pida en `target_bodies`).
 
-Regla de escala por par (origen, destino):
-  - Luna ↔ Tierra a 60 m si el lado lunar está al sur de 80° S (índice polar);
-  - todo lo demás a 500 m (Luna global, Marte, Tierra).
+Escalas (la petición indica cuál; por defecto 1000):
+  - 1000 m/px: global, los tres cuerpos, parches de 128 km;
+  - 60 m/px: detalle, solo Luna ↔ Tierra y solo dentro de su cobertura
+    (Luna al sur de 80° S; Tierra en la caja de México y alrededores).
+    Fuera de cobertura no se inventa nada: se devuelve un aviso.
 
 Métodos de ranking (por defecto "hybrid", la red de seguridad):
   - "hybrid":   la fórmula base preselecciona los N candidatos físicamente
@@ -53,13 +55,8 @@ def gc_km(lat1, lon1, lat2, lon2, r):
     return r * np.arccos(np.clip(c, -1, 1))
 
 
-def pick_scale(body, lat, target):
-    """Regla de escala del par (origen, destino)."""
-    pair = {body, target}
-    if pair == {"moon", "earth"}:
-        if body == "earth" or lat <= -80.0:
-            return 60
-    return 500
+SCALES = (1000, 60)
+DETAIL_BODIES = {"moon", "earth"}      # la escala de 60 m solo compara Luna y Tierra
 
 
 @dataclass
@@ -85,7 +82,7 @@ class ScaleIndex:
 class Searcher:
     """Carga los índices disponibles una sola vez y responde consultas."""
 
-    def __init__(self, tag="", art=None, scales=(60, 500)):
+    def __init__(self, tag="", art=None, scales=SCALES):
         self.idx = {}
         for s in scales:
             try:
@@ -122,14 +119,19 @@ class Searcher:
         return T, order, cos, dist
 
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="rover",
-               method="hybrid", n_candidates=500):
+               method="hybrid", n_candidates=500, scale_m=1000):
+        if scale_m not in SCALES:
+            raise ValueError(f"scale_m debe ser uno de {SCALES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
         weights = PROFILES[profile]
-        out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile,
+        out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile, scale_m=scale_m,
                              target_bodies=targets, method=method),
                "results": [], "warnings": []}
         for target in targets:
-            scale = pick_scale(body, lat, target)
+            scale = scale_m
+            if scale == 60 and {body, target} != DETAIL_BODIES:
+                out["warnings"].append(f"{body}->{target}: la escala de 60 m solo compara Luna y Tierra")
+                continue
             if scale not in self.idx:
                 out["warnings"].append(f"{body}->{target}: índice de {scale} m aún no disponible")
                 continue
@@ -142,7 +144,9 @@ class Searcher:
             if dq > window_km:
                 out["warnings"].append(
                     f"{body}: el punto está a {dq:.0f} km del parche más cercano a {scale} m "
-                    f"(fuera de la cobertura)")
+                    f"(fuera de la cobertura de esa escala)")
+                if scale == 60:
+                    continue
             out["query"].setdefault("patches", {})[target] = dict(
                 patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2))
             T, order, cos, _ = self.rank(si, q, target, k, method, n_candidates)
@@ -172,10 +176,12 @@ def main():
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--profile", default="rover", choices=list(PROFILES))
     ap.add_argument("--method", default="hybrid", choices=["hybrid", "net", "baseline", "random"])
+    ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
     s = Searcher(a.tag)
-    print(json.dumps(s.search(a.body, a.lat, a.lon, a.targets, a.k, a.profile, a.method),
+    print(json.dumps(s.search(a.body, a.lat, a.lon, a.targets, a.k, a.profile, a.method,
+                              scale_m=a.scale),
                      indent=2, ensure_ascii=False))
 
 
