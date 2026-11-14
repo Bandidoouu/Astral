@@ -169,7 +169,8 @@ Por qué dos escalas: el relieve global de Marte en los portales oficiales es de
   (hasta ~69° S en las esquinas) con stride 64 (`patches_moon_60_train`, 56,169).
 - **Tierra 60 m:** `patches_earth_60`, 54,993 (115 holdout). La caja de NASADEM
   incluye partes del suroeste de EE. UU. y Centroamérica; `region` dice "Mexico"
-  para todos salvo Pinacate (pendiente de corregir).
+  para todos salvo Pinacate. **Pendiente antes de H12:** asignar estado/país con
+  Natural Earth admin-1 (10m) y citarlo en las referencias.
 - **Marte:** regiones objetivo completas y una muestra al azar con |lat| < 60°.
 - **Holdout / prueba ciega:** todo parche a menos de 50 km de El Pinacate
   (aprox. 31.77° N, -113.50°) lleva `holdout=True`: queda FUERA del entrenamiento
@@ -183,7 +184,8 @@ Mismo código para los tres cuerpos; el tamaño de píxel se pasa como parámetr
 
 1. Elevación relativa: elevación menos la media del parche, entre 500 m, recortada.
 2. Pendiente en grados, entre 90.
-3. Rugosidad: desviación estándar local en ventanas de 3x3.
+3. Rugosidad: RMS en ventanas de 3x3 del residuo `z − z suavizado` (gaussiana
+   σ = 3 px), entre el tamaño de píxel. La desviación 3x3 cruda era casi igual a la pendiente.
 4. Curvatura: laplaciano de la elevación suavizada (gaussiana σ = 1.5 px), para
    quitar las franjas de órbitas de LOLA y el ruido de NASADEM (delatan el planeta).
 5. Sombreado (hillshade) con azimut del Sol aleatorio.
@@ -197,23 +199,30 @@ gaussiano, escala vertical de ±15% y azimut del Sol aleatorio.
   inicializando con el promedio de los pesos RGB.
 - Embedding: capa lineal 512 -> 128, normalizada a norma 1. Es lo que se guarda y se busca.
 - Cabeza de proyección: MLP 128 -> 128, solo para la pérdida.
-- Discriminador de planeta: MLP 128 -> 64 -> 3 (Tierra, Luna, Marte) detrás de una
-  capa de inversión de gradiente (gradient reversal). Lambda sube de 0 a 1 durante
-  el entrenamiento.
+- Discriminador de planeta: MLP 128 -> 64 -> n detrás de una capa de inversión de
+  gradiente (gradient reversal). **v1: solo Luna y Tierra (2 clases); Marte después
+  (3 clases).** Lambda sube de 0 a 1 (curva DANN) durante el entrenamiento. Su
+  entrada es el embedding por √128 y usa 10x el lr sin weight decay: con el
+  embedding de norma 1 tal cual, se quedaba en el azar aun sin inversión.
 - Pérdida: NT-Xent (SimCLR) con temperatura 0.1 + lambda * entropía cruzada del discriminador.
 - Lotes balanceados: misma cantidad de parches de cada cuerpo por lote.
 
 ### 8.3 Entrenamiento
 
 - AdamW, lr 3e-4 con 128 parches por lote (256 vistas); si se sube a 256 parches
-  (512 vistas), lr ~6e-4. Programación coseno, AMP, de 30 a 50 épocas.
+  (512 vistas), lr ~6e-4. Programación coseno, AMP (bf16). **40 épocas el modelo
+  principal y 25 la ablación**, con todos los parches (~110 mil, ~867 pasos/época).
 - Estimado: ~2 a 2.5 min por época con ~75 mil parches -> 50 épocas en ~2 horas.
 - Checkpoint cada época, TensorBoard en `runs/`, semilla fija.
 - Alarmas: pérdida que no baja -> bajar lr; discriminador que acierta casi siempre
   -> subir lambda; todos los embeddings iguales (colapso) -> revisar aumentaciones y
   temperatura.
 - Después del modelo principal, entrenar la **ablación sin discriminador** (cabe en
-  la ventana de tiempo) para comparar los UMAP.
+  la ventana de tiempo) para comparar los UMAP. En la ablación (`--no-disc`) el
+  discriminador se sigue entrenando con lambda = 0 para medir cuánto se separan
+  los planetas (en la prueba rápida: ~90-99%).
+- Comando: `python -m ml.train --run <nombre> --epochs N [--no-disc] [--version n]`.
+  Log por época en `runs/<nombre>/epochs.jsonl` y TensorBoard.
 
 ## 9. Artefactos que consume el resto del equipo
 

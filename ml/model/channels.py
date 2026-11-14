@@ -5,7 +5,7 @@ Entrada: z (B, 1, H, W) elevación en metros (relativa o absoluta da igual),
 Salida:  (B, 5, H, W) float32:
   0 elevación relativa  (z - media) / 500, recortada a [-3, 3]
   1 pendiente           grados / 90
-  2 rugosidad           desv. estándar 3x3 / px (adimensional), recortada
+  2 rugosidad           RMS 3x3 del residuo z - blur(z, 3 px), / px, recortada
   3 curvatura           laplaciano de z suavizado (σ=1.5 px) * px, escalado y recortado
   4 sombreado           hillshade [0, 1], altitud solar 45°, azimut dado
 
@@ -20,7 +20,8 @@ import torch.nn.functional as F
 
 REL_SCALE_M = 500.0
 REL_CLIP = 3.0
-ROUGH_SCALE = 0.5     # rough/px típico ~0.05-0.3 -> dividir y recortar a [0, 3]
+ROUGH_SCALE = 0.2     # rough/px: Tierra p99 ~0.6, Luna ~0.3 -> recorte < 1%
+ROUGH_SIGMA_PX = 3.0  # el residuo z - blur(z) quita la pendiente regional
 CURV_SCALE = 0.05     # lap*px típico ~±0.05
 CURV_SIGMA_PX = 1.5   # la curvatura se calcula sobre z suavizado: quita las
                       # franjas de órbitas de LOLA y el ruido de píxel de
@@ -73,9 +74,8 @@ def make_channels(z, px, azimuth_deg=None):
     slope_ch = slope * (180.0 / math.pi) / 90.0
 
     zp = _pad(zr)
-    m1 = F.avg_pool2d(zp, 3, stride=1)
-    m2 = F.avg_pool2d(zp ** 2, 3, stride=1)
-    rough = torch.sqrt((m2 - m1 ** 2).clamp_min(0))
+    resid = zr - gaussian_blur(zr, ROUGH_SIGMA_PX)
+    rough = torch.sqrt(F.avg_pool2d(_pad(resid ** 2), 3, stride=1))
     rough_ch = (rough / px.view(-1, 1, 1, 1) / ROUGH_SCALE).clamp(0, CLIP)
 
     lap_k = torch.tensor([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=z.dtype,
