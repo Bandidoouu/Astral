@@ -354,6 +354,17 @@ corriendo), H12 (búsqueda de punta a punta), H16 (MVP), H20 (congelamiento), H2
   memoria) con la ablación, la prueba de v2 y descargas corriendo juntas; se perdió
   un archivo recién escrito (`fetch_nasadem.py` quedó vacío). Después de un
   reinicio, revisar que no haya archivos truncados (`git ls-files | xargs wc -c`).
+- **v2 de producción = época 4 (`encoder_v2sel.pt`), elegida por validación sin
+  Pinacate** (Marius → campo volcánico de San Francisco y cráteres → Meteor Crater;
+  regla: promedio de percentiles de la red sola). v2 a 40 épocas transfería peor
+  (prueba ciega: lugar 258 contra 147). **Siempre elegir época con
+  `ml.evaluate --val-only` y reportar Pinacate una sola vez al final.**
+- Prueba ciega con v2 elegido: la red sola deja Pinacate en el lugar 147 de 55,444
+  (top 50 en 49/195 consultas) contra el lugar 320 de la fórmula (12/195).
+- El modelo que mejor transfiere es el menos invariante al planeta (clasificador
+  emparejado 97.3%): la invariancia no es lo que hace que la red encuentre análogos.
+- Paquetes para Backend: `python -m ml.release --version ... --encoder ... --scales ...`
+  en `data/artifacts/release/<versión>/` (README + manifest con SHA-256).
 - **Hacer commit ANTES de cambiar de rama.** Un `git switch` con cambios sin guardar
   se los lleva a la otra rama, y un `git add -A` ahí los mete en el commit equivocado
   (así se quedó la fusión RRF fuera de `main` un rato).
