@@ -9,8 +9,14 @@ raíz y también aplican aquí.**
 ## 1. El proyecto en 30 segundos
 
 Ver `CLAUDE.md` de la raíz, §1. Resumen para ML: la red recibe un parche de
-relieve de la Luna o de Marte y devuelve sus gemelos en la Tierra; tiene que
-**ganarle a la fórmula base** y **redescubrir El Pinacate sin haberlo visto**.
+relieve y devuelve sus gemelos; tiene que **ganarle a la fórmula base** y
+**redescubrir El Pinacate sin haberlo visto**.
+
+**Requisito central:** el usuario elige un punto en **cualquiera de los tres
+cuerpos** (Tierra, Luna o Marte) y recibe coincidencias en los otros dos (o en los
+que pida en `target_bodies`). Regla de escala por par: **Luna ↔ Tierra al sur de
+80° S a 60 m; todo lo demás a 500 m.** Búsqueda: `ml/search.py` (método por
+defecto `hybrid`: la fórmula base preselecciona ~500 candidatos y la red reordena).
 
 ## 2. Cómo trabajar aquí (reglas para Claude Code)
 
@@ -98,6 +104,10 @@ Para premios globales es obligatorio usar datos de la NASA; ya se cumple.
 | Tierra | `data/raw/earth/mexico_dem.vrt`, `hgt/*.hgt`, `dem/*.zip` | Fuente: 411 mosaicos NASADEM_HGT en la caja (-118, 14, -86, 33). |
 | Tierra | `data/raw/earth/lst/*.hdf` | MODIS MOD11C3 (Terra), temperatura de superficie mensual, 0.05°, 12 meses de 2023. HDF4: si rasterio no lo abre, `uv pip install pyhdf`. Subdatasets `LST_Day_CMG`, `LST_Night_CMG` (escala 0.02, kelvin). |
 | Marte | `data/raw/mars/mars_megdr.vrt` | MOLA MEGDR (Mars Global Surveyor) de PDS Geosciences, 128 px/grado, 16 mosaicos `megt*hb.img` + `.xml`. 46080x22528, de 88° N a 88° S. Int16 en **metros** sobre el areoide. Proyección equirectangular en metros con píxel de 463.06 m medido en el ecuador: el píxel este-oeste real mide 463 * cos(lat). **Reproyectar cada región a una proyección métrica local antes de cortar parches.** |
+| Luna | `data/raw/moon/lola_global/ldem_64_float.{img,lbl,xml}` | LOLA GDR cilíndrico global, 64 px/° (~474 m en el ecuador). **En km.** Para la escala de 500 m. |
+| Luna | `data/raw/moon/sldem2015/sldem2015_512_*_float.*` | SLDEM2015 (LOLA + Kaguya de JAXA), 512 px/° (~59 m), equirectangular, **en km**: Montes Marius (`00n_30n_270_315`), Mare Tranquillitatis (`00n_30n_000_045`), Mare Imbrium (`30n_60n_315_360`). Para la prueba ciega. |
+| Luna | `data/raw/moon/diviner/dlre_prp_south.*` | Diviner PRP sur (PDS4). Para `thermal`. |
+| Tierra | `data/raw/earth/analogs/{arizona,deathvalley}/` | NASADEM alrededor de Meteor Crater y el campo volcánico de San Francisco (Arizona) y de Death Valley. Para la validación. |
 | (apartado) | `data/raw/_no_oficial/jezero.tif` | Recorte del blend MOLA-HRSC del USGS. **No usar** (no viene de los portales del reto). |
 
 ### 6.2 Datos pendientes
@@ -133,7 +143,7 @@ Esteban antes de implementarla.
 | Escala | Compara | Ventana (128 px) | Fuentes |
 | --- | --- | --- | --- |
 | 60 m/px | Luna con Tierra | 7.68 km | LOLA polar (y SLDEM para Marius) contra `mexico_60m.tif` |
-| 500 m/px | Marte con Tierra | 64 km | MOLA MEGDR reproyectado por región contra `mexico_500m.tif` |
+| 500 m/px | **Tierra, Luna y Marte entre sí** | 64 km | `mexico_500m.tif`, MOLA MEGDR reproyectado por regiones (\|lat\| < 60° + regiones objetivo), LOLA global `ldem_64_float` (64 px/°, km) reproyectado por regiones |
 
 Por qué dos escalas: el relieve global de Marte en los portales oficiales es de
 ~463 m/px; la Luna permite 60 m/px, donde un cráter de 1.5 km ocupa ~25 píxeles.
@@ -199,6 +209,11 @@ gaussiano, escala vertical de ±15% y azimut del Sol aleatorio.
   embedding de norma 1 tal cual, se quedaba en el azar aun sin inversión.
 - Pérdida: NT-Xent (SimCLR) con temperatura 0.1 + lambda * entropía cruzada del discriminador.
 - Lotes balanceados: misma cantidad de parches de cada cuerpo por lote.
+- **v2 (obligatorio desde v2 y en la escala de 500 m):** lotes emparejados por
+  estratos de (log relieve, pendiente media) (`--matched`, 8x8 estratos, solo los que
+  tienen parches de todos los cuerpos), **λ máximo 0.3** (`--lambda-max 0.3`) y
+  **cabeza auxiliar** 128 -> 64 -> 2 que predice log(relieve) y pendiente media desde
+  el embedding, calculados sobre la vista aumentada (`--aux-weight 0.1`).
 
 ### 8.3 Entrenamiento
 
@@ -295,6 +310,23 @@ corriendo), H12 (búsqueda de punta a punta), H16 (MVP), H20 (congelamiento), H2
   Contrastiva 0.92 → 0.086; discriminador 70.6% (época 1) → 49.5% (época 40, azar 50%);
   emb_std estable en ~0.066 (sin colapso). La contrastiva se estancó en ~0.25 en las
   épocas 2 a 12 mientras subía lambda y luego bajó sola. Ablación: run `abl60`.
+- **v1 falló como buscador** aunque entrenó "bien": con el discriminador a λ = 1, la
+  red borró relieve y pendiente (el polo sur lunar es mucho más abrupto que México:
+  mediana de relieve 1,100 m contra 240 m) y sus gemelos quedaron peor que al azar
+  en relieve (control de sanidad `ml/sanity_relief.py`: el relieve difiere 5.9x, azar
+  5.3x, fórmula base 1.5x). La prueba de 4 épocas de v2 bajó a 1.7x. **No basta
+  con que el discriminador llegue a 50%: hay que revisar los gemelos.**
+- El control de relieve y pendiente es solo de sanidad (favorece a la fórmula por
+  construcción). La evaluación principal es el percentil de los análogos conocidos
+  y la prueba ciega de Pinacate, con cuatro métodos: fórmula sola, red sola,
+  filtro + red (`hybrid`) y azar.
+- El clasificador lineal sobre el índice completo está sesgado si la red conserva
+  relieve (las distribuciones de relieve difieren entre cuerpos); comparar también
+  con una muestra emparejada por estratos.
+- **Un entrenamiento a la vez.** A las 13:53 WSL se reinició (probablemente por
+  memoria) con la ablación, la prueba de v2 y descargas corriendo juntas; se perdió
+  un archivo recién escrito (`fetch_nasadem.py` quedó vacío). Después de un
+  reinicio, revisar que no haya archivos truncados (`git ls-files | xargs wc -c`).
 - Datos de agencias asociadas que se pueden citar: Kaguya (JAXA) dentro de
   SLDEM2015; ESA (Copernicus DEM, WorldCover) si se usan. CSA RADARSAT contra
   Mini-RF de LRO queda como extra después de H16.
