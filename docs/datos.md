@@ -51,6 +51,12 @@ validamos con análogos fuera de la cobertura de NASADEM.
 | Luna, relieve global 64 px/° (~474 m) | LOLA GDR cilíndrico `ldem_64_float` (km) | PDS Geosciences (LRO) | `data/raw/moon/lola_global/ldem_64_float.{img,lbl,xml}` |
 | Tierra, análogos conocidos | NASADEM_HGT: Arizona (Meteor Crater y campo volcánico de San Francisco, caja -112.4, 34.7, -110.6, 35.8) y Death Valley (-117.5, 35.8, -116.4, 37.0) | NASA Earthdata | `data/raw/earth/analogs/{arizona,deathvalley}/` |
 
+| Tierra, relieve global 30" (~0.93 km) | SRTMGL30 v002, 27 mosaicos. **Cobertura real: de 90° N a 60° S, sin Antártida** (los metadatos de la colección dicen 60° N a 56° S, lo medido por SRTM; al norte de 60° N viene rellenado con GTOPO30). Enteros de 16 bits big-endian, sin cabecera; **el océano vale 0** (no NoData) | NASA Earthdata (LP DAAC) | `data/raw/earth/srtmgl30/` (`dem/*.DEM` + `.HDR` que escribimos, `srtmgl30.vrt`) |
+
+**Escala global de 1 km:** Tierra con SRTMGL30; Luna con LOLA `ldem_64_float` promediado
+a ~950 m (**LOLA no publica una versión de 32 px/°**: solo 4, 16, 64, 128, 256, 512 y
+1024); Marte con MOLA MEGDR 128 px/° promediado a ~930 m. No hizo falta bajar nada más.
+
 **Fuera de la lista oficial, apartado:** `data/raw/_no_oficial/jezero.tif` (blend
 MOLA-HRSC del USGS). No se usa.
 
@@ -86,6 +92,15 @@ wget -c $B/ldem_64_float.lbl $B/ldem_64_float.xml $B/ldem_64_float.img
 # Tierra: NASADEM alrededor de análogos conocidos (NASA Earthdata)
 python -m ml.data.fetch_nasadem --name arizona --bbox -112.4 34.7 -110.6 35.8
 python -m ml.data.fetch_nasadem --name deathvalley --bbox -117.5 35.8 -116.4 37.0
+```
+
+```bash
+# Tierra: SRTMGL30 global (NASA Earthdata) + cabeceras EHdr para que GDAL lea los .DEM
+python -c "import earthaccess as e; e.login(strategy='netrc'); e.download(e.search_data(short_name='SRTMGL30'), 'data/raw/earth/srtmgl30')"
+cd data/raw/earth/srtmgl30 && mkdir -p dem && for z in *.zip; do unzip -o -q $z -d dem; done
+# por cada dem/XNNNYMM.DEM: .HDR con BYTEORDER M, NROWS 6000, NCOLS 4800, NBITS 16,
+# PIXELTYPE SIGNEDINT, NODATA -9999, ULXMAP lon+1/240, ULYMAP lat-1/240, XDIM=YDIM=1/120
+gdalbuildvrt -a_srs EPSG:4326 srtmgl30.vrt dem/*.DEM
 ```
 
 ```python

@@ -51,7 +51,8 @@ def default_sources(scale=60, exclude_holdout=True):
     traslape (_train); la Tierra, la rejilla (sin los parches de Pinacate)."""
     d = ROOT / "data/patches"
     names = {60: {"earth": "earth_60", "moon": "moon_60_train"},
-             500: {"earth": "earth_500", "mars": "mars_500"}}[scale]
+             1000: {"earth": "earth_1000_train", "moon": "moon_1000_train",
+                    "mars": "mars_1000_train"}}[scale]
     out = []
     for body, tag in names.items():
         npy, pq = d / f"patches_{tag}.npy", d / f"meta_{tag}.parquet"
