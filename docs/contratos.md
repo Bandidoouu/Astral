@@ -26,7 +26,7 @@ ML los genera en `data/artifacts/` (fuera de git).
 | `gradcam/{query_id}__{patch_id}.png` | Mapa de calor sobre el parche terrestre para una consulta | Backend → Frontend UI |
 | `heights/{patch_id}.bin` + `.json` | Float32 little-endian 128x128 (elevación absoluta, m) + `{min, max, m_per_px}` | Frontend 3D (vista de detalle) |
 
-`{scale}` es `60` (Luna contra Tierra) o `500` (Marte contra Tierra).
+`{scale}` es `1000` (escala global, los tres cuerpos) o `60` (detalle Luna ↔ Tierra).
 
 **Cómo llegan los artefactos al backend:** ML los publica con un número de versión
 (`encoder_v1`, etc.) y avisa por el chat del equipo. *Pendiente acordar el medio
@@ -47,31 +47,33 @@ ML los genera en `data/artifacts/` (fuera de git).
 
 ## 3. API: `POST /api/similar`
 
-**Requisito central:** el punto de consulta puede estar en **cualquiera de los tres
-cuerpos** y se devuelven gemelos en los otros dos (o en los que se pidan).
+**Requisito central:** el usuario hace clic en **cualquier punto** de la Tierra, la
+Luna o Marte y recibe gemelos en los otros dos cuerpos (o en los que pida).
 
 **Petición** (`contracts/similar_request.json`):
 
 ```json
 {"body": "moon", "lat": -89.5, "lon": 130.0, "target_bodies": ["earth", "mars"],
- "profile": "rover", "k": 10}
+ "scale_m": 1000, "profile": "rover", "k": 10}
 ```
 
 | Campo | Obligatorio | Significado |
 | --- | --- | --- |
 | `body`, `lat`, `lon` | sí | Punto de consulta (`earth`, `moon` o `mars`) |
 | `target_bodies` | no | Cuerpos donde buscar. Por defecto, los otros dos |
+| `scale_m` | no | `1000` (por defecto): escala global, parches de 128 km, los tres cuerpos, cualquier punto. `60`: detalle, parches de 7.68 km, **solo Luna ↔ Tierra y solo dentro de su cobertura** (Luna al sur de 80° S; Tierra en la caja de México, -118 a -86° y 14 a 33°) |
 | `profile` | no | Perfil de misión (§4). Por defecto `rover` |
 | `k` | no | Resultados **por cada cuerpo destino**. Por defecto 10 |
 | `method` | no | `hybrid` (por defecto), `net`, `baseline`. Solo para depurar y para la demo de validación |
 
-**Ya no se manda `scale_m`:** la escala la decide la regla por par
-(origen, destino): **Luna ↔ Tierra a 60 m si el lado lunar está al sur de 80° S;
-todo lo demás a 500 m.** Cada resultado dice con qué escala se comparó.
+**Cada búsqueda indica su escala** en `scale_m`. Si se pide 60 fuera de su
+cobertura, o con Marte como origen o destino, **no se inventan resultados**: ese
+destino vuelve vacío con un aviso en `warnings`, y el frontend puede ofrecer
+repetir la búsqueda a 1000. Cada resultado repite su `scale_m`.
 
 **Cómo lo implementa Backend:** con `ml.search.Searcher` (solo numpy, pandas y
 faiss): se crea una vez al arrancar y cada petición llama a
-`searcher.search(body, lat, lon, target_bodies, k, profile, method)`, que ya
+`searcher.search(body, lat, lon, target_bodies, k, profile, method, scale_m=scale_m)`, que ya
 devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
 ~500 candidatos físicamente compatibles y la red los reordena.
 
@@ -79,14 +81,14 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
 
 ```json
 {
-  "query": {"body": "moon", "lat": -89.5, "lon": 130.0, "profile": "rover",
+  "query": {"body": "moon", "lat": -89.5, "lon": 130.0, "profile": "rover", "scale_m": 1000,
             "target_bodies": ["earth", "mars"], "method": "hybrid",
-            "patches": {"earth": {"patch_id": "moon-60-002461", "scale_m": 60, "distance_km": 0.4},
-                        "mars": {"patch_id": "moon-500-010233", "scale_m": 500, "distance_km": 3.1}}},
+            "patches": {"earth": {"patch_id": "moon-1000-002461", "scale_m": 1000, "distance_km": 21.4},
+                        "mars": {"patch_id": "moon-1000-002461", "scale_m": 1000, "distance_km": 21.4}}},
   "results": [
     {
-      "patch_id": "earth-60-000123", "body": "earth", "lat": 31.77, "lon": -113.5,
-      "region": "Sonora, Mexico", "scale_m": 60, "score": 0.87,
+      "patch_id": "earth-1000-004123", "body": "earth", "lat": 31.77, "lon": -113.5,
+      "region": "Sonora, Mexico", "scale_m": 1000, "score": 0.87,
       "scores": {"terrain": 0.91, "materials": null, "thermal": null, "operations": 0.88},
       "not_comparable": ["gravity", "vacuum", "radiation"]
     }
@@ -96,11 +98,13 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
 ```
 
 - `query.patches[target]`: el parche del cuerpo de origen que se usó para cada
-  destino (puede cambiar de escala según el destino) y su distancia al punto pedido.
+  destino y su distancia al punto pedido (a 1000 m, el centro de parche más cercano
+  puede estar a decenas de km: los parches miden 128 km).
 - `results`: hasta `k` resultados por cuerpo destino, agrupados por `body` y en orden
   de ranking del método. `scale_m` dice con qué escala se comparó.
 - `warnings`: avisos legibles, p. ej. punto fuera de cobertura o índice de 500 m aún
-  no disponible. El frontend los muestra, no son errores.
+  no disponible, o escala de 60 m pedida fuera de cobertura. El frontend los
+  muestra, no son errores.
 - `score`: total ponderado según el perfil (§4). `scores`: cada dimensión de 0 a 1.
 - Una dimensión que todavía no existe (p. ej. `materials` antes de decidirla) va como
   `null` y el frontend la muestra como "no disponible".
@@ -145,4 +149,4 @@ Luna, ~6 mbar en Marte) y radiación.
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
 | 2026-11-14 | Versión inicial | Todos | — |
-| 2026-11-14 | Consulta desde cualquier cuerpo: `target_bodies`, `method`, escala automática por par (se quita `scale_m` de la petición), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
+| 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |

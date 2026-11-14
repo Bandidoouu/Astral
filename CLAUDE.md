@@ -10,10 +10,11 @@
 neuronal **propia, entrenada por nosotros** (no una API de LLM) encuentra sus gemelos
 en la Tierra.
 
-> **Requisito central:** el usuario puede elegir un punto en **cualquiera de los
-> tres cuerpos** (Tierra, Luna o Marte) y recibe coincidencias en los otros dos.
-> Luna ↔ Tierra en el polo sur lunar se compara a 60 m/px; todo lo demás a 500 m/px.
-> Contrato: `docs/contratos.md` §3 (`target_bodies`). Para cada gemelo dice **en qué se parece** (relieve, operaciones,
+> **Requisito central:** el usuario hace clic en **cualquier punto** de la Tierra,
+> la Luna o Marte y recibe coincidencias en los otros dos. Escala global de
+> **1 km/px** (parches de 128 km, los tres cuerpos) y escala de detalle de **60 m/px**
+> (solo Luna ↔ Tierra, dentro de su cobertura). Contrato: `docs/contratos.md` §3
+> (`target_bodies`, `scale_m`). Para cada gemelo dice **en qué se parece** (relieve, operaciones,
 temperatura, materiales) y **en qué no** (gravedad, vacío, radiación). Todo se ve en un
 "mapa astral" 3D de los tres cuerpos.
 

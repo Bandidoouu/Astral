@@ -1,1 +1,1 @@
-{"body": "moon", "lat": -89.5, "lon": 130.0, "target_bodies": ["earth", "mars"], "profile": "rover", "k": 10}
+{"body": "moon", "lat": -89.5, "lon": 130.0, "target_bodies": ["earth", "mars"], "scale_m": 1000, "profile": "rover", "k": 10}
