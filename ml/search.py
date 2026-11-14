@@ -152,6 +152,10 @@ class Searcher:
             except FileNotFoundError:
                 pass
         assert self.idx, "no hay artefactos en data/artifacts"
+        try:      # scale_mode = gravity_scaled: Tierra 1 km, Luna x6, Marte x2.6 (mismo modelo)
+            self.gidx = ScaleIndex.load(1000, tag + "_gravity", art)
+        except FileNotFoundError:
+            self.gidx = None
         lcp = Path(art or ROOT / "data/artifacts") / "earth_landcover_005deg.tif"
         self.landcover = None
         if lcp.exists():
@@ -203,9 +207,12 @@ class Searcher:
         out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile, scale_m=scale_m,
                              scale_mode=scale_mode, target_bodies=targets, method=method),
                "results": [], "warnings": []}
-        if scale_mode == "gravity_scaled":
-            out["warnings"].append("gravity_scaled is not available yet; using same_size")
+        gravity = scale_mode == "gravity_scaled"
+        if gravity and (scale_m != 1000 or self.gidx is None):
+            out["warnings"].append("gravity_scaled is only available at scale_m = 1000"
+                                   if scale_m != 1000 else "gravity_scaled index not available; using same_size")
             out["query"]["scale_mode"] = "same_size"
+            gravity = False
         if body == "earth" and self.landcover is not None:
             lc = self.landcover.at(lat, lon)
             out["query"]["land_cover"] = lc
@@ -221,12 +228,12 @@ class Searcher:
             if scale not in self.idx:
                 out["warnings"].append(f"{body}->{target}: índice de {scale} m aún no disponible")
                 continue
-            si = self.idx[scale]
+            si = self.gidx if gravity else self.idx[scale]
             if not (si.meta.body == target).any():
                 out["warnings"].append(f"{body}->{target}: sin parches de {target} a {scale} m")
                 continue
             q, dq = self.query_patch(si, body, lat, lon)
-            window_km = 128 * scale / 1000
+            window_km = 128 * float(si.meta.scale_m.iat[q]) / 1000
             if dq > window_km:
                 out["warnings"].append(
                     f"{body}: el punto está a {dq:.0f} km del parche más cercano a {scale} m "
@@ -235,7 +242,8 @@ class Searcher:
                     continue
             fq = dict(zip(ATTR_COLS, si.attrs[q]))
             out["query"].setdefault("patches", {})[target] = dict(
-                patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2))
+                patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2),
+                window_km=round(window_km, 1))
             out["query"]["attributes"] = {c: _num(v) for c, v in fq.items()}
             T, order, cos, _ = self.rank(si, q, target, k, method, n_candidates)
             for j in order[:k]:
@@ -255,6 +263,7 @@ class Searcher:
                     patch_id=row.patch_id, body=target, lat=round(float(row.lat), 4),
                     lon=round(float(row.lon), 4), region=row.region, scale_m=scale,
                     land_cover=(row.lc_name if target == "earth" and "lc_name" in row else None),
+                    window_km=round(128 * float(row.scale_m) / 1000, 1),
                     score=round(score, 4), scores=scores,
                     no_data=[d for d, v in scores.items() if v is None],
                     weights_used=used,

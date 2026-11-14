@@ -13,12 +13,14 @@
       "earth": {
         "patch_id": "moon-1000-002461",
         "scale_m": 1000,
-        "distance_km": 21.4
+        "distance_km": 21.4,
+        "window_km": 128.0
       },
       "mars": {
         "patch_id": "moon-1000-002461",
         "scale_m": 1000,
-        "distance_km": 21.4
+        "distance_km": 21.4,
+        "window_km": 128.0
       }
     },
     "scale_m": 1000,
@@ -79,7 +81,8 @@
         "soil_pct": null,
         "precip_mm": null
       },
-      "land_cover": "open shrubland"
+      "land_cover": "open shrubland",
+      "window_km": 128.0
     },
     {
       "patch_id": "earth-1000-004512",
@@ -123,7 +126,8 @@
         "soil_pct": null,
         "precip_mm": null
       },
-      "land_cover": "open shrubland"
+      "land_cover": "open shrubland",
+      "window_km": 128.0
     },
     {
       "patch_id": "mars-1000-004187",
@@ -167,7 +171,8 @@
         "soil_pct": null,
         "precip_mm": null
       },
-      "land_cover": null
+      "land_cover": null,
+      "window_km": 128.0
     }
   ],
   "warnings": [],

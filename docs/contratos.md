@@ -83,6 +83,12 @@ sigue** y se agrega un aviso en `warnings`; `query.land_cover` trae siempre la c
 del punto (`{"code": 9, "name": "savanna", "promising": false}`). Cada resultado
 terrestre trae `land_cover` (clase en su centro; `null` en Luna y Marte).
 
+**`scale_mode`:** con `gravity_scaled`, los parches de la Luna miden 774 km (6.05 km/px) y
+los de Marte 338 km (2.64 km/px); los de la Tierra siguen en 128 km. Mismo modelo, sin
+reentrenar. Cada resultado y cada `query.patches[target]` traen `window_km` (lado del
+parche en km) para que el frontend dibuje la huella correcta. `query.scale_mode` dice el
+modo que se usó (si `gravity_scaled` no está disponible, vuelve a `same_size` con aviso).
+
 **Cómo lo implementa Backend:** con `ml.search.Searcher` (solo numpy, pandas y
 faiss): se crea una vez al arrancar y cada petición llama a
 `searcher.search(body, lat, lon, target_bodies, k, profile, method, scale_m=scale_m, scale_mode=scale_mode)`,
