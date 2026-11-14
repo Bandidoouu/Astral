@@ -151,6 +151,18 @@ fuentes oficiales:
 Nada generado con IA puede usar marca de la NASA; imágenes generadas con IA llevan
 marca de agua (reglas del reto).
 
+**Texturas de los globos (descargadas, en `frontend/public/textures/{earth,moon,mars}/`,
+detalle en su `README.md`; fuentes crudas en `data/raw/textures/`, fuera de git):**
+
+| Cuerpo | Capa | Fuente | Enlace |
+| --- | --- | --- | --- |
+| Luna | Color | NASA SVS *CGI Moon Kit* (id 4720): mosaico de color LROC WAC con polos rellenos, `lroc_color_poles_8k.tif` | https://svs.gsfc.nasa.gov/4720 |
+| Marte | Color | NASA Mars Trek, `Mars_Viking_MDIM21_ClrMosaic_global_232m` (mosaico Viking a color), teselas WMTS nivel 4 (32 × 16) | https://trek.nasa.gov/mars/ |
+| Tierra | Color | NASA GIBS WMS, capa `BlueMarble_NextGeneration` (Blue Marble, NASA Earth Observatory) | https://gibs.earthdata.nasa.gov |
+| Los tres | Altura, normales, sombreado, topografía | Hechos por nosotros con LOLA `ldem_64`, MOLA MEGDR y SRTMGL30 (ya en el inventario) | — |
+| Luna, Marte | Aptitud | Nuestras capas de aptitud (`ml/suitability_moon.py`, `ml/suitability_mars.py`) | — |
+
+
 ## 5. Fuentes fuera de la lista (permitidas, pero se citan)
 
 | Fuente | Para qué | Nota |

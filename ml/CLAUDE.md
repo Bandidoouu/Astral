@@ -206,6 +206,12 @@ repos/Bandidoouu/Astral/pulls/N`, porque `gh pr edit` falla por Projects classic
 primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de contrato
 (esperan confirmación de Backend y Frontend). Rama actual: `ml/earth-mask`.
 
+**Texturas de los globos** (`ml/textures.py`, rama `ml/globe-textures`): color 8k/4k
+(LROC WAC del CGI Moon Kit, Viking de Mars Trek, Blue Marble de GIBS), altura de 8 bits
++ `height.json`, normales, sombreado, topografía con leyenda y aptitud RGBA, en
+`frontend/public/textures/{earth,moon,mars}/` (50 MB en git). Crudos en
+`data/raw/textures/`.
+
 ### Siguientes pasos (en orden de prioridad)
 
 1. **Esperar confirmación** de Backend (pasar `scale_mode` a `searcher.search`) y de

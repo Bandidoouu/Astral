@@ -1,0 +1,21 @@
+{
+ "body": "earth",
+ "width": 4096,
+ "height": 2048,
+ "projection": "equirectangular, lon -180..180, north up",
+ "min_m": -415.0,
+ "max_m": 6376.0,
+ "encoding": "height_m = min_m + (pixel / 255) * (max_m - min_m)",
+ "source": "NASA SRTMGL30 v002 (30 arc-sec)",
+ "normal_and_hillshade_vertical_exaggeration": 20.0,
+ "normal_encoding": "tangent space, RGB = (n * 0.5 + 0.5) * 255, +x east, +y north, +z up",
+ "topography": {
+  "colormap": "terrain",
+  "min_m": -500.0,
+  "max_m": 5000.0,
+  "legend": "topography_legend.png"
+ },
+ "notes": [
+  "ocean = 0 m (SRTMGL30); south of 60 S (Antarctica) has no SRTMGL30 data: filled with 0 m"
+ ]
+}

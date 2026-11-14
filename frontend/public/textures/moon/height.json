@@ -1,0 +1,21 @@
+{
+ "body": "moon",
+ "width": 4096,
+ "height": 2048,
+ "projection": "equirectangular, lon -180..180, north up",
+ "min_m": -9065.0,
+ "max_m": 10654.0,
+ "encoding": "height_m = min_m + (pixel / 255) * (max_m - min_m)",
+ "source": "LRO LOLA GDR ldem_64 (64 px/deg)",
+ "normal_and_hillshade_vertical_exaggeration": 8.0,
+ "normal_encoding": "tangent space, RGB = (n * 0.5 + 0.5) * 255, +x east, +y north, +z up",
+ "topography": {
+  "colormap": "cividis",
+  "min_m": -5329.77880859375,
+  "max_m": 5694.5634765625,
+  "legend": "topography_legend.png"
+ },
+ "notes": [
+  "rows beyond 90 / -90 deg filled with the nearest valid row"
+ ]
+}
