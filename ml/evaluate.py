@@ -34,7 +34,7 @@ import torch
 from pyproj import Transformer
 
 from ml.baseline import features
-from ml.embed import embed_set, load_encoder
+from ml.embed import embed_set, is_multimodal, load_encoder, prepare_tab, tab_used_for
 from ml.model.dataset import PatchSet
 from ml.search import gc_km, RADIUS_KM
 
@@ -139,10 +139,18 @@ def main():
     bj = json.loads((art / "baseline_feat_60.json").read_text())
     mu, sd = np.array(bj["mean"], np.float32), np.array(bj["std"], np.float32)
     enc = load_encoder(a.encoder)
+    mm = is_multimodal(enc)
 
     # candidatos terrestres
     cand_sets = [load_set("earth_60"), load_set("earth_60_arizona"),
                  load_set("earth_60_deathvalley"), meteor_centered()]
+    if mm:                                     # v3: vector tabular de cada conjunto
+        from ml.features.patch_features import compute
+        from ml.features.reference import mask_dims, tab_vector
+        for s in cand_sets[:3]:
+            prepare_tab(s, a.encoder)
+        mc = cand_sets[3]
+        mc.tab = mask_dims(tab_vector("earth", compute(mc.meta)), tab_used_for(a.encoder))
     C_meta = pd.concat([s.meta for s in cand_sets], ignore_index=True)
     C_emb = np.concatenate([embed_set(enc, s) for s in cand_sets])
     C_feat = np.concatenate([base_feats(s, mu, sd) for s in cand_sets])
@@ -157,10 +165,18 @@ def main():
 
     # consultas lunares
     mar = load_set("moon_60_marius")
+    if mm:
+        prepare_tab(mar, a.encoder)
     dm = gc_km(*MARIUS_CENTER, mar.meta.lat.to_numpy(), mar.meta.lon.to_numpy(), RADIUS_KM["moon"])
-    mar.patches = np.asarray(mar.patches)[dm <= MARIUS_RADIUS_KM]
-    mar.meta = mar.meta[dm <= MARIUS_RADIUS_KM].reset_index(drop=True)
+    keep = dm <= MARIUS_RADIUS_KM
+    mar.patches = np.asarray(mar.patches)[keep]
+    mar.meta = mar.meta[keep].reset_index(drop=True)
+    if mm:
+        mar.tab = mar.tab[keep]
     craters = [load_set("moon_60_craters_tranquillitatis"), load_set("moon_60_craters_imbrium")]
+    if mm:
+        for s in craters:
+            prepare_tab(s, a.encoder)
     queries = {"blind_pinacate": (mar, is_pinacate), "volcanic": (mar, is_pinacate | is_sf)}
     q_emb = {"marius": embed_set(enc, mar)}
     q_feat = {"marius": base_feats(mar, mu, sd)}

@@ -110,12 +110,19 @@ def main():
     ap.add_argument("--suffix", default="")
     ap.add_argument("--out-dir", type=Path, default=ROOT / "data/patches")
     ap.add_argument("--batch", type=int, default=64)
+    ap.add_argument("--centers", type=Path, default=None,
+                    help="CSV con lat,lon,region: corta parches en esos centros (sitios de validación)")
+    ap.add_argument("--px-m", type=float, default=SCALE,
+                    help="tamaño de píxel en metros (gravity_scaled: Luna 6x, Marte 2.6x)")
+    ap.add_argument("--block", type=int, default=None, help="promedio en bloques al leer (por defecto, el del cuerpo)")
+    ap.add_argument("--id-offset", type=int, default=0)
     a = ap.parse_args()
+    px_m = a.px_m
 
     src = SOURCES[a.body]
     R = RADIUS_M[a.body]
     t0 = time.time()
-    zf, nm, (lon0, dlon, lat0, dlat) = load_global(src["path"], src["block"],
+    zf, nm, (lon0, dlon, lat0, dlat) = load_global(src["path"], a.block or src["block"],
                                                   src.get("water_zero", False))
     to_m = src["to_m"]
     H, W = zf.shape
@@ -126,24 +133,30 @@ def main():
           f"cargado en {time.time() - t0:.0f}s")
     del valid
 
-    margin = (a.patch / 2 * SCALE / R) * 180 / np.pi * 1.5
-    lats, lons = fibonacci_centers(a.spacing_km, R, lat_lo + margin, lat_hi - margin)
+    margin = (a.patch / 2 * px_m / R) * 180 / np.pi * 1.5
+    regions = None
+    if a.centers:
+        cdf = pd.read_csv(a.centers)
+        lats, lons, regions = cdf.lat.to_numpy(float), cdf.lon.to_numpy(float), cdf.region.tolist()
+    else:
+        lats, lons = fibonacci_centers(a.spacing_km, R, lat_lo + margin, lat_hi - margin)
     if a.limit:
         sel = np.random.default_rng(0).choice(len(lats), min(a.limit, len(lats)), replace=False)
         lats, lons = lats[np.sort(sel)], lons[np.sort(sel)]
     print(f"{len(lats)} centros (espaciado {a.spacing_km:.0f} km)")
 
     half = a.patch / 2
-    g = (np.arange(a.patch) - half + 0.5) * SCALE
+    g = (np.arange(a.patch) - half + 0.5) * px_m
     gx, gy = np.meshgrid(g, -g)                     # fila 0 = norte
-    tag = f"{a.body}_{SCALE}{a.suffix}"
+    scale_lbl = int(round(px_m))
+    tag = f"{a.body}_{scale_lbl}{a.suffix}" if scale_lbl != SCALE else f"{a.body}_{SCALE}{a.suffix}"
     a.out_dir.mkdir(parents=True, exist_ok=True)
     raw = a.out_dir / f"patches_{tag}.raw.tmp"
     rows, stats = [], dict(nodata=0, kept=0)
     gmin, gmax = np.inf, -np.inf
     with open(raw, "wb") as fout:
         for b in range(0, len(lats), a.batch):
-            for lat_c, lon_c in zip(lats[b:b + a.batch], lons[b:b + a.batch]):
+            for i_c, (lat_c, lon_c) in enumerate(zip(lats[b:b + a.batch], lons[b:b + a.batch]), b):
                 la, lo = laea_inverse(gx, gy, lat_c, lon_c, R)
                 r = (la - lat0) / dlat - 0.5
                 c = np.mod((lo - lon0) / dlon - 0.5, W)
@@ -162,10 +175,11 @@ def main():
                     p1, p2 = np.radians(PINACATE[0]), np.radians(lat_c)
                     d = R / 1000 * np.arccos(np.clip(np.sin(p1) * np.sin(p2) + np.cos(p1) * np.cos(p2)
                                                      * np.cos(np.radians(lon_c - PINACATE[1])), -1, 1))
-                    holdout = d < HOLDOUT_KM + a.patch * SCALE / 2000   # el parche toca el área
-                rows.append(dict(body=a.body, scale_m=SCALE, lat=float(lat_c), lon=float(lon_c),
+                    holdout = d < HOLDOUT_KM + a.patch * px_m / 2000   # el parche toca el área
+                rows.append(dict(body=a.body, scale_m=scale_lbl, lat=float(lat_c), lon=float(lon_c),
                                  crs=f"+proj=laea +lat_0={lat_c:.5f} +lon_0={lon_c:.5f} +R={R:.0f} +units=m",
-                                 x=0.0, y=0.0, region=src["region"], holdout=bool(holdout),
+                                 x=0.0, y=0.0, region=regions[i_c] if regions else src["region"],
+                                 holdout=bool(holdout),
                                  elev_mean_m=mean, elev_min_m=float(tile.min()),
                                  elev_max_m=float(tile.max()), nodata_frac=float(frac)))
             print(f"  {min(b + a.batch, len(lats))}/{len(lats)}  guardados={len(rows)}  "
@@ -180,7 +194,7 @@ def main():
             out.write(chunk)
     os.remove(raw)
     meta = pd.DataFrame(rows)
-    meta.insert(0, "patch_id", [f"{a.body}-{SCALE}-{i:06d}" for i in range(n)])
+    meta.insert(0, "patch_id", [f"{a.body}-{scale_lbl}-{i + a.id_offset:06d}" for i in range(n)])
     meta["src"], meta["src_idx"] = tag, np.arange(n)
     meta.to_parquet(a.out_dir / f"meta_{tag}.parquet", index=False)
     print(json.dumps(dict(body=a.body, n_patches=n, dropped_nodata=stats["nodata"],

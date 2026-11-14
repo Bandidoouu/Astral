@@ -10,11 +10,16 @@ promedia; si menos de la mitad de los puntos tienen dato, el valor es NaN
   Luna:   tmax_k, tmin_k, trange_k (Diviner GCP; en el polo sur, tmax de la PRP),
           tavg_k (PRP, solo polo sur), albedo (LOLA ldam: polar 1 km o global 10 px/°),
           ice_distance_km (PRP: distancia mínima a hielo estable a <= 1 m, solo polo sur)
-  Marte:  pendiente (bloque 4) -> todo NaN por ahora
+  Marte:  h2o_wt_pct (Mars Odyssey GRS, 5x5°, 60° N a 60° S) e ice_frac = índice de
+          hidrógeno 0 en <= 2% en peso, 1 en >= 7% (misma regla que la capa de aptitud).
+          Recorte de alcance: temperatura, albedo y suelo de Marte = sin dato.
 
 Salida: data/artifacts/features_{scale}.parquet (patch_id + columnas, mismo orden que meta).
+Con --meta/--out sirve para cualquier conjunto de parches (entrenamiento, evaluación).
 
   python -m ml.features.patch_features --scale 60
+  python -m ml.features.patch_features --meta data/patches/meta_moon_60_train.parquet \
+      --out data/patches/features_moon_60_train.parquet
 """
 import argparse
 import os
@@ -30,7 +35,7 @@ from ml.data.make_patches_global import RADIUS_M, laea_inverse
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[2]))
 F = ROOT / "data/features"
 COLS = ["tmax_k", "tmin_k", "trange_k", "tavg_k", "albedo", "ice_distance_km",
-        "ice_frac", "soil_raw", "soil_pct", "precip_mm"]
+        "ice_frac", "soil_raw", "soil_pct", "precip_mm", "h2o_wt_pct"]
 # Luna y Marte: sin precipitación líquida por definición física (no es un dato inventado)
 PRECIP_BY_DEFINITION = {"moon": 0.0, "mars": 0.0}
 
@@ -84,14 +89,40 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale", type=int, default=60)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--meta", type=Path, default=None, help="parquet de metadatos cualquiera")
+    ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args()
     art = ROOT / "data/artifacts"
-    meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
+    meta_path = a.meta or art / f"meta_{a.scale}{a.tag}.parquet"
+    out_path = a.out or art / f"features_{a.scale}{a.tag}.parquet"
+    meta = pd.read_parquet(meta_path)
+    out = compute(meta)
+    out.to_parquet(out_path, index=False)
+    summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
+        lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
+    print(summ.T.to_string())
+    print("->", out_path)
+
+
+_GRIDS = {}
+
+
+def compute(meta):
+    """Características de cualquier DataFrame de metadatos (body, lat, lon, scale_m)."""
     out = pd.DataFrame({"patch_id": meta.patch_id})
     for c in COLS:
         out[c] = np.nan
 
-    grids = {
+    if not _GRIDS:
+        _GRIDS.update(_load_grids())
+    grids = _GRIDS
+    for c in COLS:
+        out[c] = np.nan
+    return _fill(meta, out, grids)
+
+
+def _load_grids():
+    return {
         "earth": {"tmax_k": Grid(F / "earth_climate_005deg.tif", 1, "earth"),
                   "tmin_k": Grid(F / "earth_climate_005deg.tif", 2, "earth"),
                   "trange_k": Grid(F / "earth_climate_005deg.tif", 3, "earth"),
@@ -113,9 +144,33 @@ def main():
                  "soil_raw": Grid(ROOT / "data/raw/moon/diviner_ra/dgdr_ra_avg_cyl_032_img.lbl", 1,
                                   "moon", scale=0.001)},
     }
+
+
+def _mars_h2o():
+    a = np.loadtxt(ROOT / "data/raw/mars/grs/h2o_sr_5x5.tab")
+    g = np.full((36, 72), np.nan, np.float32)
+    v = a[a[:, 2] < 9999]
+    g[((90 - v[:, 0]) // 5).astype(int), (v[:, 1] // 5).astype(int)] = v[:, 2]
+    return g
+
+
+def _fill(meta, out, grids):
+    h2o = None
     for i, row in enumerate(meta.itertuples()):
+        if row.body == "mars":
+            if h2o is None:
+                h2o = _mars_h2o()
+            la, lo = footprint(row.lat, row.lon, row.scale_m, row.body)
+            r = np.clip(((90 - la) // 5).astype(int), 0, 35)
+            c = np.clip(((lo % 360) // 5).astype(int), 0, 71)
+            w = reduce(h2o[r, c])
+            out.iat[i, out.columns.get_loc("h2o_wt_pct")] = w
+            out.iat[i, out.columns.get_loc("ice_frac")] = (np.clip((w - 2) / 5, 0, 1)
+                                                         if np.isfinite(w) else np.nan)
+            out.iat[i, out.columns.get_loc("precip_mm")] = PRECIP_BY_DEFINITION["mars"]
+            continue
         if row.body not in grids:
-            continue                                       # Marte: bloque 4
+            continue
         G = grids[row.body]
         la, lo = footprint(row.lat, row.lon, row.scale_m, row.body)
         if row.body == "earth":
@@ -141,21 +196,19 @@ def main():
                 vals["trange_k"] = vals["tmax_k"] - vals["tmin_k"]
             for c, v in vals.items():
                 out.iat[i, out.columns.get_loc(c)] = v
-        if i % 10000 == 0:
+        if i % 10000 == 0 and len(meta) > 1:
             print(f"  {i}/{len(meta)}", flush=True)
 
     # percentil de "rocosidad" dentro de cada cuerpo (ATI y abundancia de rocas no son
     # la misma magnitud física: se compara qué tan rocoso es un lugar PARA SU CUERPO)
+    # percentil contra la distribución GLOBAL del cuerpo (ml.features.reference), no
+    # dentro de este archivo: el mismo valor da el mismo percentil en cualquier conjunto
+    from ml.features.reference import percentile
     body = meta.body.to_numpy()
     for b in np.unique(body):
-        m = (body == b) & out.soil_raw.notna().to_numpy()
-        if m.any():
-            out.loc[m, "soil_pct"] = out.loc[m, "soil_raw"].rank(pct=True).to_numpy()
-    out.to_parquet(art / f"features_{a.scale}{a.tag}.parquet", index=False)
-    summ = out.assign(body=meta.body.values).groupby("body")[COLS].agg(
-        lambda s: f"{s.notna().mean():.0%} | med {s.median():.2f}" if s.notna().any() else "sin dato")
-    print(summ.T.to_string())
-    print("->", art / f"features_{a.scale}{a.tag}.parquet")
+        m = body == b
+        out.loc[m, "soil_pct"] = percentile(b, "soil_raw", out.loc[m, "soil_raw"].to_numpy())
+    return out
 
 
 if __name__ == "__main__":

@@ -44,6 +44,127 @@ los portales del reto: por eso la capa es una sugerencia, no una elección final
 Marte: la misma capa con MOLA (pendiente y altitud baja), TES (inercia térmica y
 albedo) e hidrógeno de Mars Odyssey, todo del PDS. Minerales: fuera de alcance.
 
+## 1b. Estado actual (para retomar después de /compact) · 2026-11-14 17:15 (~H8)
+
+**Cambios por recomendación de un mentor (17:00), orden vigente:** (1) máscara de zonas
+prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) · (3) entrenamiento de 1 km
+con la receta de v2 · (4) modos de escala `same_size` / `gravity_scaled` · (5) aptitud de
+Marte. **Recorte de alcance:** Marte solo con las dimensiones de su capa de aptitud
+(pendiente y altitud de MOLA, hidrógeno de Mars Odyssey); el resto queda "sin dato"
+(TES fuera). **v3 a 1 km queda fuera.** Release al cerrar cada bloque.
+
+**Máscara de zonas prometedoras** (`ml/features/earth_landcover.py`, MODIS MCD12C1 2023,
+IGBP): se quedan matorral disperso (7), pastizal (10), nieve y hielo permanente (15) y
+suelo desnudo (16); se van agua, bosques, matorral cerrado, sabanas, humedales,
+cultivos, urbano y mosaico. Un parche pasa si ≥ 50% de su área es de las que se quedan
+(porcentajes por clase de `Land_Cover_Type_1_Percent`). Columnas en `meta`: `lc_class`,
+`lc_name`, `promising_frac`, `promising`. **Solo filtra resultados hacia la Tierra; el
+entrenamiento sigue usando todos los parches.** La evaluación (`ml.evaluate`) tampoco
+filtra, para ser comparable. Quedan: **60 m 27,247 de 54,993 (49.5%)**, **1 km 3,751 de
+7,606 (49.3%)**; El Pinacate pasa entero (115/115 a 60 m, 1/1 a 1 km); 65.8% de las
+celdas de tierra firme del mundo. Clic terrestre fuera de zona → la búsqueda sigue con
+aviso y `query.land_cover`. Release `v2-60m-r3` (incluye `earth_landcover_005deg.tif`).
+
+
+## 1c. Validación de la escala de 1 km (definida ANTES de entrenar, 17:35)
+
+Script: `ml/evaluate_1km.py` (sitios y parejas en `SITES` / `PAIRS`). Cada sitio se
+corta en su centro exacto + anillo de 6 parches (`--make-centers` y
+`make_patches_global --centers`; conjuntos `*_1000_val`, ids ≥ 900000). Candidatos: los
+7,606 parches terrestres del índice + los de los sitios terrestres (7,669), **sin la
+máscara** de zonas prometedoras. Métrica: lugar del mejor parche del análogo para cada
+parche de consulta; percentil mediano. Cinco métodos (fórmula, red, filtro + red, RRF,
+azar).
+
+| Pareja | Consulta | Análogo terrestre |
+| --- | --- | --- |
+| `olympus_hawaii` | Olympus Mons | Mauna Loa |
+| `channels_scablands` | Kasei Valles, Ares Vallis | Channeled Scablands |
+| `dunes_sahara_namib` | Olympia Undae | Grand Erg Oriental / Occidental o Namib |
+| `maria_flood_basalts` | Imbrium, Serenitatis, Tranquillitatis | Columbia River o Deccan |
+| `marius_sf` | Montes Marius | Campo volcánico de San Francisco |
+| `marius_pinacate` | Montes Marius | **El Pinacate: prueba ciega, una vez por modelo** |
+
+**Regla para elegir época (fija, igual que v2):** menor promedio, sobre las 5 parejas de
+validación (sin Pinacate), del percentil mediano de la red sola. Pinacate sigue fuera
+del entrenamiento (holdout). Los demás sitios terrestres sí aparecen en el entrenamiento
+global (es autosupervisado: nunca se le dice qué es análogo de qué).
+
+Referencia (modelo v2 de 60 m sin reentrenar, red sola): Olympus → Hawái 0.35%,
+canales 8.9%, dunas 0.87%, mares → basaltos 13.7% (peor que el azar, 4.4%: a 1 km los
+basaltos terrestres están erosionados y los mares son planos), Marius → San Francisco
+0.25%; validación 4.82%. Ciega (referencia): Pinacate 0.80% con la red, 15.4% con la fórmula.
+
+**Plan y orden:** (A) v2 a 60 m ✅ · (B) v3 multimodal a 60 m ✅ (perdió) · **(C) escala
+de 1 km con la receta de v2** ← siguiente · (D) Marte con todas sus dimensiones ·
+(E) Antártida con Copernicus DEM si da tiempo. MVP en **H16 ≈ 01:15**; si algo lo
+amenaza, parar y avisar a Esteban. Dar tiempos antes de cada bloque. Revisar el
+espacio de Windows (`df -h /mnt/c`) antes de cada descarga. Publicar un paquete
+`release/` al cerrar cada bloque.
+
+**Modelos (60 m, Luna ↔ Tierra):**
+
+| Modelo | Archivo | Resultado |
+| --- | --- | --- |
+| v1 (λ = 1) | `encoder_v1.pt` | Falló: borró relieve; gemelos peor que al azar |
+| **v2 elegido = PRODUCCIÓN** | `encoder_v2sel.pt` (época 4 del run `main60v2`) | Validación 0.48%. Prueba ciega: lugar 147 de 55,444 (top 50 en 49/195) vs fórmula 320 (12/195) |
+| v2 a 40 épocas | `encoder_v2.pt` | Transfería peor (ciega: lugar 258) |
+| v3 multimodal elegido | `encoder_v3sel.pt` + `.tab_used.json` (época 6 de `main60v3`) | Validación 0.74% → **pierde contra v2** por la regla fija. Ciega: 143 (51/195, empate); cráteres mejor (red sola lugar 2), volcanes peor |
+
+- **Regla de selección (fija):** elegir época con `python -m ml.select_epoch --run R
+  --epochs ...` (validación sin Pinacate: Marius → campo volcánico de San Francisco y
+  cráteres → Meteor Crater; promedio de percentiles medianos de la red sola). La prueba
+  ciega de Pinacate se corre UNA vez al final (`ml.evaluate --encoder ... --tag ...`).
+- Ciclos cortos: v2 transfería mejor en la época 4; entrenar más especializa la red.
+- La invariancia al planeta no explica la transferencia: el mejor modelo (v2 época 4)
+  es el menos invariante (clasificador emparejado 97.3%).
+- **Ranking de terreno por defecto: fusión RRF** (k = 60 fijo) de la red y la fórmula.
+  No siempre gana: filtro + red fue mejor en volcanes. Se mantiene RRF por decisión.
+
+**v3 (código listo, rama `ml/v3-multimodal`):** `MultimodalEncoder` = ResNet-18 de 5
+canales + MLP 14 → 64 → 64 (7 percentiles dentro del propio cuerpo + 7 marcas de sin
+dato, dropout de dimensiones 0.2) → 128. `train.py --multimodal`. Una dimensión entra
+solo si **todos** los cuerpos la tienen en ≥ 50% de sus parches (si no, su patrón de
+"sin dato" delata el planeta); a 60 m entran temperatura (3), albedo y hielo; suelo y
+aridez quedan fuera. Percentiles contra la distribución **global** del cuerpo
+ponderada por área (`ml/features/reference.py`). Podría ganar a 1 km (allí la Luna sí
+tiene suelo): **solo si Esteban lo pide**; por la regla, 1 km va con v2.
+
+**Dimensiones de la búsqueda (siete, `ml/search.py`, perfil por defecto `general`):**
+`terrain` (red + RRF), `operations`, `thermal` (MODIS / Diviner GCP+PRP), `albedo`
+(MODIS MCD43C3 / LOLA ldam), `ice` (MODIS MOD10CM / Diviner hielo en superficie),
+`soil` (percentil de ATI de MODIS / abundancia de rocas de Diviner, solo entre 60° N y
+60° S), `aridity` (NASA GPM IMERG 2023, referencia solo tierra firme / Luna y Marte =
+1.0 por definición). `null` = sin dato, no cuenta en el total. Ningún perfil > 0.3 en
+terreno. `not_comparable`: polvo y viento, subsuelo, gravedad, vacío/atmósfera, radiación.
+
+**Capa de aptitud lunar** (`ml/suitability_moon.py`, `data/artifacts/suitability/`):
+pendiente < 8° (0.30) y < 15° (0.20) de LOLA, hielo estable **en superficie** a
+exp(−d/5 km) (0.30), temperatura máxima de Diviner (0.20). Candidatos de la NASA
+(coordenadas APROXIMADAS, confirmar con Ciencia): Faustini 93%, Haworth 91%, Mons
+Mouton 73%, Amundsen 70%, Nobile 40%, de Gerlache 25%, **Shackleton 7%, Malapert 1%**
+(probablemente por la iluminación, que no tenemos). `ml/recommended_zones.py` → 15
+zonas. Es una sugerencia: faltan iluminación y visibilidad de la Tierra.
+
+**Escala de 1 km (bloque C):** parches LISTOS en `data/patches/*_1000*`: Luna (2,311
+índice / 9,246 entrenamiento), Marte (8,828 / 35,316) y Tierra (7,606 / 30,390; generada
+con `make_patches_global --body earth --spacing-km 128|64 --max-nodata-frac 0.2`, ~4 GB
+de RAM, 5 min). Falta: características (`patch_features`) por conjunto, entrenar 3 clases
+con `--matched --aux-weight 0.1 --lambda-max 0.3` en ciclo corto, `select_epoch`
+(la validación actual es de 60 m: definir una de 1 km), embed, baseline y release.
+SRTMGL30 no trae Antártida; el océano vale 0 (se trata como agua).
+
+**Marte (bloque D), por bajar del PDS:** TES (inercia térmica y albedo), hidrógeno de
+Mars Odyssey (GRS). Minerales (EMIT contra CRISM): deseable, fuera de alcance.
+
+**Ramas y PR:** trabajar solo en ramas `ml/...`; commit ANTES de cambiar de rama; Claude
+abre los PR con `~/.local/bin/gh pr create`, **las fusiones las hace una persona**.
+PR #1 (contrato) fusionado; **PR #2 `ml/v2-eval-release` abierto**; `ml/v3-multimodal`
+lleva v3, aridez con GPM, percentiles globales y `patch_features` generalizado.
+
+**Paquetes para Backend:** `release/v2-60m`, `release/v2-60m-r2` (con aridez y
+percentiles globales; el vigente).
+
 ## 2. Cómo trabajar aquí (reglas para Claude Code)
 
 - `ml/` es el frente de ML: datos para la red, parches, modelo, entrenamiento,

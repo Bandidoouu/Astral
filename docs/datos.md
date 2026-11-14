@@ -56,6 +56,8 @@ validamos con análogos fuera de la cobertura de NASADEM.
 | Luna, temperatura global | Diviner GCP (`global_cumul_avg_cyl_*_002`, 18 tablas, celdas de 0.5°, temperatura bolométrica en 96 horas locales) | PDS Geosciences (LRO) | `data/raw/moon/diviner_gcp/` |
 | Luna, albedo | LOLA `ldam_50s_1000m_float` (polo sur, 1 km) y `ldam_10_float` (global, 10 px/°): **son albedo** (el `.lbl` dice "albedo map (brightness)", 1064 nm) | PDS Geosciences (LRO) | `data/raw/moon/lola_albedo/` |
 | Tierra, albedo | MODIS MCD43C3 v061, un día por mes de 2023 (12 × 177 MB), albedo de cielo blanco bandas 2 y 5 | NASA Earthdata (LP DAAC) | `data/raw/earth/albedo/` |
+| Tierra, cobertura del suelo (zonas prometedoras) | MODIS MCD12C1 v061, anual 0.05°, 2023, clase IGBP mayoritaria (`Majority_Land_Cover_Type_1`), 1.2 GB | NASA Earthdata (LP DAAC) | `data/raw/earth/landcover/MCD12C1.A2023001*.hdf` |
+| Marte, hidrógeno (agua equivalente) | Mars Odyssey GRS, `ody-m-grs-5-elements-v1`, mapa suavizado 5x5° `h2o_sr_5x5` (% en peso de H2O equivalente, Boynton et al. 2007) | PDS Geosciences | `data/raw/mars/grs/h2o_sr_5x5.{tab,lbl}` |
 
 **Diviner GDR L3** (`data_derived_gdr_l3/cylindrical`) trae abundancia de rocas y
 temperaturas **nocturnas** del regolito, no la máxima diurna; por eso la temperatura
@@ -122,6 +124,8 @@ dem = earthaccess.search_data(short_name="NASADEM_HGT", bounding_box=mx)
 earthaccess.download(dem, "./dem")
 lst = earthaccess.search_data(short_name="MOD11C3", temporal=("2023-01-01", "2023-12-31"))
 earthaccess.download(lst, "./lst")
+lc = earthaccess.search_data(short_name="MCD12C1", version="061", temporal=("2023-01-01", "2023-01-02"))
+earthaccess.download(lc, "./landcover")
 ```
 
 ## 3. Pendientes, en orden de prioridad

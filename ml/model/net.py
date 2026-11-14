@@ -44,11 +44,55 @@ class Encoder(nn.Module):
         return F.normalize(self.head(self.backbone(x)), dim=1)
 
 
+class MultimodalEncoder(nn.Module):
+    """v3: ResNet-18 de 5 canales (forma) + MLP con las dimensiones por parche.
+
+    tab (B, 14): 7 percentiles dentro del propio cuerpo (temperatura máx., mín. y
+    rango, albedo, hielo, suelo, aridez) + 7 marcas de "sin dato". Las dos ramas se
+    concatenan (512 + 64) y se proyectan al embedding de 128 de norma 1."""
+
+    def __init__(self, in_ch=5, emb_dim=128, pretrained=True, tab_dim=14, tab_hidden=64):
+        super().__init__()
+        base = Encoder(in_ch, emb_dim, pretrained)
+        self.backbone = base.backbone
+        self.tab_mlp = nn.Sequential(nn.Linear(tab_dim, tab_hidden), nn.ReLU(inplace=True),
+                                     nn.Linear(tab_hidden, tab_hidden), nn.ReLU(inplace=True))
+        self.head = nn.Linear(512 + tab_hidden, emb_dim)
+        self.tab_dim = tab_dim
+
+    def forward(self, x, tab):
+        h = torch.cat([self.backbone(x), self.tab_mlp(tab.to(x.dtype))], 1)
+        return F.normalize(self.head(h), dim=1)
+
+
+def tab_dropout(tab, p=0.2, generator=None):
+    """Aumentación: oculta cada dimensión con probabilidad p (percentil 0, marca 1)."""
+    n = tab.shape[1] // 2
+    drop = torch.rand(tab.shape[0], n, device=tab.device, generator=generator) < p
+    vals, miss = tab[:, :n].clone(), tab[:, n:].clone()
+    vals[drop] = 0.0
+    miss[drop] = 1.0
+    return torch.cat([vals, miss], 1)
+
+
+def load_any_encoder(state_dict):
+    """Construye el encoder correcto (v1/v2 o multimodal v3) según sus pesos."""
+    if any(k.startswith("tab_mlp.") for k in state_dict):
+        tab_dim = state_dict["tab_mlp.0.weight"].shape[1]
+        enc = MultimodalEncoder(pretrained=False, tab_dim=tab_dim)
+    else:
+        enc = Encoder(pretrained=False)
+    enc.load_state_dict(state_dict)
+    return enc
+
+
 class AstralNet(nn.Module):
-    def __init__(self, n_bodies=2, emb_dim=128, pretrained=True, n_aux=0):
+    def __init__(self, n_bodies=2, emb_dim=128, pretrained=True, n_aux=0, tab_dim=0):
         super().__init__()
         self.emb_dim = emb_dim
-        self.encoder = Encoder(5, emb_dim, pretrained)
+        self.multimodal = tab_dim > 0
+        self.encoder = (MultimodalEncoder(5, emb_dim, pretrained, tab_dim) if self.multimodal
+                        else Encoder(5, emb_dim, pretrained))
         self.proj = nn.Sequential(nn.Linear(emb_dim, emb_dim), nn.ReLU(inplace=True),
                                   nn.Linear(emb_dim, emb_dim))
         self.disc = nn.Sequential(nn.Linear(emb_dim, 64), nn.ReLU(inplace=True),
@@ -57,8 +101,8 @@ class AstralNet(nn.Module):
         self.aux = (nn.Sequential(nn.Linear(emb_dim, 64), nn.ReLU(inplace=True),
                                   nn.Linear(64, n_aux)) if n_aux else None)
 
-    def forward(self, x, lam=0.0):
-        emb = self.encoder(x)
+    def forward(self, x, lam=0.0, tab=None):
+        emb = self.encoder(x, tab) if self.multimodal else self.encoder(x)
         z = self.proj(emb)
         # emb tiene norma 1 (componentes ~0.09): se reescala a componentes ~1
         # para que el discriminador pueda aprender; si no, se queda en el azar.

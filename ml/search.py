@@ -58,7 +58,7 @@ PRECIP_SCALE_MM = 250.0     # exp(-|Δ precipitación anual| / 250 mm)
 THERMAL_SCALE_K = 50.0      # exp(-|ΔT| / 50 K), promediado en tmax, tmin y rango
 ALBEDO_SCALE = 0.1          # exp(-|Δalbedo| / 0.1)
 ATTR_COLS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km",
-             "ice_frac", "soil_raw", "soil_pct", "precip_mm"]
+             "ice_frac", "soil_raw", "soil_pct", "precip_mm", "h2o_wt_pct"]
 
 
 def _num(v):
@@ -108,6 +108,7 @@ def gc_km(lat1, lon1, lat2, lon2, r):
 
 
 SCALES = (1000, 60)
+SCALE_MODES = ("same_size", "gravity_scaled")
 DETAIL_BODIES = {"moon", "earth"}      # la escala de 60 m solo compara Luna y Tierra
 
 
@@ -125,15 +126,16 @@ class ScaleIndex:
         art = Path(art or ROOT / "data/artifacts")
         meta = pd.read_parquet(art / f"meta_{scale}{tag}.parquet")
         emb = np.load(art / f"emb_{scale}{tag}.npy")
-        feat = np.load(art / f"baseline_feat_{scale}.npy")
-        names = json.loads((art / f"baseline_feat_{scale}.json").read_text())["names"]
+        bt = tag if (art / f"baseline_feat_{scale}{tag}.npy").exists() else ""
+        feat = np.load(art / f"baseline_feat_{scale}{bt}.npy")
+        names = json.loads((art / f"baseline_feat_{scale}{bt}.json").read_text())["names"]
         assert len(meta) == len(emb) == len(feat), "artefactos desalineados"
         ops = feat[:, [names.index(n) for n in OPS_FEATURES]]
         fp = art / f"features_{scale}{tag}.parquet"
         if fp.exists():
             f = pd.read_parquet(fp)
             assert (f.patch_id.values == meta.patch_id.values).all(), "features desalineadas"
-            attrs = f[ATTR_COLS].to_numpy(np.float64)
+            attrs = f.reindex(columns=ATTR_COLS).to_numpy(np.float64)   # columnas nuevas = NaN
         else:
             attrs = np.full((len(meta), len(ATTR_COLS)), np.nan)
         return cls(scale, meta, emb, feat, ops, attrs)
@@ -150,6 +152,15 @@ class Searcher:
             except FileNotFoundError:
                 pass
         assert self.idx, "no hay artefactos en data/artifacts"
+        try:      # scale_mode = gravity_scaled: Tierra 1 km, Luna x6, Marte x2.6 (mismo modelo)
+            self.gidx = ScaleIndex.load(1000, tag + "_gravity", art)
+        except FileNotFoundError:
+            self.gidx = None
+        lcp = Path(art or ROOT / "data/artifacts") / "earth_landcover_005deg.tif"
+        self.landcover = None
+        if lcp.exists():
+            from ml.features.earth_landcover import LandCover
+            self.landcover = LandCover(lcp)
 
     def query_patch(self, si, body, lat, lon):
         m = si.meta
@@ -162,7 +173,10 @@ class Searcher:
 
     def rank(self, si, q, target, k, method, n_candidates, rng=None):
         m = si.meta
-        T = np.flatnonzero(m.body.to_numpy() == target)
+        sel = m.body.to_numpy() == target
+        if target == "earth" and "promising" in m:
+            sel &= m.promising.to_numpy(bool)       # solo zonas prometedoras (MCD12C1)
+        T = np.flatnonzero(sel)
         cos = si.emb[T] @ si.emb[q]
         dist = np.sqrt(((si.feat[T] - si.feat[q]) ** 2).sum(1))
         if method == "net":
@@ -183,14 +197,29 @@ class Searcher:
         return T, order, cos, dist
 
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="general",
-               method="rrf", n_candidates=500, scale_m=1000):
+               method="rrf", n_candidates=500, scale_m=1000, scale_mode="same_size"):
         if scale_m not in SCALES:
             raise ValueError(f"scale_m debe ser uno de {SCALES}")
+        if scale_mode not in SCALE_MODES:
+            raise ValueError(f"scale_mode debe ser uno de {SCALE_MODES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
         weights = PROFILES[profile]
         out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile, scale_m=scale_m,
-                             target_bodies=targets, method=method),
+                             scale_mode=scale_mode, target_bodies=targets, method=method),
                "results": [], "warnings": []}
+        gravity = scale_mode == "gravity_scaled"
+        if gravity and (scale_m != 1000 or self.gidx is None):
+            out["warnings"].append("gravity_scaled is only available at scale_m = 1000"
+                                   if scale_m != 1000 else "gravity_scaled index not available; using same_size")
+            out["query"]["scale_mode"] = "same_size"
+            gravity = False
+        if body == "earth" and self.landcover is not None:
+            lc = self.landcover.at(lat, lon)
+            out["query"]["land_cover"] = lc
+            if not lc["promising"]:
+                out["warnings"].append(
+                    f"earth: the clicked point is {lc['name']} (MODIS land cover class "
+                    f"{lc['code']}), outside the promising analog zones; search continues")
         for target in targets:
             scale = scale_m
             if scale == 60 and {body, target} != DETAIL_BODIES:
@@ -199,12 +228,12 @@ class Searcher:
             if scale not in self.idx:
                 out["warnings"].append(f"{body}->{target}: índice de {scale} m aún no disponible")
                 continue
-            si = self.idx[scale]
+            si = self.gidx if gravity else self.idx[scale]
             if not (si.meta.body == target).any():
                 out["warnings"].append(f"{body}->{target}: sin parches de {target} a {scale} m")
                 continue
             q, dq = self.query_patch(si, body, lat, lon)
-            window_km = 128 * scale / 1000
+            window_km = 128 * float(si.meta.scale_m.iat[q]) / 1000
             if dq > window_km:
                 out["warnings"].append(
                     f"{body}: el punto está a {dq:.0f} km del parche más cercano a {scale} m "
@@ -213,7 +242,8 @@ class Searcher:
                     continue
             fq = dict(zip(ATTR_COLS, si.attrs[q]))
             out["query"].setdefault("patches", {})[target] = dict(
-                patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2))
+                patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2),
+                window_km=round(window_km, 1))
             out["query"]["attributes"] = {c: _num(v) for c, v in fq.items()}
             T, order, cos, _ = self.rank(si, q, target, k, method, n_candidates)
             for j in order[:k]:
@@ -232,6 +262,8 @@ class Searcher:
                 out["results"].append(dict(
                     patch_id=row.patch_id, body=target, lat=round(float(row.lat), 4),
                     lon=round(float(row.lon), 4), region=row.region, scale_m=scale,
+                    land_cover=(row.lc_name if target == "earth" and "lc_name" in row else None),
+                    window_km=round(128 * float(row.scale_m) / 1000, 1),
                     score=round(score, 4), scores=scores,
                     no_data=[d for d, v in scores.items() if v is None],
                     weights_used=used,
@@ -251,11 +283,12 @@ def main():
     ap.add_argument("--profile", default="general", choices=list(PROFILES))
     ap.add_argument("--method", default="rrf", choices=["rrf", "hybrid", "net", "baseline", "random"])
     ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
+    ap.add_argument("--scale-mode", default="same_size", choices=SCALE_MODES)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
     s = Searcher(a.tag)
     print(json.dumps(s.search(a.body, a.lat, a.lon, a.targets, a.k, a.profile, a.method,
-                              scale_m=a.scale),
+                              scale_m=a.scale, scale_mode=a.scale_mode),
                      indent=2, ensure_ascii=False))
 
 
