@@ -1,27 +1,170 @@
 {
   "query": {
-    "body": "moon", "lat": -89.5, "lon": 130.0, "scale_m": 60, "profile": "rover",
-    "patch_id": "moon-60-002461"
+    "body": "moon",
+    "lat": -89.5,
+    "lon": 130.0,
+    "profile": "general",
+    "target_bodies": [
+      "earth",
+      "mars"
+    ],
+    "method": "hybrid",
+    "patches": {
+      "earth": {
+        "patch_id": "moon-1000-002461",
+        "scale_m": 1000,
+        "distance_km": 21.4
+      },
+      "mars": {
+        "patch_id": "moon-1000-002461",
+        "scale_m": 1000,
+        "distance_km": 21.4
+      }
+    },
+    "scale_m": 1000,
+    "attributes": {
+      "tmax_k": 305.4,
+      "tmin_k": 38.1,
+      "trange_k": 267.3,
+      "albedo": 0.24,
+      "ice_distance_km": 3.2,
+      "ice_frac": 0.31,
+      "soil_raw": null,
+      "soil_pct": null,
+      "precip_mm": 0.0
+    }
   },
   "results": [
     {
-      "patch_id": "earth-60-000123", "body": "earth", "lat": 31.77, "lon": -113.5,
-      "region": "Sonora, Mexico", "score": 0.87,
-      "scores": {"terrain": 0.91, "materials": null, "thermal": 0.35, "operations": 0.88},
-      "not_comparable": ["gravity", "vacuum", "radiation"]
+      "patch_id": "earth-1000-000123",
+      "body": "earth",
+      "lat": 31.77,
+      "lon": -113.5,
+      "region": "Sonora, Mexico",
+      "scale_m": 1000,
+      "score": 0.87,
+      "scores": {
+        "terrain": 0.91,
+        "thermal": null,
+        "operations": 0.88,
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
+      },
+      "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
+        "gravity",
+        "vacuum",
+        "radiation"
+      ],
+      "no_data": [
+        "thermal",
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
+      }
     },
     {
-      "patch_id": "earth-60-004512", "body": "earth", "lat": 19.02, "lon": -98.62,
-      "region": "Puebla, Mexico", "score": 0.81,
-      "scores": {"terrain": 0.84, "materials": null, "thermal": 0.22, "operations": 0.86},
-      "not_comparable": ["gravity", "vacuum", "radiation"]
+      "patch_id": "earth-1000-004512",
+      "body": "earth",
+      "lat": 19.02,
+      "lon": -98.62,
+      "region": "Puebla, Mexico",
+      "scale_m": 1000,
+      "score": 0.81,
+      "scores": {
+        "terrain": 0.84,
+        "thermal": null,
+        "operations": 0.86,
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
+      },
+      "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
+        "gravity",
+        "vacuum",
+        "radiation"
+      ],
+      "no_data": [
+        "thermal",
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
+      }
     },
     {
-      "patch_id": "earth-60-031877", "body": "earth", "lat": 27.95, "lon": -103.71,
-      "region": "Chihuahua, Mexico", "score": 0.76,
-      "scores": {"terrain": 0.79, "materials": null, "thermal": 0.41, "operations": 0.77},
-      "not_comparable": ["gravity", "vacuum", "radiation"]
+      "patch_id": "mars-1000-004187",
+      "body": "mars",
+      "lat": 18.4,
+      "lon": 77.5,
+      "region": "Jezero region, Mars",
+      "scale_m": 1000,
+      "score": 0.74,
+      "scores": {
+        "terrain": 0.78,
+        "thermal": null,
+        "operations": 0.69,
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
+      },
+      "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
+        "gravity",
+        "vacuum",
+        "radiation"
+      ],
+      "no_data": [
+        "thermal",
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
+      ],
+      "attributes": {
+        "tmax_k": null,
+        "tmin_k": null,
+        "trange_k": null,
+        "albedo": null,
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
+      }
     }
   ],
+  "warnings": [],
   "_note": "Ejemplo inventado para mocks. Los valores reales salen del índice."
 }
