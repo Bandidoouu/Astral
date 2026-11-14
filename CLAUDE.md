@@ -164,7 +164,12 @@ Por qué dos escalas: el relieve global de Marte en los portales oficiales es de
 - **Muestreo:** rejilla sin traslape para el índice de búsqueda; para entrenar se
   puede muestrear con traslape. Objetivos aproximados: Luna 15 mil, Tierra 35 mil a
   60 m; Marte 15 mil, Tierra ~10 mil a 500 m.
-- **Luna:** polo sur completo (80° a 90° S) en su proyección nativa; ya es métrica.
+- **Luna:** polo sur en su proyección nativa; ya es métrica. Índice: rejilla sin
+  traslape de 80° a 90° S (`patches_moon_60`, 4,922). Entrenamiento: todo el archivo
+  (hasta ~69° S en las esquinas) con stride 64 (`patches_moon_60_train`, 56,169).
+- **Tierra 60 m:** `patches_earth_60`, 54,993 (115 holdout). La caja de NASADEM
+  incluye partes del suroeste de EE. UU. y Centroamérica; `region` dice "Mexico"
+  para todos salvo Pinacate (pendiente de corregir).
 - **Marte:** regiones objetivo completas y una muestra al azar con |lat| < 60°.
 - **Holdout / prueba ciega:** todo parche a menos de 50 km de El Pinacate
   (aprox. 31.77° N, -113.50°) lleva `holdout=True`: queda FUERA del entrenamiento
@@ -179,7 +184,8 @@ Mismo código para los tres cuerpos; el tamaño de píxel se pasa como parámetr
 1. Elevación relativa: elevación menos la media del parche, entre 500 m, recortada.
 2. Pendiente en grados, entre 90.
 3. Rugosidad: desviación estándar local en ventanas de 3x3.
-4. Curvatura: laplaciano de la elevación.
+4. Curvatura: laplaciano de la elevación suavizada (gaussiana σ = 1.5 px), para
+   quitar las franjas de órbitas de LOLA y el ruido de NASADEM (delatan el planeta).
 5. Sombreado (hillshade) con azimut del Sol aleatorio.
 
 Aumentaciones: rotaciones de 90°, volteos, recorte y reescalado de ±20%, ruido
@@ -322,6 +328,8 @@ corriendo), H12 (búsqueda de punta a punta), H16 (MVP), H20 (congelamiento), H2
   ambientes fríos o con hielo. Agregar candidatos fríos (Antártida, glaciares).
 - LOLA viene en km: multiplicar por 1000. GDAL reporta `Offset: 1737.4` (el radio): NO sumarlo, la altura es el valor crudo.
 - Parches guardados como elevación relativa a su media (float16) + `elev_mean_m` en los metadatos.
+- Dataloader en `ml/model/` (`channels.py`: 5 canales y aumentaciones en GPU;
+  `dataset.py`: lotes balanceados desde memmap). ~6,400 vistas/s, no es el cuello de botella.
 - Datos de agencias asociadas que se pueden citar: Kaguya (JAXA) dentro de
   SLDEM2015; ESA (Copernicus DEM, WorldCover) si se usan. CSA RADARSAT contra
   Mini-RF de LRO queda como extra después de H16.
