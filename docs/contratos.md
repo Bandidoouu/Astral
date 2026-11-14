@@ -47,36 +47,65 @@ ML los genera en `data/artifacts/` (fuera de git).
 
 ## 3. API: `POST /api/similar`
 
-Busca los gemelos terrestres de un sitio de la Luna o de Marte.
+**Requisito central:** el punto de consulta puede estar en **cualquiera de los tres
+cuerpos** y se devuelven gemelos en los otros dos (o en los que se pidan).
 
 **Petición** (`contracts/similar_request.json`):
 
 ```json
-{"body": "moon", "lat": -89.5, "lon": 130.0, "scale_m": 60, "profile": "rover", "k": 10}
+{"body": "moon", "lat": -89.5, "lon": 130.0, "target_bodies": ["earth", "mars"],
+ "profile": "rover", "k": 10}
 ```
+
+| Campo | Obligatorio | Significado |
+| --- | --- | --- |
+| `body`, `lat`, `lon` | sí | Punto de consulta (`earth`, `moon` o `mars`) |
+| `target_bodies` | no | Cuerpos donde buscar. Por defecto, los otros dos |
+| `profile` | no | Perfil de misión (§4). Por defecto `rover` |
+| `k` | no | Resultados **por cada cuerpo destino**. Por defecto 10 |
+| `method` | no | `hybrid` (por defecto), `net`, `baseline`. Solo para depurar y para la demo de validación |
+
+**Ya no se manda `scale_m`:** la escala la decide la regla por par
+(origen, destino): **Luna ↔ Tierra a 60 m si el lado lunar está al sur de 80° S;
+todo lo demás a 500 m.** Cada resultado dice con qué escala se comparó.
+
+**Cómo lo implementa Backend:** con `ml.search.Searcher` (solo numpy, pandas y
+faiss): se crea una vez al arrancar y cada petición llama a
+`searcher.search(body, lat, lon, target_bodies, k, profile, method)`, que ya
+devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
+~500 candidatos físicamente compatibles y la red los reordena.
 
 **Respuesta** (`contracts/similar_response.json`):
 
 ```json
 {
-  "query": {"body": "moon", "lat": -89.5, "lon": 130.0, "scale_m": 60, "profile": "rover",
-            "patch_id": "moon-60-002461"},
+  "query": {"body": "moon", "lat": -89.5, "lon": 130.0, "profile": "rover",
+            "target_bodies": ["earth", "mars"], "method": "hybrid",
+            "patches": {"earth": {"patch_id": "moon-60-002461", "scale_m": 60, "distance_km": 0.4},
+                        "mars": {"patch_id": "moon-500-010233", "scale_m": 500, "distance_km": 3.1}}},
   "results": [
     {
       "patch_id": "earth-60-000123", "body": "earth", "lat": 31.77, "lon": -113.5,
-      "region": "Sonora, Mexico", "score": 0.87,
-      "scores": {"terrain": 0.91, "materials": 0.78, "thermal": 0.35, "operations": 0.88},
+      "region": "Sonora, Mexico", "scale_m": 60, "score": 0.87,
+      "scores": {"terrain": 0.91, "materials": null, "thermal": null, "operations": 0.88},
       "not_comparable": ["gravity", "vacuum", "radiation"]
     }
-  ]
+  ],
+  "warnings": []
 }
 ```
 
-- `query.patch_id`: el parche de la Luna o de Marte más cercano al punto pedido.
+- `query.patches[target]`: el parche del cuerpo de origen que se usó para cada
+  destino (puede cambiar de escala según el destino) y su distancia al punto pedido.
+- `results`: hasta `k` resultados por cuerpo destino, agrupados por `body` y en orden
+  de ranking del método. `scale_m` dice con qué escala se comparó.
+- `warnings`: avisos legibles, p. ej. punto fuera de cobertura o índice de 500 m aún
+  no disponible. El frontend los muestra, no son errores.
 - `score`: total ponderado según el perfil (§4). `scores`: cada dimensión de 0 a 1.
 - Una dimensión que todavía no existe (p. ej. `materials` antes de decidirla) va como
   `null` y el frontend la muestra como "no disponible".
-- `not_comparable` siempre incluye `gravity`, `vacuum` (en Marte: `atmosphere`) y `radiation`.
+- `not_comparable` siempre incluye `gravity`, `vacuum` (si interviene la Luna) o
+  `atmosphere` (si interviene Marte) y `radiation`.
 
 ## 4. Puntaje por dimensión y perfiles de misión
 
@@ -116,3 +145,4 @@ Luna, ~6 mbar en Marte) y radiación.
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
 | 2026-11-14 | Versión inicial | Todos | — |
+| 2026-11-14 | Consulta desde cualquier cuerpo: `target_bodies`, `method`, escala automática por par (se quita `scale_m` de la petición), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
