@@ -29,7 +29,7 @@ from ml.model.dataset import PatchSet, iter_all
 from ml.model.net import Encoder
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
-INDEX_SETS = {60: ["earth_60", "moon_60"], 500: ["earth_500", "mars_500"]}
+INDEX_SETS = {60: ["earth_60", "moon_60"], 1000: ["earth_1000", "moon_1000", "mars_1000"]}
 
 
 def load_encoder(path, device="cuda"):
