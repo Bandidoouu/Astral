@@ -41,13 +41,34 @@ RADIUS_KM = {"earth": 6371.0, "moon": 1737.4, "mars": 3389.5}
 NOT_COMPARABLE = {"moon": ["gravity", "vacuum", "radiation"],
                   "mars": ["gravity", "atmosphere", "radiation"],
                   "earth": ["gravity", "atmosphere", "radiation"]}
-PROFILES = {
-    "rover": dict(terrain=0.45, materials=0.10, thermal=0.05, operations=0.40),
-    "isru": dict(terrain=0.20, materials=0.50, thermal=0.20, operations=0.10),
-    "habitat": dict(terrain=0.25, materials=0.20, thermal=0.25, operations=0.30),
-    "eva": dict(terrain=0.40, materials=0.40, thermal=0.05, operations=0.15),
-    "astrobiology": dict(terrain=0.25, materials=0.50, thermal=0.25, operations=0.00),
+PROFILES = {      # "materials" (minerales) quedó fuera de alcance; el albedo toma su lugar
+    "rover": dict(terrain=0.45, operations=0.40, thermal=0.05, albedo=0.10),
+    "isru": dict(terrain=0.20, operations=0.10, thermal=0.20, albedo=0.50),
+    "habitat": dict(terrain=0.25, operations=0.30, thermal=0.25, albedo=0.20),
+    "eva": dict(terrain=0.40, operations=0.15, thermal=0.05, albedo=0.40),
+    "astrobiology": dict(terrain=0.25, operations=0.00, thermal=0.25, albedo=0.50),
 }
+THERMAL_SCALE_K = 50.0      # exp(-|ΔT| / 50 K), promediado en tmax, tmin y rango
+ALBEDO_SCALE = 0.1          # exp(-|Δalbedo| / 0.1)
+ATTR_COLS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km"]
+
+
+def _num(v):
+    return None if v is None or not np.isfinite(v) else round(float(v), 3)
+
+
+def thermal_score(fq, ft):
+    """None ("sin dato") si falta la máxima o la mínima en cualquiera de los dos."""
+    if not all(np.isfinite(f[c]) for f in (fq, ft) for c in ("tmax_k", "tmin_k")):
+        return None
+    d = [abs(fq[c] - ft[c]) for c in ("tmax_k", "tmin_k", "trange_k")]
+    return float(np.mean(np.exp(-np.asarray(d) / THERMAL_SCALE_K)))
+
+
+def albedo_score(fq, ft):
+    if not (np.isfinite(fq["albedo"]) and np.isfinite(ft["albedo"])):
+        return None
+    return float(np.exp(-abs(fq["albedo"] - ft["albedo"]) / ALBEDO_SCALE))
 OPS_FEATURES = ["slope_mean", "slope_frac_0_2", "slope_frac_2_5", "slope_frac_5_8",
                 "slope_frac_8_15", "log_rough_mean"]
 
@@ -69,6 +90,7 @@ class ScaleIndex:
     emb: np.ndarray
     feat: np.ndarray
     ops: np.ndarray
+    attrs: np.ndarray        # N x len(ATTR_COLS), NaN = sin dato
 
     @classmethod
     def load(cls, scale, tag="", art=None):
@@ -79,7 +101,14 @@ class ScaleIndex:
         names = json.loads((art / f"baseline_feat_{scale}.json").read_text())["names"]
         assert len(meta) == len(emb) == len(feat), "artefactos desalineados"
         ops = feat[:, [names.index(n) for n in OPS_FEATURES]]
-        return cls(scale, meta, emb, feat, ops)
+        fp = art / f"features_{scale}{tag}.parquet"
+        if fp.exists():
+            f = pd.read_parquet(fp)
+            assert (f.patch_id.values == meta.patch_id.values).all(), "features desalineadas"
+            attrs = f[ATTR_COLS].to_numpy(np.float64)
+        else:
+            attrs = np.full((len(meta), len(ATTR_COLS)), np.nan)
+        return cls(scale, meta, emb, feat, ops, attrs)
 
 
 class Searcher:
@@ -154,21 +183,31 @@ class Searcher:
                     f"(fuera de la cobertura de esa escala)")
                 if scale == 60:
                     continue
+            fq = dict(zip(ATTR_COLS, si.attrs[q]))
             out["query"].setdefault("patches", {})[target] = dict(
                 patch_id=si.meta.patch_id.iat[q], scale_m=scale, distance_km=round(dq, 2))
+            out["query"]["attributes"] = {c: _num(v) for c, v in fq.items()}
             T, order, cos, _ = self.rank(si, q, target, k, method, n_candidates)
             for j in order[:k]:
                 row = si.meta.iloc[T[j]]
                 ops = float(1.0 / (1.0 + np.sqrt(((si.ops[T[j]] - si.ops[q]) ** 2).mean())))
+                ft = dict(zip(ATTR_COLS, si.attrs[T[j]]))
+                th, al = thermal_score(fq, ft), albedo_score(fq, ft)
                 scores = dict(terrain=round(float(np.clip(cos[j], 0, 1)), 4),
-                              materials=None, thermal=None, operations=round(ops, 4))
-                avail = {d: w for d, w in weights.items() if scores[d] is not None}
+                              operations=round(ops, 4),
+                              thermal=None if th is None else round(th, 4),
+                              albedo=None if al is None else round(al, 4))
+                avail = {d: w for d, w in weights.items() if scores[d] is not None and w > 0}
                 tot = sum(avail.values())
                 score = sum(scores[d] * w for d, w in avail.items()) / tot if tot else 0.0
+                used = {d: round(w / tot, 3) for d, w in avail.items()} if tot else {}
                 out["results"].append(dict(
                     patch_id=row.patch_id, body=target, lat=round(float(row.lat), 4),
                     lon=round(float(row.lon), 4), region=row.region, scale_m=scale,
                     score=round(score, 4), scores=scores,
+                    no_data=[d for d, v in scores.items() if v is None],
+                    weights_used=used,
+                    attributes={c: _num(v) for c, v in ft.items()},
                     not_comparable=NOT_COMPARABLE[target if body == "earth" else body]))
         return out
 

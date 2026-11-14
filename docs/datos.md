@@ -53,6 +53,16 @@ validamos con análogos fuera de la cobertura de NASADEM.
 
 | Tierra, relieve global 30" (~0.93 km) | SRTMGL30 v002, 27 mosaicos. **Cobertura real: de 90° N a 60° S, sin Antártida** (los metadatos de la colección dicen 60° N a 56° S, lo medido por SRTM; al norte de 60° N viene rellenado con GTOPO30). Enteros de 16 bits big-endian, sin cabecera; **el océano vale 0** (no NoData) | NASA Earthdata (LP DAAC) | `data/raw/earth/srtmgl30/` (`dem/*.DEM` + `.HDR` que escribimos, `srtmgl30.vrt`) |
 
+| Luna, temperatura global | Diviner GCP (`global_cumul_avg_cyl_*_002`, 18 tablas, celdas de 0.5°, temperatura bolométrica en 96 horas locales) | PDS Geosciences (LRO) | `data/raw/moon/diviner_gcp/` |
+| Luna, albedo | LOLA `ldam_50s_1000m_float` (polo sur, 1 km) y `ldam_10_float` (global, 10 px/°): **son albedo** (el `.lbl` dice "albedo map (brightness)", 1064 nm) | PDS Geosciences (LRO) | `data/raw/moon/lola_albedo/` |
+| Tierra, albedo | MODIS MCD43C3 v061, un día por mes de 2023 (12 × 177 MB), albedo de cielo blanco bandas 2 y 5 | NASA Earthdata (LP DAAC) | `data/raw/earth/albedo/` |
+
+**Diviner GDR L3** (`data_derived_gdr_l3/cylindrical`) trae abundancia de rocas y
+temperaturas **nocturnas** del regolito, no la máxima diurna; por eso la temperatura
+lunar global sale de la **GCP** (máxima, mínima y rango sobre las 96 horas locales).
+La PRP sur no trae temperatura mínima: en el polo la mínima también sale de la GCP.
+El GDAL de rasterio no lee HDF4 (MODIS): se convierte con el `gdal_translate` del sistema.
+
 **Escala global de 1 km:** Tierra con SRTMGL30; Luna con LOLA `ldem_64_float` promediado
 a ~950 m (**LOLA no publica una versión de 32 px/°**: solo 4, 16, 64, 128, 256, 512 y
 1024); Marte con MOLA MEGDR 128 px/° promediado a ~930 m. No hizo falta bajar nada más.

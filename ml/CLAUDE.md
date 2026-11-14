@@ -21,6 +21,29 @@ de México). Cada búsqueda indica su escala (`scale_m` = 1000 o 60). Búsqueda:
 `ml/search.py` (método por defecto `hybrid`: la fórmula base preselecciona ~500
 candidatos y la red reordena).
 
+**Requisito central: la búsqueda no es solo de forma.** La red se encarga
+únicamente de la forma del terreno (`terrain`, ranking por **fusión RRF** de la red y
+la fórmula base, k = 60 fijo, sin ajustar pesos). Las demás dimensiones se calculan
+aparte, como características por parche con datos de los portales oficiales:
+
+| Dimensión | Tierra | Luna | Marte (bloque 4) |
+| --- | --- | --- | --- |
+| `thermal` (máx., mín., rango) | MODIS MOD11C3 (LST 2023) | Diviner: PRP sur (media, máx., hielo; ~0.5 km) + GCP global (tbol por hora local, 0.5°) | TES |
+| `albedo` | MODIS MCD43C3 (infrarrojo cercano) | LOLA `ldam` (1064 nm; polar 1 km, global `ldam_10`) | TES |
+| hielo (atributo del sitio) | — | Diviner PRP `ice_depth`: distancia a hielo estable a ≤ 1 m | Hidrógeno de Mars Odyssey |
+
+Cada dimensión da un puntaje de 0 a 1; si falta el dato en un lugar, es `null`
+("sin dato") y **no cuenta en el total. Nunca se inventan valores.**
+
+**Capa de aptitud para base lunar** (reglas transparentes, no la red): pendiente
+< 8° (aterrizaje) y < 15° (rover) con LOLA, cercanía a hielo estable y temperatura con
+Diviner; cada criterio de 0 a 1 con pesos visibles; rasters del polo sur por criterio
+y del total; se superponen los candidatos de la NASA y se mide si caen en zonas de
+puntaje alto. **Faltan la iluminación y la visibilidad de la Tierra porque no están en
+los portales del reto: por eso la capa es una sugerencia, no una elección final.**
+Marte: la misma capa con MOLA (pendiente y altitud baja), TES (inercia térmica y
+albedo) e hidrógeno de Mars Odyssey, todo del PDS. Minerales: fuera de alcance.
+
 ## 2. Cómo trabajar aquí (reglas para Claude Code)
 
 - `ml/` es el frente de ML: datos para la red, parches, modelo, entrenamiento,

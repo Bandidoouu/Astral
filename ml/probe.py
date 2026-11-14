@@ -30,6 +30,9 @@ def main():
     ap.add_argument("--tag", default="")
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--matched", action="store_true",
+                    help="muestra emparejada por estratos de (log relieve, pendiente media): "
+                         "el clasificador no puede usar solo lo abrupto del terreno")
     a = ap.parse_args()
 
     art = ROOT / "data/artifacts"
@@ -37,9 +40,25 @@ def main():
     meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
     rng = np.random.default_rng(a.seed)
     bodies = sorted(meta.body.unique())
-    n = meta.body.value_counts().min()
-    idx = np.concatenate([rng.choice(np.flatnonzero(meta.body == b), n, replace=False)
-                          for b in bodies])
+    if a.matched:
+        bj = json.loads((art / f"baseline_feat_{a.scale}.json").read_text())
+        B = np.load(art / f"baseline_feat_{a.scale}.npy")
+        rel = B[:, bj["names"].index("log_relief")]
+        slo = B[:, bj["names"].index("slope_mean")]
+        qe = lambda v: np.digitize(v, np.quantile(v, np.linspace(0, 1, 9)[1:-1]))
+        strata = qe(rel) * 8 + qe(slo)
+        idx = []
+        for st in np.unique(strata):
+            groups = [np.flatnonzero((strata == st) & (meta.body.to_numpy() == b)) for b in bodies]
+            k = min(len(g) for g in groups)
+            if k >= 5:
+                idx += [rng.choice(g, k, replace=False) for g in groups]
+        idx = np.concatenate(idx)
+        n = len(idx) // len(bodies)
+    else:
+        n = meta.body.value_counts().min()
+        idx = np.concatenate([rng.choice(np.flatnonzero(meta.body == b), n, replace=False)
+                              for b in bodies])
     X, y = emb[idx], meta.body.to_numpy()[idx]
 
     clf = LogisticRegression(max_iter=2000, C=1.0)
@@ -51,11 +70,11 @@ def main():
     _, nn = index.search(X.astype(np.float32), a.k + 1)
     other = (y[nn[:, 1:]] != y[:, None]).mean()
 
-    res = dict(tag=a.tag or "main", n_per_body=int(n), bodies=bodies,
+    res = dict(tag=a.tag or "main", matched=a.matched, n_per_body=int(n), bodies=bodies,
                linear_probe_acc=float(acc.mean()), linear_probe_std=float(acc.std()),
                chance=1 / len(bodies), knn_other_body_frac=float(other), k=a.k)
-    (art / f"probe_{a.scale}{a.tag}.json").write_text(json.dumps(res, indent=2))
-    print(f"[{res['tag']}] clasificador lineal: {100 * acc.mean():.1f}% ± {100 * acc.std():.1f} "
+    (art / f"probe_{a.scale}{a.tag}{'_matched' if a.matched else ''}.json").write_text(json.dumps(res, indent=2))
+    print(f"[{res['tag']}{' emparejado' if a.matched else ''}] clasificador lineal: {100 * acc.mean():.1f}% ± {100 * acc.std():.1f} "
           f"(azar {100 / len(bodies):.0f}%) | vecinos del otro cuerpo (k={a.k}): "
           f"{100 * other:.1f}% (mezcla perfecta 50%) | {n} por cuerpo")
 
