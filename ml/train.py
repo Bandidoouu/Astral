@@ -27,8 +27,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from ml.model.channels import make_views
-from ml.model.dataset import BODY_ID, BalancedLoader, default_sources
+from ml.model.channels import make_views, relief_slope_targets
+from ml.model.dataset import BODY_ID, BalancedLoader, default_sources, make_strata
 from ml.model.net import AstralNet, nt_xent
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
@@ -50,6 +50,11 @@ def parse_args():
     p.add_argument("--disc-lr-mult", type=float, default=10.0)
     p.add_argument("--no-disc", action="store_true",
                    help="ablación: lambda = 0 (el discriminador solo mide, no empuja)")
+    p.add_argument("--matched", action="store_true",
+                   help="v2: lotes emparejados por estratos de relieve y pendiente")
+    p.add_argument("--nbins", type=int, default=8)
+    p.add_argument("--aux-weight", type=float, default=0.0,
+                   help="v2: peso de la cabeza auxiliar (log relieve y pendiente)")
     p.add_argument("--steps-per-epoch", type=int, default=None)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--version", type=int, default=None,
@@ -78,13 +83,15 @@ def main():
     for i, b in enumerate(bodies):
         lut[BODY_ID[b]] = i
     lut = lut.to(dev)
+    strata = make_strata(sets, a.nbins) if a.matched else None
     loader = BalancedLoader(sets, per_body=a.per_body, device=dev,
-                            steps_per_epoch=a.steps_per_epoch, seed=a.seed)
+                            steps_per_epoch=a.steps_per_epoch, seed=a.seed, strata=strata)
     steps, total = len(loader), len(loader) * a.epochs
     print(f"cuerpos={bodies} parches={[len(s.idx) for s in sets]} "
           f"lote={a.per_body * len(sets)} pasos/época={steps} total={total}")
 
-    model = AstralNet(n_bodies=len(sets)).to(dev).to(memory_format=torch.channels_last)
+    model = AstralNet(n_bodies=len(sets), n_aux=2 if a.aux_weight > 0 else 0)
+    model = model.to(dev).to(memory_format=torch.channels_last)
     disc_params = list(model.disc.parameters())
     disc_ids = {id(q) for q in disc_params}
     main_params = [q for q in model.parameters() if id(q) not in disc_ids]
@@ -115,20 +122,25 @@ def main():
     for epoch in range(start_epoch, a.epochs):
         model.train()
         t0 = time.time()
-        acc = dict(con=0.0, dis=0.0, hit=0, n=0, std=0.0)
+        acc = dict(con=0.0, dis=0.0, aux=0.0, hit=0, n=0, std=0.0)
         for i, (z, px, body) in enumerate(loader):
             progress = gstep / max(1, total)
             lam = 0.0 if a.no_disc else lambda_schedule(progress, a.lambda_max)
             with torch.no_grad():
-                x = torch.cat([make_views(z, px), make_views(z, px)])
-                x = x.contiguous(memory_format=torch.channels_last)
+                x1, za1, pa1 = make_views(z, px, return_aug=True)
+                x2, za2, pa2 = make_views(z, px, return_aug=True)
+                x = torch.cat([x1, x2]).contiguous(memory_format=torch.channels_last)
+                tgt = (torch.cat([relief_slope_targets(za1, pa1), relief_slope_targets(za2, pa2)])
+                       if a.aux_weight > 0 else None)
             y = lut[body].repeat(2)
             with torch.autocast("cuda", dtype=torch.bfloat16):
-                emb, proj, logits = model(x, lam)
+                emb, proj, logits, aux = model(x, lam)
             B = z.shape[0]
             l_con = nt_xent(proj[:B].float(), proj[B:].float(), a.temperature)
             l_dis = F.cross_entropy(logits.float(), y)
-            loss = l_con + l_dis   # la GRL ya escala por -lambda hacia el encoder
+            l_aux = F.mse_loss(aux.float(), tgt) if tgt is not None else torch.zeros((), device=dev)
+            # la GRL ya escala por -lambda hacia el encoder
+            loss = l_con + l_dis + a.aux_weight * l_aux
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step(); sched.step(); gstep += 1
@@ -136,7 +148,7 @@ def main():
             with torch.no_grad():
                 hit = (logits.argmax(1) == y).sum().item()
                 std = emb.float().std(0).mean().item()
-            acc["con"] += l_con.item(); acc["dis"] += l_dis.item()
+            acc["con"] += l_con.item(); acc["dis"] += l_dis.item(); acc["aux"] += l_aux.item()
             acc["hit"] += hit; acc["n"] += len(y); acc["std"] += std
             if gstep % a.log_every == 0:
                 tb.add_scalar("step/loss_contrastive", l_con.item(), gstep)
@@ -145,12 +157,14 @@ def main():
                 tb.add_scalar("step/lambda", lam, gstep)
                 tb.add_scalar("step/lr", sched.get_last_lr()[0], gstep)
                 print(f"  ep {epoch + 1} paso {i + 1}/{steps}  con={l_con.item():.3f} "
-                      f"dis={l_dis.item():.3f} acc={100 * hit / len(y):.1f}% lam={lam:.3f}",
+                      f"dis={l_dis.item():.3f} acc={100 * hit / len(y):.1f}% "
+                      f"aux={l_aux.item():.3f} lam={lam:.3f}",
                       flush=True)
 
         n_it = i + 1
         rec = dict(epoch=epoch + 1, loss_contrastive=acc["con"] / n_it,
-                   loss_disc=acc["dis"] / n_it, disc_acc=100 * acc["hit"] / acc["n"],
+                   loss_disc=acc["dis"] / n_it, loss_aux=acc["aux"] / n_it,
+                   disc_acc=100 * acc["hit"] / acc["n"],
                    disc_chance=chance, lam=lam, lr=sched.get_last_lr()[0],
                    emb_std=acc["std"] / n_it, seconds=time.time() - t0)
         for k in ("loss_contrastive", "loss_disc", "disc_acc", "lam", "emb_std"):
@@ -159,6 +173,7 @@ def main():
             f.write(json.dumps(rec) + "\n")
         print(f"[época {epoch + 1}/{a.epochs}] contrastiva={rec['loss_contrastive']:.4f}  "
               f"disc={rec['loss_disc']:.4f}  disc_acc={rec['disc_acc']:.1f}% "
+              f"aux={rec['loss_aux']:.4f} "
               f"(azar {chance:.0f}%)  lambda={lam:.3f}  lr={rec['lr']:.2e}  "
               f"emb_std={rec['emb_std']:.4f}  {rec['seconds'] / 60:.1f} min", flush=True)
 

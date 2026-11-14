@@ -133,10 +133,22 @@ def augment(z, px, crop_min=0.8, vscale=0.15, generator=None):
     return za, px_a, az
 
 
-def make_views(z, px, noise_std=0.03, generator=None):
-    """Una vista aumentada del lote, lista para la red: (B, 5, H, W)."""
+def make_views(z, px, noise_std=0.03, generator=None, return_aug=False):
+    """Una vista aumentada del lote, lista para la red: (B, 5, H, W).
+    Con return_aug=True devuelve también (z_aug, px_aug) para objetivos auxiliares."""
     za, pa, az = augment(z, px, generator=generator)
     x = make_channels(za, pa, az)
     if noise_std > 0:
         x = x + noise_std * torch.randn(x.shape, device=x.device, generator=generator)
-    return x
+    return (x, za, pa) if return_aug else x
+
+
+def relief_slope_targets(z, px):
+    """Objetivos de la cabeza auxiliar, normalizados a ~N(0, 1):
+    (log(1 + relieve) - 6) / 1.5 y (pendiente media en grados - 6) / 5."""
+    z = z.float()
+    flat = z.flatten(1)
+    relief = flat.max(1).values - flat.min(1).values
+    dzdx, dzdy = gradients(z, px.float())
+    slope = torch.rad2deg(torch.atan(torch.sqrt(dzdx ** 2 + dzdy ** 2))).flatten(1).mean(1)
+    return torch.stack([(torch.log1p(relief) - 6.0) / 1.5, (slope - 6.0) / 5.0], 1)

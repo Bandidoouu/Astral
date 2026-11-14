@@ -45,7 +45,7 @@ class Encoder(nn.Module):
 
 
 class AstralNet(nn.Module):
-    def __init__(self, n_bodies=2, emb_dim=128, pretrained=True):
+    def __init__(self, n_bodies=2, emb_dim=128, pretrained=True, n_aux=0):
         super().__init__()
         self.emb_dim = emb_dim
         self.encoder = Encoder(5, emb_dim, pretrained)
@@ -53,6 +53,9 @@ class AstralNet(nn.Module):
                                   nn.Linear(emb_dim, emb_dim))
         self.disc = nn.Sequential(nn.Linear(emb_dim, 64), nn.ReLU(inplace=True),
                                   nn.Linear(64, n_bodies))
+        # cabeza auxiliar: obliga al embedding a conservar relieve y pendiente
+        self.aux = (nn.Sequential(nn.Linear(emb_dim, 64), nn.ReLU(inplace=True),
+                                  nn.Linear(64, n_aux)) if n_aux else None)
 
     def forward(self, x, lam=0.0):
         emb = self.encoder(x)
@@ -60,7 +63,8 @@ class AstralNet(nn.Module):
         # emb tiene norma 1 (componentes ~0.09): se reescala a componentes ~1
         # para que el discriminador pueda aprender; si no, se queda en el azar.
         logits = self.disc(grad_reverse(emb, lam) * self.emb_dim ** 0.5)
-        return emb, z, logits
+        aux = self.aux(emb * self.emb_dim ** 0.5) if self.aux is not None else None
+        return emb, z, logits, aux
 
 
 def nt_xent(z1, z2, temperature=0.1):
