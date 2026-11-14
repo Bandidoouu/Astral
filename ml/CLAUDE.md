@@ -291,6 +291,10 @@ corriendo), H12 (búsqueda de punta a punta), H16 (MVP), H20 (congelamiento), H2
 - Parches guardados como elevación relativa a su media (float16) + `elev_mean_m` en los metadatos.
 - Dataloader en `ml/model/` (`channels.py`: 5 canales y aumentaciones en GPU;
   `dataset.py`: lotes balanceados desde memmap). ~6,400 vistas/s, no es el cuello de botella.
+- **encoder_v1 (2026-11-14, run `main60`):** 40 épocas, Luna + Tierra, 1.4 min/época.
+  Contrastiva 0.92 → 0.086; discriminador 70.6% (época 1) → 49.5% (época 40, azar 50%);
+  emb_std estable en ~0.066 (sin colapso). La contrastiva se estancó en ~0.25 en las
+  épocas 2 a 12 mientras subía lambda y luego bajó sola. Ablación: run `abl60`.
 - Datos de agencias asociadas que se pueden citar: Kaguya (JAXA) dentro de
   SLDEM2015; ESA (Copernicus DEM, WorldCover) si se usan. CSA RADARSAT contra
   Mini-RF de LRO queda como extra después de H16.
