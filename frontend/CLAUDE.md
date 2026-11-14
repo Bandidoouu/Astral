@@ -23,8 +23,10 @@ aviso de cambios, nada de co-autores de IA) y **también aplican aquí**.
   se ofrece dentro de su cobertura**: Luna al sur de 80° S y Tierra en México y
   alrededores (-118 a -86°, 14 a 33°), y solo entre Luna y Tierra. Fuera de ella,
   desactivar la opción o mostrar el aviso que llega en `warnings`.
-- **Puntajes por dimensión por separado:** `terrain`, `operations`, `thermal`,
-  `albedo`. Si una viene en `null`, mostrar **"No data" / "Sin dato"**, nunca 0, y
+- **Puntajes por dimensión por separado (siete):** `terrain`, `operations`,
+  `thermal`, `albedo`, `ice`, `soil` (roca contra polvo) y `aridity`. Perfil por
+  defecto `general`. Mostrar también `not_comparable` (polvo y viento, subsuelo,
+  gravedad, vacío/atmósfera, radiación). Si una viene en `null`, mostrar **"No data" / "Sin dato"**, nunca 0, y
   no dibujarla en el radar como cero. El total ya viene calculado (`score`) con las
   dimensiones que tienen dato; `weights_used` dice cuánto pesó cada una.
 - `attributes` trae valores crudos para la tarjeta (temperatura máxima y mínima en

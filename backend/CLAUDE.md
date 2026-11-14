@@ -21,8 +21,9 @@ aviso de cambios, nada de co-autores de IA) y **también aplican aquí**.
   defecto) o `60` (detalle, solo Luna ↔ Tierra y solo dentro de su cobertura: Luna al
   sur de 80° S, Tierra en la caja -118 a -86° y 14 a 33°). Fuera de cobertura no se
   inventan resultados: ese destino vuelve vacío con un aviso en `warnings`.
-- **La búsqueda no es solo de forma:** `scores` trae `terrain`, `operations`,
-  `thermal` y `albedo` por separado. **`null` = "sin dato"**; no cuenta en el total y
+- **La búsqueda cubre todas las dimensiones posibles, no solo la forma:** `scores`
+  trae `terrain`, `operations`, `thermal`, `albedo`, `ice`, `soil` y `aridity` por
+  separado. Perfil por defecto `general` (pesos iguales). **`null` = "sin dato"**; no cuenta en el total y
   los pesos usados vienen en `weights_used`. `materials` ya no existe.
 - **Capa de aptitud lunar** (reglas transparentes): rasters del polo sur por
   criterio y total, más un JSON con pesos, reglas y candidatos de la NASA.

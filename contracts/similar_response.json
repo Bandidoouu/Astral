@@ -3,7 +3,7 @@
     "body": "moon",
     "lat": -89.5,
     "lon": 130.0,
-    "profile": "rover",
+    "profile": "general",
     "target_bodies": [
       "earth",
       "mars"
@@ -27,7 +27,11 @@
       "tmin_k": 38.1,
       "trange_k": 267.3,
       "albedo": 0.24,
-      "ice_distance_km": 3.2
+      "ice_distance_km": 3.2,
+      "ice_frac": 0.31,
+      "soil_raw": null,
+      "soil_pct": null,
+      "precip_mm": 0.0
     }
   },
   "results": [
@@ -43,23 +47,35 @@
         "terrain": 0.91,
         "thermal": null,
         "operations": 0.88,
-        "albedo": null
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
       },
       "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
         "gravity",
         "vacuum",
         "radiation"
       ],
       "no_data": [
         "thermal",
-        "albedo"
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
       ],
       "attributes": {
         "tmax_k": null,
         "tmin_k": null,
         "trange_k": null,
         "albedo": null,
-        "ice_distance_km": null
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
       }
     },
     {
@@ -74,23 +90,35 @@
         "terrain": 0.84,
         "thermal": null,
         "operations": 0.86,
-        "albedo": null
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
       },
       "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
         "gravity",
         "vacuum",
         "radiation"
       ],
       "no_data": [
         "thermal",
-        "albedo"
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
       ],
       "attributes": {
         "tmax_k": null,
         "tmin_k": null,
         "trange_k": null,
         "albedo": null,
-        "ice_distance_km": null
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
       }
     },
     {
@@ -105,23 +133,35 @@
         "terrain": 0.78,
         "thermal": null,
         "operations": 0.69,
-        "albedo": null
+        "albedo": null,
+        "ice": null,
+        "soil": null,
+        "aridity": null
       },
       "not_comparable": [
+        "dust_and_wind",
+        "subsurface",
         "gravity",
         "vacuum",
         "radiation"
       ],
       "no_data": [
         "thermal",
-        "albedo"
+        "albedo",
+        "ice",
+        "soil",
+        "aridity"
       ],
       "attributes": {
         "tmax_k": null,
         "tmin_k": null,
         "trange_k": null,
         "albedo": null,
-        "ice_distance_km": null
+        "ice_distance_km": null,
+        "ice_frac": null,
+        "soil_raw": null,
+        "soil_pct": null,
+        "precip_mm": null
       }
     }
   ],

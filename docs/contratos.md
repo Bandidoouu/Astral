@@ -54,7 +54,7 @@ Luna o Marte y recibe gemelos en los otros dos cuerpos (o en los que pida).
 
 ```json
 {"body": "moon", "lat": -89.5, "lon": 130.0, "target_bodies": ["earth", "mars"],
- "scale_m": 1000, "profile": "rover", "k": 10}
+ "scale_m": 1000, "profile": "general", "k": 10}
 ```
 
 | Campo | Obligatorio | Significado |
@@ -119,8 +119,8 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
   dato**; sus pesos se renormalizan y se devuelven en `weights_used`.
 - `attributes`: valores crudos del parche resultado (kelvin, albedo sin unidades,
   km), también `null` si faltan. `query.attributes` trae los del punto consultado.
-- `not_comparable` siempre incluye `gravity`, `vacuum` (si interviene la Luna) o
-  `atmosphere` (si interviene Marte) y `radiation`.
+- `not_comparable` siempre incluye `dust_and_wind`, `subsurface`, `gravity`,
+  `vacuum` (si interviene la Luna) o `atmosphere` (si interviene Marte) y `radiation`.
 
 ## 4. Puntaje por dimensión y perfiles de misión
 
@@ -130,7 +130,10 @@ devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
 | `operations` | Parecido de pendiente media, fracción del parche bajo 8° (aterrizaje) y bajo 15° (rover) y rugosidad | El relieve de cada parche |
 | `thermal` | Parecido de temperatura máxima, mínima y rango: `exp(-|ΔT| / 50 K)` promediado | Tierra: MODIS MOD11C3 (LST 2023). Luna: Diviner (PRP polar + GCP global). Marte: TES (bloque 4) |
 | `albedo` | Parecido de albedo: `exp(-|Δalbedo| / 0.1)` | Tierra: MODIS MCD43C3 (infrarrojo cercano). Luna: LOLA `ldam` (1064 nm). Marte: TES |
-| ~~`materials`~~ | Fuera de alcance (minerales). Se quita | — |
+| `ice` | Parecido de la fracción de hielo: `exp(-|Δ| / 0.2)` | Tierra: nieve y hielo de MODIS MOD10CM (promedio anual). Luna: hielo estable **en superficie** de Diviner (PRP en el polo; máxima < 110 K de la GCP en el resto). Marte: hidrógeno de Mars Odyssey (bloque 4) |
+| `soil` (roca contra polvo) | Percentil de "rocosidad" **dentro de cada cuerpo**, `1 - |Δpercentil|` (son magnitudes físicas distintas) | Tierra: inercia térmica aparente de MODIS, (1 − albedo) / (T día − T noche). Luna: abundancia de rocas de Diviner (solo entre 60° N y 60° S). Marte: inercia térmica de TES |
+| `aridity` | Parecido de precipitación anual: `exp(-|ΔP| / 250 mm)` | Tierra: NASA GPM IMERG 2023. Luna y Marte: 0 mm por definición física (sin precipitación líquida) |
+| ~~`materials`~~ | Minerales: fuera de alcance; deseable (EMIT contra CRISM, solo Tierra–Marte) | — |
 
 **Atributos solo del sitio** (no son una comparación): `ice_distance_km` en la Luna,
 distancia a las zonas donde Diviner indica hielo estable a ≤ 1 m de profundidad.
@@ -138,13 +141,17 @@ distancia a las zonas donde Diviner indica hielo estable a ≤ 1 m de profundida
 Total = suma ponderada según el perfil **con las dimensiones que tienen dato**
 (pesos iniciales, ajustables por el equipo):
 
-| Perfil | terrain | operations | thermal | albedo |
-| --- | --- | --- | --- | --- |
-| `rover` | 0.45 | 0.40 | 0.05 | 0.10 |
-| `isru` | 0.20 | 0.10 | 0.20 | 0.50 |
-| `habitat` | 0.25 | 0.30 | 0.25 | 0.20 |
-| `eva` | 0.40 | 0.15 | 0.05 | 0.40 |
-| `astrobiology` (solo Marte) | 0.25 | 0.00 | 0.25 | 0.50 |
+**Perfil por defecto: `general`, todas las dimensiones con el mismo peso.** Ningún
+perfil le da más de 0.3 al terreno.
+
+| Perfil | terrain | operations | thermal | albedo | ice | soil | aridity |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **`general`** (por defecto) | 1/7 | 1/7 | 1/7 | 1/7 | 1/7 | 1/7 | 1/7 |
+| `rover` | 0.30 | 0.30 | 0.05 | 0.05 | 0.05 | 0.15 | 0.10 |
+| `isru` | 0.10 | 0.10 | 0.10 | 0.15 | 0.35 | 0.15 | 0.05 |
+| `habitat` | 0.15 | 0.25 | 0.25 | 0.05 | 0.15 | 0.10 | 0.05 |
+| `eva` | 0.30 | 0.20 | 0.05 | 0.15 | 0.05 | 0.20 | 0.05 |
+| `astrobiology` | 0.10 | 0.00 | 0.15 | 0.10 | 0.30 | 0.10 | 0.25 |
 
 ## 4b. Capa de aptitud para base (polo sur lunar; Marte después)
 
@@ -154,8 +161,10 @@ exporta un raster por criterio y uno del total en `data/artifacts/suitability/`
 y el puntaje de los candidatos de la NASA). **Es una sugerencia, no una elección
 final:** faltan iluminación y visibilidad de la Tierra, que no están en los portales.
 
-Siempre no comparables: gravedad (Luna 0.17 g, Marte 0.38 g), atmósfera (vacío en la
-Luna, ~6 mbar en Marte) y radiación.
+**Lo que nunca se puede comparar** (va en `not_comparable` de cada resultado):
+`dust_and_wind` (polvo y viento), `subsurface` (subsuelo), `gravity` (Luna 0.17 g,
+Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
+`radiation`.
 
 ## 5. Otros endpoints (propuesta, a confirmar con Backend y Frontend)
 
@@ -171,5 +180,6 @@ Luna, ~6 mbar en Marte) y radiación.
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
 | 2026-11-14 | Versión inicial | Todos | — |
+| 2026-11-14 | Dimensiones `ice`, `soil`, `aridity`; perfil por defecto `general` (pesos iguales; terreno ≤ 0.3 en todos los perfiles); `not_comparable` agrega `dust_and_wind` y `subsurface` | Backend, Frontend | Pendiente |
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
