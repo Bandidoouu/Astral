@@ -156,6 +156,20 @@ que ya devuelve este JSON. Método por defecto `rrf`: fusión por rangos recípr
 **Atributos solo del sitio** (no son una comparación): `ice_distance_km` en la Luna,
 distancia a las zonas donde Diviner indica hielo estable a ≤ 1 m de profundidad.
 
+Los atributos por parche salen de `features_{scale}.parquet` y son los que se
+devuelven en `attributes`: `tmax_k`, `tmin_k`, `trange_k`, `albedo`,
+`ice_distance_km`, `ice_frac`, `soil_raw`, `soil_pct` y `precip_mm`.
+
+**Normalización de `operations` (Backend).** Con `w = {pendiente media: 0.20,
+fracción < 8°: 0.25, fracción < 15°: 0.30, rugosidad: 0.25}`:
+
+```text
+exp(-|Δpendiente_media| / 10°) * 0.20
++ exp(-|Δfracción_<8°| / 0.20) * 0.25
++ exp(-|Δfracción_<15°| / 0.20) * 0.30
++ exp(-|Δrugosidad| / scale_m) * 0.25
+```
+
 Total = suma ponderada según el perfil **con las dimensiones que tienen dato**
 (pesos iniciales, ajustables por el equipo):
 
@@ -182,7 +196,9 @@ final:** faltan iluminación y visibilidad de la Tierra, que no están en los po
 **Lo que nunca se puede comparar** (va en `not_comparable` de cada resultado):
 `dust_and_wind` (polvo y viento), `subsurface` (subsuelo), `gravity` (Luna 0.17 g,
 Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
-`radiation`.
+`radiation`. La lista se elige por el cuerpo no terrestre del par, igual que
+`ml.search.NOT_COMPARABLE`: la Luna aporta `vacuum` y Marte (o la Tierra) aporta
+`atmosphere`; `dust_and_wind`, `subsurface`, `gravity` y `radiation` van siempre.
 
 ## 5. Otros endpoints (propuesta, a confirmar con Backend y Frontend)
 
@@ -193,6 +209,13 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | `GET /api/patch/{patch_id}/heights` | Binario Float32 128x128 + cabeceras `X-Min`, `X-Max`, `X-M-Per-Px` | Frontend 3D |
 | `GET /api/gradcam/{query_id}/{patch_id}` | PNG | Frontend UI |
 
+- **`galaxy`**: se busca `galaxy_{scale}.json`; si no existe, `galaxy.json`; si
+  tampoco, el ejemplo de `contracts/`. Así el frontend nunca se queda sin globos.
+- **`heights`**: el cuerpo es Float32 little-endian, 128×128, con las cabeceras
+  `X-Min`, `X-Max` y `X-M-Per-Px`; `contracts/heights.example.json` documenta el
+  mismo formato como sidecar. Sin cabeceras válidas se responde 500, no un binario
+  a medias.
+
 ## 6. Historial de cambios de contrato
 
 | Fecha | Cambio | Afecta a | Confirmó |
@@ -202,3 +225,4 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
 | 2026-11-14 | Zonas prometedoras de la Tierra (máscara MCD12C1): `query.land_cover`, aviso si el clic cae fuera, `land_cover` por resultado, columnas `lc_*` y `promising` en `meta`; `scale_mode` (`same_size` / `gravity_scaled`) en la petición y en `query` | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
+| 2026-11-14 | Normalización explícita de `operations`; atributos por parche en `features_{scale}.parquet`; formato binario de `heights` con sidecar; resolución `galaxy_{scale}.json` → `galaxy.json` → ejemplo | Backend, Frontend, ML | Pendiente |
