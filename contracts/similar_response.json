@@ -32,7 +32,9 @@
       "soil_raw": null,
       "soil_pct": null,
       "precip_mm": 0.0
-    }
+    },
+    "scale_mode": "same_size",
+    "land_cover": null
   },
   "results": [
     {
@@ -76,7 +78,8 @@
         "soil_raw": null,
         "soil_pct": null,
         "precip_mm": null
-      }
+      },
+      "land_cover": "open shrubland"
     },
     {
       "patch_id": "earth-1000-004512",
@@ -119,7 +122,8 @@
         "soil_raw": null,
         "soil_pct": null,
         "precip_mm": null
-      }
+      },
+      "land_cover": "open shrubland"
     },
     {
       "patch_id": "mars-1000-004187",
@@ -162,7 +166,8 @@
         "soil_raw": null,
         "soil_pct": null,
         "precip_mm": null
-      }
+      },
+      "land_cover": null
     }
   ],
   "warnings": [],

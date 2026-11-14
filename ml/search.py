@@ -108,6 +108,7 @@ def gc_km(lat1, lon1, lat2, lon2, r):
 
 
 SCALES = (1000, 60)
+SCALE_MODES = ("same_size", "gravity_scaled")
 DETAIL_BODIES = {"moon", "earth"}      # la escala de 60 m solo compara Luna y Tierra
 
 
@@ -150,6 +151,11 @@ class Searcher:
             except FileNotFoundError:
                 pass
         assert self.idx, "no hay artefactos en data/artifacts"
+        lcp = Path(art or ROOT / "data/artifacts") / "earth_landcover_005deg.tif"
+        self.landcover = None
+        if lcp.exists():
+            from ml.features.earth_landcover import LandCover
+            self.landcover = LandCover(lcp)
 
     def query_patch(self, si, body, lat, lon):
         m = si.meta
@@ -162,7 +168,10 @@ class Searcher:
 
     def rank(self, si, q, target, k, method, n_candidates, rng=None):
         m = si.meta
-        T = np.flatnonzero(m.body.to_numpy() == target)
+        sel = m.body.to_numpy() == target
+        if target == "earth" and "promising" in m:
+            sel &= m.promising.to_numpy(bool)       # solo zonas prometedoras (MCD12C1)
+        T = np.flatnonzero(sel)
         cos = si.emb[T] @ si.emb[q]
         dist = np.sqrt(((si.feat[T] - si.feat[q]) ** 2).sum(1))
         if method == "net":
@@ -183,14 +192,26 @@ class Searcher:
         return T, order, cos, dist
 
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="general",
-               method="rrf", n_candidates=500, scale_m=1000):
+               method="rrf", n_candidates=500, scale_m=1000, scale_mode="same_size"):
         if scale_m not in SCALES:
             raise ValueError(f"scale_m debe ser uno de {SCALES}")
+        if scale_mode not in SCALE_MODES:
+            raise ValueError(f"scale_mode debe ser uno de {SCALE_MODES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
         weights = PROFILES[profile]
         out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile, scale_m=scale_m,
-                             target_bodies=targets, method=method),
+                             scale_mode=scale_mode, target_bodies=targets, method=method),
                "results": [], "warnings": []}
+        if scale_mode == "gravity_scaled":
+            out["warnings"].append("gravity_scaled is not available yet; using same_size")
+            out["query"]["scale_mode"] = "same_size"
+        if body == "earth" and self.landcover is not None:
+            lc = self.landcover.at(lat, lon)
+            out["query"]["land_cover"] = lc
+            if not lc["promising"]:
+                out["warnings"].append(
+                    f"earth: the clicked point is {lc['name']} (MODIS land cover class "
+                    f"{lc['code']}), outside the promising analog zones; search continues")
         for target in targets:
             scale = scale_m
             if scale == 60 and {body, target} != DETAIL_BODIES:
@@ -232,6 +253,7 @@ class Searcher:
                 out["results"].append(dict(
                     patch_id=row.patch_id, body=target, lat=round(float(row.lat), 4),
                     lon=round(float(row.lon), 4), region=row.region, scale_m=scale,
+                    land_cover=(row.lc_name if target == "earth" and "lc_name" in row else None),
                     score=round(score, 4), scores=scores,
                     no_data=[d for d, v in scores.items() if v is None],
                     weights_used=used,
@@ -251,11 +273,12 @@ def main():
     ap.add_argument("--profile", default="general", choices=list(PROFILES))
     ap.add_argument("--method", default="rrf", choices=["rrf", "hybrid", "net", "baseline", "random"])
     ap.add_argument("--scale", type=int, default=1000, choices=SCALES)
+    ap.add_argument("--scale-mode", default="same_size", choices=SCALE_MODES)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
     s = Searcher(a.tag)
     print(json.dumps(s.search(a.body, a.lat, a.lon, a.targets, a.k, a.profile, a.method,
-                              scale_m=a.scale),
+                              scale_m=a.scale, scale_mode=a.scale_mode),
                      indent=2, ensure_ascii=False))
 
 

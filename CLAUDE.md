@@ -153,7 +153,11 @@ README, gráficas, etiquetas, la interfaz y el video. La documentación interna
 
 **Estado del frente de ML (H7):** v2 a 60 m en producción (prueba ciega: la red deja El
 Pinacate en el lugar 147 de 55,444 contra 320 de la fórmula); v3 multimodal probado y
-descartado por validación; siguen la escala global de 1 km y Marte. Detalle completo:
+descartado por validación. Por recomendación de un mentor, los resultados hacia la
+Tierra salen solo de zonas prometedoras (MODIS MCD12C1: desiertos, matorral disperso,
+pastizal, hielo; ~49% de los parches) y la búsqueda tendrá `scale_mode`
+(`same_size` / `gravity_scaled`). Siguen la validación y el entrenamiento de 1 km, los
+modos de escala y la aptitud de Marte (solo MOLA y Mars Odyssey). Detalle completo:
 `ml/CLAUDE.md` §1b.
 
 

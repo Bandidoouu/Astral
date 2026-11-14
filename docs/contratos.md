@@ -38,12 +38,14 @@ ML los genera en `data/artifacts/` (fuera de git).
 | --- | --- | --- |
 | `patch_id` | str | `{body}-{scale}-{6 dígitos}`, p. ej. `earth-60-000123` |
 | `body` | str | `earth`, `moon` o `mars` |
-| `scale_m` | int | Tamaño de píxel en metros (60 o 500) |
+| `scale_m` | int | Tamaño de píxel en metros (60 o 1000) |
 | `lat`, `lon` | float | Centro del parche, grados |
 | `crs`, `x`, `y` | str, float | Proyección nativa y centro en metros |
 | `region` | str | Nombre legible (estado/país en la Tierra; región en la Luna o Marte) |
 | `holdout` | bool | `True` = fuera del entrenamiento (prueba ciega de El Pinacate) |
 | `elev_mean_m`, `elev_min_m`, `elev_max_m` | float | Elevación del parche, metros |
+| `lc_class`, `lc_name` | int, str | Tierra: clase IGBP de MODIS MCD12C1 en el centro del parche (−1 / `None` en Luna y Marte) |
+| `promising_frac`, `promising` | float, bool | Tierra: fracción del parche en zonas prometedoras y si pasa la máscara (≥ 0.5). Luna y Marte: `True` |
 
 ## 3. API: `POST /api/similar`
 
@@ -62,20 +64,30 @@ Luna o Marte y recibe gemelos en los otros dos cuerpos (o en los que pida).
 | `body`, `lat`, `lon` | sí | Punto de consulta (`earth`, `moon` o `mars`) |
 | `target_bodies` | no | Cuerpos donde buscar. Por defecto, los otros dos |
 | `scale_m` | no | `1000` (por defecto): escala global, parches de 128 km, los tres cuerpos, cualquier punto. `60`: detalle, parches de 7.68 km, **solo Luna ↔ Tierra y solo dentro de su cobertura** (Luna al sur de 80° S; Tierra en la caja de México, -118 a -86° y 14 a 33°) |
-| `profile` | no | Perfil de misión (§4). Por defecto `rover` |
+| `scale_mode` | no | `same_size` (por defecto): ventanas del mismo tamaño en km en los tres cuerpos. `gravity_scaled`: ventanas de la Luna 6 veces y de Marte 2.6 veces más grandes que las de la Tierra (relación de gravedad: un relieve formado con menos gravedad es más extenso). Solo a `scale_m` = 1000 |
+| `profile` | no | Perfil de misión (§4). Por defecto `general` |
 | `k` | no | Resultados **por cada cuerpo destino**. Por defecto 10 |
-| `method` | no | `hybrid` (por defecto), `net`, `baseline`. Solo para depurar y para la demo de validación |
+| `method` | no | `rrf` (por defecto, fusión de la red y la fórmula), `hybrid`, `net`, `baseline`. Solo para depurar y para la demo de validación |
 
 **Cada búsqueda indica su escala** en `scale_m`. Si se pide 60 fuera de su
 cobertura, o con Marte como origen o destino, **no se inventan resultados**: ese
 destino vuelve vacío con un aviso en `warnings`, y el frontend puede ofrecer
 repetir la búsqueda a 1000. Cada resultado repite su `scale_m`.
 
+**Zonas prometedoras de la Tierra** (recomendación de un mentor; MODIS MCD12C1, IGBP):
+los resultados **hacia la Tierra** salen solo de parches con al menos la mitad de su
+área en suelo desnudo y desiertos, matorral disperso, pastizal o nieve y hielo
+permanente (se excluyen agua, bosques y selvas, sabanas, matorral cerrado, cultivos,
+zonas urbanas y humedales). Si el clic de origen en la Tierra cae fuera, **la búsqueda
+sigue** y se agrega un aviso en `warnings`; `query.land_cover` trae siempre la clase
+del punto (`{"code": 9, "name": "savanna", "promising": false}`). Cada resultado
+terrestre trae `land_cover` (clase en su centro; `null` en Luna y Marte).
+
 **Cómo lo implementa Backend:** con `ml.search.Searcher` (solo numpy, pandas y
 faiss): se crea una vez al arrancar y cada petición llama a
-`searcher.search(body, lat, lon, target_bodies, k, profile, method, scale_m=scale_m)`, que ya
-devuelve este JSON. Método por defecto `hybrid`: la fórmula base preselecciona
-~500 candidatos físicamente compatibles y la red los reordena.
+`searcher.search(body, lat, lon, target_bodies, k, profile, method, scale_m=scale_m, scale_mode=scale_mode)`,
+que ya devuelve este JSON. Método por defecto `rrf`: fusión por rangos recíprocos
+(k = 60) de la red y la fórmula base.
 
 **Respuesta** (`contracts/similar_response.json`):
 
@@ -182,4 +194,5 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | 2026-11-14 | Versión inicial | Todos | — |
 | 2026-11-14 | Dimensiones `ice`, `soil`, `aridity`; perfil por defecto `general` (pesos iguales; terreno ≤ 0.3 en todos los perfiles); `not_comparable` agrega `dust_and_wind` y `subsurface` | Backend, Frontend | Pendiente |
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
+| 2026-11-14 | Zonas prometedoras de la Tierra (máscara MCD12C1): `query.land_cover`, aviso si el clic cae fuera, `land_cover` por resultado, columnas `lc_*` y `promising` en `meta`; `scale_mode` (`same_size` / `gravity_scaled`) en la petición y en `query` | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |

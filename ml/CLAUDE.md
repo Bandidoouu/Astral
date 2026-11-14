@@ -44,7 +44,27 @@ los portales del reto: por eso la capa es una sugerencia, no una elección final
 Marte: la misma capa con MOLA (pendiente y altitud baja), TES (inercia térmica y
 albedo) e hidrógeno de Mars Odyssey, todo del PDS. Minerales: fuera de alcance.
 
-## 1b. Estado actual (para retomar después de /compact) · 2026-11-14 16:15 (~H7)
+## 1b. Estado actual (para retomar después de /compact) · 2026-11-14 17:15 (~H8)
+
+**Cambios por recomendación de un mentor (17:00), orden vigente:** (1) máscara de zonas
+prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) · (3) entrenamiento de 1 km
+con la receta de v2 · (4) modos de escala `same_size` / `gravity_scaled` · (5) aptitud de
+Marte. **Recorte de alcance:** Marte solo con las dimensiones de su capa de aptitud
+(pendiente y altitud de MOLA, hidrógeno de Mars Odyssey); el resto queda "sin dato"
+(TES fuera). **v3 a 1 km queda fuera.** Release al cerrar cada bloque.
+
+**Máscara de zonas prometedoras** (`ml/features/earth_landcover.py`, MODIS MCD12C1 2023,
+IGBP): se quedan matorral disperso (7), pastizal (10), nieve y hielo permanente (15) y
+suelo desnudo (16); se van agua, bosques, matorral cerrado, sabanas, humedales,
+cultivos, urbano y mosaico. Un parche pasa si ≥ 50% de su área es de las que se quedan
+(porcentajes por clase de `Land_Cover_Type_1_Percent`). Columnas en `meta`: `lc_class`,
+`lc_name`, `promising_frac`, `promising`. **Solo filtra resultados hacia la Tierra; el
+entrenamiento sigue usando todos los parches.** La evaluación (`ml.evaluate`) tampoco
+filtra, para ser comparable. Quedan: **60 m 27,247 de 54,993 (49.5%)**, **1 km 3,751 de
+7,606 (49.3%)**; El Pinacate pasa entero (115/115 a 60 m, 1/1 a 1 km); 65.8% de las
+celdas de tierra firme del mundo. Clic terrestre fuera de zona → la búsqueda sigue con
+aviso y `query.land_cover`. Release `v2-60m-r3` (incluye `earth_landcover_005deg.tif`).
+
 
 **Plan y orden:** (A) v2 a 60 m ✅ · (B) v3 multimodal a 60 m ✅ (perdió) · **(C) escala
 de 1 km con la receta de v2** ← siguiente · (D) Marte con todas sus dimensiones ·
@@ -97,11 +117,10 @@ Mouton 73%, Amundsen 70%, Nobile 40%, de Gerlache 25%, **Shackleton 7%, Malapert
 (probablemente por la iluminación, que no tenemos). `ml/recommended_zones.py` → 15
 zonas. Es una sugerencia: faltan iluminación y visibilidad de la Tierra.
 
-**Escala de 1 km (bloque C):** parches de la Luna (2,311 índice / 9,246 entrenamiento) y
-Marte (8,828 / 35,316) LISTOS en `data/patches/*_1000*`. Falta: Tierra
-(`python -m ml.data.make_patches_global --body earth --spacing-km 128 --max-nodata-frac
-0.2` y `--spacing-km 64 --suffix _train`; ~5 GB de RAM: **no correrlo junto a un
-entrenamiento**), características (`patch_features`) por conjunto, entrenar 3 clases
+**Escala de 1 km (bloque C):** parches LISTOS en `data/patches/*_1000*`: Luna (2,311
+índice / 9,246 entrenamiento), Marte (8,828 / 35,316) y Tierra (7,606 / 30,390; generada
+con `make_patches_global --body earth --spacing-km 128|64 --max-nodata-frac 0.2`, ~4 GB
+de RAM, 5 min). Falta: características (`patch_features`) por conjunto, entrenar 3 clases
 con `--matched --aux-weight 0.1 --lambda-max 0.3` en ciclo corto, `select_epoch`
 (la validación actual es de 60 m: definir una de 1 km), embed, baseline y release.
 SRTMGL30 no trae Antártida; el océano vale 0 (se trata como agua).

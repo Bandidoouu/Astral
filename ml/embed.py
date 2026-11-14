@@ -107,6 +107,8 @@ def main():
     if "country" not in meta:
         meta["country"] = None
     meta.loc[meta.body != "earth", "country"] = None
+    if "promising" in meta:          # máscara de zonas prometedoras: solo filtra la Tierra
+        meta["promising"] = meta.promising.where(meta.body == "earth", True).astype(bool)
     assert np.allclose(np.linalg.norm(emb, axis=1), 1, atol=1e-3)
     assert meta.patch_id.is_unique
 
