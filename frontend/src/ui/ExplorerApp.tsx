@@ -8,7 +8,7 @@ import MatchDetails from './components/MatchDetails';
 import SuitabilityPanel from './components/SuitabilityPanel';
 import MissionPanel from './components/MissionPanel';
 import AnalogEvidence from './components/AnalogEvidence';
-import type { Body, GalaxyPoint, Location, Profile, Scale, SearchResult } from '../api/types';
+import type { Body, GalaxyPoint, Location, Profile, Scale, ScaleMode, SearchResult } from '../api/types';
 
 import type { VisualizationComponents } from '../shared/visualization';
 
@@ -36,6 +36,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [focusedId, setFocusedId] = useState('');
   const [targets, setTargets] = useState<Body[]>(['earth', 'mars']);
   const [scale, setScale] = useState<Scale>(1000);
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('same_size');
   const [scaleNotice, setScaleNotice] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
   const [activeId, setActiveId] = useState('');
@@ -81,7 +82,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     setResult(null); setFocusedId(''); setError(''); setLoading(valid && supported);
     if (!valid || !supported) return () => controller.abort();
     const timer = setTimeout(() => {
-      search({ body, lat: Number(lat), lon: Number(lon), profile, k: 5, scale_m: scale, target_bodies: targets }, controller.signal)
+      search({ body, lat: Number(lat), lon: Number(lon), profile, k: 5, scale_m: scale, scale_mode: scaleMode, target_bodies: targets }, controller.signal)
         .then(data => {
           if (controller.signal.aborted) return;
           setResult(data); setActiveId(data.results[0]?.patch_id ?? '');
@@ -90,7 +91,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 350);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [body, lat, lon, profile, targets, scale, valid, supported, attempt]);
+  }, [body, lat, lon, profile, targets, scale, scaleMode, valid, supported, attempt]);
 
   useEffect(() => {
     if (view !== 'galaxy') return;
@@ -183,7 +184,11 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
                 <label>SEARCH SCALE<select aria-describedby="scale-help" value={scale} onChange={e => { setScale(Number(e.target.value) as Scale); setScaleNotice(''); }}>
                   <option value={1000}>Global (1 km)</option><option value={60} disabled={!detailAllowed}>Detail (60 m)</option>
                 </select></label>
+                <label>WINDOW SIZE<select aria-label="Window size" aria-describedby="window-help" value={scale === 1000 ? scaleMode : 'same_size'} disabled={scale !== 1000} onChange={e => setScaleMode(e.target.value as ScaleMode)}>
+                  <option value="same_size">Same size</option><option value="gravity_scaled">Gravity-scaled</option>
+                </select></label>
               </div>
+              <p id="window-help" className="selection-note">Gravity-scaled: landforms built under lower gravity are larger, so Moon windows are 6× and Mars windows 2.6× larger than Earth's (global scale only).</p>
               <p id="scale-help" className="selection-note">Detail: Moon south of 80° S ↔ Earth within 14–33° N, 118–86° W. Select only the other covered body. Global patches span 128 km; detail patches span 7.68 km.</p>
               <div className="mission-row"><label>MISSION PROFILE<select value={profile} onChange={e => setProfile(e.target.value as Profile)}>{profiles.filter(p => p.id !== 'astrobiology' || body === 'mars').map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label><button className="search-button" disabled={!valid || !supported || loading} type="submit"><Search size={16} />{loading ? 'Exploring…' : demoMode ? 'Explore example matches' : 'Find terrain analogs'}<ArrowRight size={17} /></button></div>
             </form>

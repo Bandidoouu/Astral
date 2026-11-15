@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fixture from '../mocks/similar-response.any-body.json' with { type: 'json' };
 import { demoSearch } from '../mocks/search.ts';
-import { otherBodies } from './coordinates.ts';
+import { otherBodies, toApiRequest } from './coordinates.ts';
 import { parseSearchResponse, parseSuitability } from './validation.ts';
 import type { Body, SearchQuery } from './types.ts';
 
@@ -69,4 +69,13 @@ test('Mars suitability uses its own criteria and the bundled ML exports parse', 
   assert.equal(parseSuitability(mars, 'mars').candidates.length > 0, true);
   assert.equal(parseSuitability(moon, 'moon').candidates.length > 0, true);
   assert.throws(() => parseSuitability(mars, 'moon'), /lunar/);
+});
+test('scale_mode is sent only at the global scale and demo mode serves the gravity-scaled results', () => {
+  const global = toApiRequest({...query, body:'mars', lat:18.38, lon:77.58, target_bodies:['earth'], scale_mode:'gravity_scaled'});
+  assert.equal(global.scale_mode, 'gravity_scaled');
+  const detail = toApiRequest({...query, scale_m:60, target_bodies:['earth'], scale_mode:'gravity_scaled'});
+  assert.equal(detail.scale_mode, 'same_size');
+  const same = demoSearch({...query, body:'mars', lat:18.38, lon:77.58, target_bodies:['earth'], k:3});
+  const grav = demoSearch({...query, body:'mars', lat:18.38, lon:77.58, target_bodies:['earth'], k:3, scale_mode:'gravity_scaled'});
+  assert.ok((grav.query.patches?.earth?.window_km ?? 0) > (same.query.patches?.earth?.window_km ?? 0));
 });

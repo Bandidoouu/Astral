@@ -21,8 +21,7 @@ function angularDistanceDeg(aLat: number, aLon: number, bLat: number, bLon: numb
   return Math.acos(Math.min(1, Math.max(-1, c))) / r;
 }
 
-export function nearestCuratedSite(body: Body, lat: number, lon: number, scale: number) {
-  const key = String(scale);
+export function nearestCuratedSite(body: Body, lat: number, lon: number, key: string) {
   return curatedSites.filter(s => s.body === body && s.responses[key])
     .map(site => ({ site, distance: angularDistanceDeg(lat, lon, site.lat, site.lon) }))
     .sort((a, b) => a.distance - b.distance)[0];
@@ -30,7 +29,8 @@ export function nearestCuratedSite(body: Body, lat: number, lon: number, scale: 
 
 export function demoSearch(query: SearchQuery): SearchResult {
   toApiRequest(query);
-  const hit = nearestCuratedSite(query.body, query.lat, query.lon, query.scale_m);
+  const key = query.scale_m === 1000 && query.scale_mode === 'gravity_scaled' ? '1000_gravity' : String(query.scale_m);
+  const hit = nearestCuratedSite(query.body, query.lat, query.lon, key);
   if (!hit) {
     return {
       query: { ...query, method: 'rrf' }, results: [], demo: true,
@@ -39,7 +39,7 @@ export function demoSearch(query: SearchQuery): SearchResult {
         : 'Offline mode: no precomputed results for this body.'],
     };
   }
-  const response = hit.site.responses[String(query.scale_m)];
+  const response = hit.site.responses[key];
   const results: Analog[] = query.target_bodies.flatMap(target =>
     response.results.filter(r => r.body === target).slice(0, query.k));
   const patches: SimilarResponse['query']['patches'] = {};
