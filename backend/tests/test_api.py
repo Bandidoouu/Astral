@@ -113,3 +113,51 @@ def test_suitability_image_file(artifacts_dir):
     res = client.get("/api/suitability/moon_south/landing")
     assert res.status_code == 200
     assert res.headers["content-type"] == "image/png"
+
+
+def test_mars_suitability_metadata_and_image(artifacts_dir):
+    suit_dir = artifacts_dir / "suitability"
+    suit_dir.mkdir(parents=True, exist_ok=True)
+    (suit_dir / "api_mars.json").write_text('{"weights": {"landing": 0.3}, "candidates": [{"name": "Gusev"}]}')
+    (suit_dir / "mars_hydrogen.png").write_bytes(b"\x89PNG\r\n\x1a\nfakecontent")
+    res = client.get("/api/suitability/mars")
+    assert res.status_code == 200
+    assert res.json()["candidates"][0]["name"] == "Gusev"
+    img = client.get("/api/suitability/mars/hydrogen")
+    assert img.status_code == 200
+    assert img.headers["content-type"] == "image/png"
+    assert client.get("/api/suitability/mars/ice").status_code == 400
+    assert client.get("/api/suitability/mars/total").status_code == 404
+
+
+def test_mars_suitability_pending_without_artifacts(artifacts_dir):
+    res = client.get("/api/suitability/mars")
+    assert res.status_code == 200
+    assert res.json()["status"] == "pending"
+
+
+def test_moon_suitability_prefers_api_json(artifacts_dir):
+    suit_dir = artifacts_dir / "suitability"
+    suit_dir.mkdir(parents=True, exist_ok=True)
+    (suit_dir / "suitability_moon.json").write_text('{"candidates": [], "source": "ml"}')
+    (suit_dir / "api_moon_south.json").write_text('{"candidates": [], "recommended_zones": []}')
+    assert "recommended_zones" in client.get("/api/suitability/moon_south").json()
+
+
+def test_scale_mode_is_validated_and_forwarded(monkeypatch):
+    from app.api import similar as similar_api
+    seen = {}
+
+    def fake_search(**kwargs):
+        seen.update(kwargs)
+        return {"query": {}, "results": [], "warnings": []}
+
+    monkeypatch.setattr(similar_api, "search_similar", fake_search)
+    ok = client.post("/api/similar", json={"body": "mars", "lat": 18.65, "lon": -133.8,
+                                           "scale_mode": "gravity_scaled"})
+    assert ok.status_code == 200
+    assert seen["scale_mode"] == "gravity_scaled"
+    client.post("/api/similar", json={"body": "mars", "lat": 18.65, "lon": -133.8})
+    assert seen["scale_mode"] == "same_size"
+    bad = client.post("/api/similar", json={"body": "mars", "lat": 0, "lon": 0, "scale_mode": "huge"})
+    assert bad.status_code == 422

@@ -7,6 +7,7 @@ MissionProfile = Literal[
     "general", "rover", "isru", "habitat", "eva", "astrobiology"
 ]
 SearchMethod = Literal["rrf", "hybrid", "net", "baseline", "random"]
+ScaleMode = Literal["same_size", "gravity_scaled"]
 
 
 class SimilarRequest(BaseModel):
@@ -26,6 +27,10 @@ class SimilarRequest(BaseModel):
     profile: MissionProfile = Field(
         default="general",
         description="Perfil de misión: 'general', 'rover', 'isru', 'habitat', 'eva', 'astrobiology'",
+    )
+    scale_mode: ScaleMode = Field(
+        default="same_size",
+        description="'same_size' (ventanas iguales en km) o 'gravity_scaled' (Luna 6x, Marte 2.6x; solo scale_m=1000)",
     )
     method: Optional[SearchMethod] = Field(
         default="rrf",
