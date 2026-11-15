@@ -12,6 +12,8 @@ import StartTour from './components/StartTour';
 import TwinPanel from './components/TwinPanel';
 import { buildShareUrl, parseShareParams } from './shareLink';
 import type { HomePatch } from './homePatch';
+import { celsius, defaultPills, renderShareCard } from './shareCard';
+import { FACTS } from './planetFacts';
 import { markTourSeen, tourSeen } from './startTour';
 import { sortResults } from './sortResults';
 import type { SortMode } from './sortResults';
@@ -45,6 +47,8 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [panel, setPanel] = useState<'search' | 'results' | 'details' | 'sources' | 'suitability' | 'missions' | 'twin' | null>(null);
   const [twin, setTwin] = useState<{ label: string; notes: string[]; region: string; flown: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardUrl, setCardUrl] = useState('');
   const [dockVisible, setDockVisible] = useState(true);
   const [focusedId, setFocusedId] = useState('');
   const [targets, setTargets] = useState<Body[]>(['earth']);
@@ -177,15 +181,15 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     <header className="atlas-header">
       <a className="brand" href="#" aria-label="ASTRAL explorer" onClick={event => { event.preventDefault(); setPanel(null); }}><AstralLogo size={30} /><span>ASTRAL<small>PLANETARY ANALOG EXPLORER</small></span></a>
       <nav className="view-switch" aria-label="Visualization">
-        <button aria-pressed={view === 'system'} onClick={() => setView('system')}><Orbit size={14} /><span>System</span></button>
-        <button aria-pressed={view === 'galaxy'} onClick={() => { setGalaxyScale(1000); setView('galaxy'); }}><Sparkles size={14} /><span>Terrain galaxy</span></button>
-        <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
+        <button className="nav-c-system" aria-pressed={view === 'system'} onClick={() => setView('system')}><Orbit size={14} /><span>System</span></button>
+        <button className="nav-c-galaxy" aria-pressed={view === 'galaxy'} onClick={() => { setGalaxyScale(1000); setView('galaxy'); }}><Sparkles size={14} /><span>Terrain galaxy</span></button>
+        <button className="nav-c-suit" aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
       </nav>
       <div className="header-actions">
-        <button className="text-button twin-launcher" aria-expanded={panel === 'twin'} onClick={() => togglePanel('twin')}><Sparkles size={15} /><span>Find your planetary twin</span></button>
-        <button className="text-button" aria-label="Start here (tour)" onClick={() => setTourOpen(true)}><Sparkles size={15} /><span>Start here</span></button>
-        <button className="text-button mission-launcher" aria-label="Missions" aria-expanded={panel === 'missions'} onClick={() => togglePanel('missions')}><Crosshair size={15} /><span>Missions</span></button>
-        <button className="text-button" aria-expanded={panel === 'sources'} onClick={() => togglePanel('sources')}><Info size={15} /><span>Data sources</span></button>
+        <button className="text-button twin-launcher nav-c-twin" aria-expanded={panel === 'twin'} onClick={() => togglePanel('twin')}><Sparkles size={15} /><span>Find your planetary twin</span></button>
+        <button className="text-button nav-c-tour" aria-label="Start here (tour)" onClick={() => setTourOpen(true)}><Sparkles size={15} /><span>Start here</span></button>
+        <button className="text-button mission-launcher nav-c-missions" aria-label="Missions" aria-expanded={panel === 'missions'} onClick={() => togglePanel('missions')}><Crosshair size={15} /><span>Missions</span></button>
+        <button className="text-button nav-c-sources" aria-expanded={panel === 'sources'} onClick={() => togglePanel('sources')}><Info size={15} /><span>Data sources</span></button>
         <button className="search-launcher" aria-expanded={panel === 'search'} onClick={() => togglePanel('search')}><Search size={15} /><span>Explore</span></button>
       </div>
     </header>
@@ -229,11 +233,40 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
           {mars && <h2>Your home’s twin on Mars: <span>{place(mars, 'Mars')}</span></h2>}
           {moon && <p className="twin-moon">On the Moon: <strong>{place(moon, 'Moon')}</strong></p>}
           <p className="selection-note">Home patch: {twin.region} (1 km terrain). Order: terrain similarity of our network.</p>
+          {mars && (() => {
+            const h = result.query.attributes, t = mars.attributes;
+            const rows = [
+              { label: 'Terrain similarity', home: '—', twin: mars.scores.terrain === null ? 'No data' : `${Math.round(mars.scores.terrain * 100)}%` },
+              { label: 'Max temperature', home: celsius(h?.tmax_k), twin: celsius(t.tmax_k) },
+              { label: 'Min temperature', home: celsius(h?.tmin_k), twin: celsius(t.tmin_k) },
+              { label: 'Rain per year', home: h?.precip_mm == null ? 'No data' : `${Math.round(h.precip_mm)} mm`, twin: '0 mm' },
+              { label: 'Gravity', home: FACTS.earth.gravity.value, twin: FACTS.mars.gravity.value },
+              { label: 'Air pressure', home: '≈ 1,000 hPa', twin: '6.36 hPa' },
+              { label: 'Length of day', home: FACTS.earth.day.value, twin: FACTS.mars.day.value },
+              { label: 'Surface radiation', home: '≈ 8 µSv/day', twin: '≈ 640 µSv/day' },
+            ];
+            return <table className="twin-stats"><thead><tr><th></th><th>Home</th><th>Mars twin</th></tr></thead>
+              <tbody>{rows.map(r => <tr key={r.label}><th scope="row">{r.label}</th><td>{r.home}</td><td>{r.twin}</td></tr>)}</tbody></table>;
+          })()}
           {twin.notes.map(n => <p key={n} className="twin-note">{n}</p>)}
           <div className="twin-actions">
             {mars && <button className="search-launcher" onClick={() => showMatch(mars.patch_id)}>Fly to the Mars twin</button>}
             <button className="text-button" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link'}</button>
+            {mars && <button className="text-button social-card-btn" disabled={cardBusy} onClick={async () => {
+              setCardBusy(true);
+              try {
+                                const link = buildShareUrl(window.location.href, { body, lat: Number(lat), lon: Number(lon), scale, gravity: scale === 1000 && scaleMode === 'gravity_scaled' });
+                const blob = await renderShareCard({ homeRegion: twin.region, homeLat: Number(lat), homeLon: Number(lon),
+                  marsName: place(mars, 'Mars'), marsLat: mars.lat, marsLon: mars.lon,
+                  moonName: moon ? place(moon, 'Moon') : undefined, moonLat: moon?.lat, moonLon: moon?.lon,
+                  terrainPct: Math.round((mars.scores.terrain ?? 0) * 100), pills: defaultPills() }, import.meta.env.BASE_URL.replace(/\/?$/, '/'));
+                const file = new File([blob], 'astral-planetary-twin.png', { type: 'image/png' });
+                if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My planetary twin', text: `My home's twin on Mars: ${place(mars, 'Mars')} · ${link}` });
+                else { const u = URL.createObjectURL(blob); setCardUrl(u); const a = document.createElement('a'); a.href = u; a.download = 'astral-planetary-twin.png'; a.click(); }
+              } catch { /* user cancelled sharing */ } finally { setCardBusy(false); }
+            }}>{cardBusy ? 'Making card…' : 'Share card'}</button>}
           </div>
+          {cardUrl && <p className="selection-note">Card saved as astral-planetary-twin.png (1080×1350, ready for Instagram stories and posts).</p>}
           <small>Your location is not stored or sent anywhere.</small>
         </aside>;
       })()}
