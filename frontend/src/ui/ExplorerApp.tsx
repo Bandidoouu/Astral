@@ -6,6 +6,7 @@ import { detailAvailable, otherBodies, validCoordinates } from '../api/coordinat
 import MapPanel from './components/MapPanel';
 import MatchDetails from './components/MatchDetails';
 import AstralLogo from './AstralLogo';
+import AnalogyLimits from './components/AnalogyLimits';
 import { sortResults } from './sortResults';
 import type { SortMode } from './sortResults';
 import SuitabilityPanel from './components/SuitabilityPanel';
@@ -247,7 +248,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
             </section>)}
           </div>
         </aside></>}
-        {panel === 'details' && <><button className="back-button" onClick={() => setPanel('results')}><ArrowLeft size={14} />All matches</button>      {active && <section className="comparison" aria-label="Selected match details"><div className="comparison-title"><p className="eyebrow">READ THE ANALOGY</p><h2>Similar terrain.<br /><span>Different realities.</span></h2><p>{bodyNames[body]} <ArrowRight size={13} /> {active.region}</p>{result?.demo && <small>Precomputed model v2 scores.</small>}</div><RadarChart scores={active.scores} /><div className="dimension-detail"><h3>What the dimensions tell us</h3>{dimensions.map(d => <div key={d}><span>{labels[d]}</span><strong>{active.scores[d] === null ? 'No data' : `${Math.round(active.scores[d]! * 100)}% similarity`}</strong></div>)}</div><div className="limits"><Info size={18} /><h3>Where the analogy stops</h3><p>Terrain similarity does not reproduce the full environment of another world.</p><div>{Array.from(new Set([...active.not_comparable, 'gravity', body === 'moon' || active.body === 'moon' ? 'vacuum' : 'atmosphere', 'radiation'])).map(limit => <span key={limit}>{limit.replaceAll('_', ' ')}</span>)}</div></div></section>}
+        {panel === 'details' && <><button className="back-button" onClick={() => setPanel('results')}><ArrowLeft size={14} />All matches</button>      {active && <section className="comparison" aria-label="Selected match details"><div className="comparison-title"><p className="eyebrow">READ THE ANALOGY</p><h2>Similar terrain.<br /><span>Different realities.</span></h2><p>{bodyNames[body]} <ArrowRight size={13} /> {active.region}</p>{result?.demo && <small>Precomputed model v2 scores.</small>}</div><RadarChart scores={active.scores} /><div className="dimension-detail"><h3>What the dimensions tell us</h3>{dimensions.map(d => <div key={d}><span>{labels[d]}</span><strong>{active.scores[d] === null ? 'No data' : `${Math.round(active.scores[d]! * 100)}% similarity`}</strong></div>)}</div><AnalogyLimits origin={coordinates} match={active} /></section>}
       {active && result && <><AnalogEvidence key={active.patch_id} match={active} result={result} /><MatchDetails active={active} result={result} /></>}
 {!active && <p className="empty-state">Select a match to inspect its data.</p>}</>}
         {panel === 'suitability' && <SuitabilityPanel MapView={LunarSuitabilityMap} onSelect={location => { findEarthAnalogs(location); setView('system'); setPanel(null); }} />}
