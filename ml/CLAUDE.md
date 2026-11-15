@@ -200,11 +200,8 @@ siguen como "Moon"/"Mars" (sin nombres de accidentes).
 y agrega 72 PNG + índice + README de Grad-CAM. Modelos e índices sin modificar.
 
 **Ramas y PR:** trabajar solo en ramas `ml/...`; commit antes de cambiar de rama.
-Las fusiones las hace una persona. #1–#6 fusionados; #7 (resultados 1 km), #8
-(texturas, depende de #7), #9 (demo y aptitud, incluye #7), #10 (Grad-CAM, depende
- de #9) abiertos al verificar GitHub, sin comentarios/revisiones de confirmación.
-Rama de revisión: `ml/artifact-review`, basada en #10; solo ML, documentación y
-su ejemplo de índice. Instrucción de Esteban: no implementar pendientes ajenos.
+Las fusiones las hace una persona. **#1–#10, #12 y #13 fusionados en `main`**
+(#11 cerrado). No quedan ramas `ml/...` con commits fuera de `main`.
 Ver `ml/DELIVERY.md` para entrega y avisos que Esteban debe compartir.
 
 **Demo sin API** (`ml/demo_results.py`, rama `ml/demo-results`): resultados reales
