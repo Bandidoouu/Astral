@@ -5,8 +5,9 @@ import type { SurfaceMaps } from './useSurfaceTextures';
 import { textureUrl } from './textureLayers';
 
 const bodies: Body[] = ['earth', 'moon', 'mars'];
-export default function LayerControls({ layer, onLayer, heightSource, normals, onNormals, selectedBody,
+export default function LayerControls({ featureNames = true, onFeatureNames, layer, onLayer, heightSource, normals, onNormals, selectedBody,
   metadata, origins, maps, status }: {
+  featureNames?: boolean; onFeatureNames?: (value: boolean) => void;
   layer: SurfaceLayer; onLayer: (layer: SurfaceLayer) => void;
   heightSource: HeightSource; onHeightSource?: (source: HeightSource) => void;
   normals: boolean; onNormals: (value: boolean) => void; selectedBody: Body;
@@ -22,6 +23,7 @@ export default function LayerControls({ layer, onLayer, heightSource, normals, o
       <option value="suitability">Base suitability</option>
     </select></label>
     {/* Height source fixed to NASA elevation (LOLA, MOLA, SRTMGL30): the ETOPO (NOAA) option was removed so every layer is NASA data. */}
+    <label className="astral-normal-toggle"><input type="checkbox" aria-label="Feature names" checked={featureNames} onChange={e => onFeatureNames?.(e.target.checked)} />Feature names <small>(IAU · Natural Earth)</small></label>
     <label className="astral-normal-toggle"><input type="checkbox" aria-label="Normal-map lighting" checked={normals}
       disabled={!normalsApply || heightSource !== 'packaged'} onChange={e => onNormals(e.target.checked)} />Normal-map lighting</label>
     <p aria-live="polite">{bodies.map(body => `${body[0].toUpperCase()}${body.slice(1)}: ${status[body] === 'ready' ? 'relief ready' : status[body] === 'loading' ? 'loading relief' : 'relief unavailable; color only'}`).join(' · ')}</p>
