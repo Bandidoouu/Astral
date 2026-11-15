@@ -1,0 +1,21 @@
+{
+ "body": "mars",
+ "width": 4096,
+ "height": 2048,
+ "projection": "equirectangular, lon -180..180, north up",
+ "min_m": -8166.0,
+ "max_m": 21154.0,
+ "encoding": "height_m = min_m + (pixel / 255) * (max_m - min_m)",
+ "source": "MGS MOLA MEGDR 128 px/deg",
+ "normal_and_hillshade_vertical_exaggeration": 6.0,
+ "normal_encoding": "tangent space, RGB = (n * 0.5 + 0.5) * 255, +x east, +y north, +z up",
+ "topography": {
+  "colormap": "magma",
+  "min_m": -5882.0,
+  "max_m": 6009.0,
+  "legend": "topography_legend.png"
+ },
+ "notes": [
+  "rows beyond 88 / -88 deg filled with the nearest valid row"
+ ]
+}

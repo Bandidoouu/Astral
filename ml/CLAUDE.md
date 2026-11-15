@@ -232,6 +232,12 @@ no observaciones. No se validó su renderizado sobre la esfera de Hanna.
 `ml/search.py`: avisos y errores de escala en inglés. Pruebas: `ml/tests/` (unittest)
 y `ml.check_delivery` sobre el paquete. Sin reentrenar ni repetir la prueba ciega.
 
+**Texturas de los globos** (`ml/textures.py`, rama `ml/globe-textures`): color 8k/4k
+(LROC WAC del CGI Moon Kit, Viking de Mars Trek, Blue Marble de GIBS), altura de 8 bits
++ `height.json`, normales, sombreado, topografía con leyenda y aptitud RGBA, en
+`frontend/public/textures/{earth,moon,mars}/` (50 MB en git). Crudos en
+`data/raw/textures/`.
+
 ### Siguientes pasos (en orden de prioridad)
 
 1. Esteban comparte el PR de revisión y la ruta del paquete; confirmar recepción y
