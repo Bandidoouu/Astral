@@ -52,7 +52,13 @@ export default function SuitabilityPanel({ onSelect, MapView }: { onSelect: (loc
       if (controller.signal.aborted) return;
       url = URL.createObjectURL(blob);
       setImage({ key, url });
-    }).catch(e => { if (!controller.signal.aborted) setImageError(e instanceof Error ? e.message : 'Suitability image unavailable.'); })
+    }).catch(e => {
+      if (controller.signal.aborted) return;
+      const missing = e instanceof Error && e.message.includes('404');
+      setImageError(missing
+        ? `The ${body === 'mars' ? 'Mars' : 'lunar'} map image is not served yet. Turn on the Suitability surface layer on the 3D globe to see the combined score.`
+        : e instanceof Error ? e.message : 'Suitability image unavailable.');
+    })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [body, criterion, attempt, key]);
