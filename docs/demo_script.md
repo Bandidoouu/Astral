@@ -10,14 +10,17 @@
 > **Live API**; perfil **General**; tener abierta en otra pestaña la figura
 > `data/artifacts/figures/validation_dark.png` y `suitability/suitability_mars_candidates.png`.
 > Usar **Custom coordinates** (LATITUDE / LONGITUDE) para caer exacto en cada sitio.
-> La interfaz aún no expone `scale_mode`: todo el guion usa `same_size` (el valor por defecto).
+> La interfaz tiene **WINDOW SIZE** (Same size / Gravity-scaled); el guion usa **Same size**
+> (por defecto) salvo donde se indica.
+> **Respaldo sin servidor:** https://bandidoouu.github.io/Astral/ (modo offline con los
+> resultados precalculados del modelo v2; incluye Faustini, Olympus Mons, Meridiani y la galaxia).
 
 | Time | Example |
 | --- | --- |
 | 0:00–0:20 | Hook |
 | 0:20–1:00 | 1. Olympus Mons → Mauna Loa |
 | 1:00–1:45 | 2. Lunar south pole: Faustini rim → El Pinacate |
-| 1:45–2:20 | 3. Montes Marius blind test (validation figure) |
+| 1:45–2:20 | 3. Network vs formula vs random (comparison slide + blind test figure) |
 | 2:20–2:50 | 4. Mars landing sites on the suitability layer |
 | 2:50–3:00 | Close |
 
@@ -69,11 +72,28 @@ pole for landing, roving, ice and temperature.
 visibility for communications are not in the challenge data, so we do not claim a site
 selection."
 
-## 1:45–2:20 · 3. Blind test, in numbers
+## 1:45–2:20 · 3. Network vs formula vs random
 
-**Show:** `validation_dark.png` (other tab).
+**Show (slide):** the same two queries ranked three ways (real outputs of `POST /api/similar`
+with `method` = `net`, `baseline`, `random`; `release/v2-1km-r4`).
 
-**Say:** "This is not one lucky example. For the lunar volcanic domes of Montes Marius,
+| Query | Our network | 20-statistic terrain formula | Random |
+| --- | --- | --- | --- |
+| **Olympus Mons → Earth** (1 km, top 5) | **Hawaii, Hawaii, Hawaii, Hawaii, Hawaii** | Sakha, Badghis, Sakha, Oregon, Tuva | New South Wales, Al Wadi al Jadid, Xizang, Colorado, Coast (Kenya) |
+| **Faustini rim → Earth** (60 m, top 10) | **El Pinacate at #2 and #7** | not in the top 10 | not in the top 10 |
+
+**Say:** "Here is the same question asked three ways. A classic terrain formula sends
+Olympus Mons to Siberia and Afghanistan; random sends it anywhere. Our network returns
+Hawaii's shield volcanoes five times out of five. For the Artemis candidate Faustini, the
+network finds El Pinacate twice in its top ten — the formula and random never do."
+
+> Nota: la interfaz usa RRF (red + fórmula), por eso en la tarjeta Hawái sale 4.º y
+> El Pinacate 3.º; esta diapositiva muestra cada método por separado. Comando para
+> reproducirla: ver la sección "Cómo comprobar que la red hace su trabajo" abajo.
+
+**Then show:** `validation_dark.png` (other tab).
+
+**Say:** "And this is not one lucky example. For the lunar volcanic domes of Montes Marius,
 El Pinacate reaches median rank **147 out of 55,444** Earth patches with our network,
 versus **320** for the formula and **345** for random — and it lands in the top 50 for
 **49 of 195** queries, against 12 for the formula. We also show where it fails: lunar
@@ -105,9 +125,23 @@ what is similar and what Earth can never reproduce."
 
 ## If something fails
 
-- **API down:** switch to **Demo data**. Faustini rim (60 m) and Meridiani Planum (1 km)
-  are precomputed with identical results. **Olympus Mons is not precomputed**: in demo
-  mode skip example 1 and go from the El Pinacate card (Earth origin `31.77, -113.5`,
-  which is precomputed) or show the validation figure for Olympus → Mauna Loa.
+- **API down:** open https://bandidoouu.github.io/Astral/ (offline mode). Faustini rim
+  (60 m), Olympus Mons and Meridiani Planum (1 km, both window sizes) are precomputed with
+  identical results, and the galaxy, suitability maps and Grad-CAM are bundled.
 - **Detail (60 m) unavailable** for a point: the UI offers **Search globally (1 km)**;
   keep Faustini at 60 m exactly at `-87.3, 77.0`.
+
+## Cómo comprobar que la red hace su trabajo (para la diapositiva de comparación)
+
+Con el backend corriendo en `localhost:8000` (o por el túnel SSH):
+
+```bash
+for m in net baseline random; do
+  curl -s -X POST http://localhost:8000/api/similar -H 'Content-Type: application/json' \
+    -d "{\"body\":\"mars\",\"lat\":18.65,\"lon\":-133.8,\"target_bodies\":[\"earth\"],\"k\":5,\"scale_m\":1000,\"profile\":\"general\",\"method\":\"$m\"}" \
+  | python -c "import json,sys; d=json.load(sys.stdin); print('$m', [r['region'] for r in d['results']])"
+done
+```
+
+Para Faustini: `body` `moon`, `lat` `-87.3`, `lon` `77.0`, `scale_m` `60`, `k` `10`, y contar
+los resultados a menos de 50 km de El Pinacate (31.77° N, 113.50° W).
