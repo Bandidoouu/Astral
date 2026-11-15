@@ -178,3 +178,7 @@ input { font-family: Consolas, monospace; }
 .scale-note { color: #e8d9a8; }
 .flow-hint { font-size: 11px; color: var(--muted); margin: 8px 0 2px; line-height: 1.5; }.flow-hint span:first-child, .flow-hint span:nth-of-type(3) { color: #e8ecdf; }
 .flow-hint .inline-action { pointer-events: auto; }
+.sort-by { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 10.5px; color: var(--muted); margin: 0 0 8px; }
+.sort-by label { display: inline-flex; align-items: center; gap: 6px; color: #e8ecdf; font-size: 11px; }
+.sort-by select { background: #0e1823; color: #e8ecdf; border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; font-size: 11px; }
+.results-panel > .sort-by { margin: 0 18px 12px; }
