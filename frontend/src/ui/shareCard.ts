@@ -1,4 +1,4 @@
-/** App-card share image (1080×1350, 4:5) drawn in the browser. Whole planets to scale, each an
+/** Space share image (1080×1350, 4:5) drawn in the browser. Whole planets to scale, each an
  * orthographic projection of its NASA mosaic (the globe textures this site already serves),
  * centered on the place. Nothing is uploaded: the image is a local file. */
 export interface ShareCardData {
@@ -89,23 +89,24 @@ export async function renderShareCard(d: ShareCardData, base: string): Promise<B
     ...['earth', 'mars', 'moon'].map(b => loadImage(`${base}textures/${b}/color_4k.jpg`)),
     loadImage(`${base}favicon.svg`), loadImage(`${base}${QR_FILE}`)]);
 
-  // App card: rounded, 40 px margin; gradient band (38 %) over charcoal.
-  const CX = 40, CY = 40, CW = W - 80, CH = H - 80, BAND = Math.round(CH * 0.38);
-  ctx.save(); roundRect(ctx, CX, CY, CW, CH, 48); ctx.clip();
-  ctx.fillStyle = '#141418'; ctx.fillRect(CX, CY, CW, CH);
-  const g = ctx.createLinearGradient(CX, CY, CX + CW, CY + BAND);
-  g.addColorStop(0, '#c9f68b'); g.addColorStop(0.5, '#3fd2c3'); g.addColorStop(1, '#3a1f78');
-  ctx.fillStyle = g; ctx.fillRect(CX, CY, CW, BAND);
-  ctx.fillStyle = 'rgba(10,10,12,0.10)';
-  for (let y = CY + 8; y < CY + BAND; y += 16) for (let x = CX + 8; x < CX + CW; x += 16) { ctx.beginPath(); ctx.arc(x, y, 1.3, 0, Math.PI * 2); ctx.fill(); }
-  ctx.restore();
+  // Deep space: black sky with a seeded starfield (same sky on every card).
+  const CX = 40, CW = W - 80;
+  const CLEAR = [[400, 185, 680, 275], [140, 700, 400, 745], [470, 620, 770, 665], [720, 580, 960, 615],
+    [250, 770, 830, 1045], [110, 1060, 760, 1240], [220, 1245, 860, 1300]];
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 520; i++) {
+    const x = rnd() * W, y = rnd() * H, m = rnd(), r = m > 0.985 ? 1.8 : m > 0.9 ? 1.2 : 0.7;
+    if (CLEAR.some(([x0, y0, x1, y1]) => x > x0 && x < x1 && y > y0 && y < y1)) continue;   // keep text clean
+    ctx.fillStyle = `rgba(255,255,255,${(0.25 + 0.75 * rnd()) * (m > 0.9 ? 1 : 0.6)})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
 
   ctx.drawImage(logo, W / 2 - 52, 78, 104, 104);
-  ctx.textAlign = 'center'; ctx.fillStyle = '#0a0a0c'; ctx.font = `400 40px ${FONT}`; ctx.fillText('astral', W / 2, 232);
-  ctx.fillStyle = 'rgba(10,10,12,0.72)'; ctx.font = `400 24px ${FONT}`; ctx.fillText('my planetary twin', W / 2, 266);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#c9f68b'; ctx.font = `400 40px ${FONT}`; ctx.fillText('astral', W / 2, 232);
+  ctx.fillStyle = '#8a8f98'; ctx.font = `400 24px ${FONT}`; ctx.fillText('my planetary twin', W / 2, 266);
 
-  // Planets to scale, centered on the band edge so all three stand out of it.
-  const RE = 170, mid = CY + BAND, base_y = mid + RE;
+  // Planets to scale, centered on one line.
+  const RE = 170, mid = 523, base_y = mid + RE;
   const rM = RE * SCALE.mars, rL = RE * SCALE.moon;
   const xE = 100 + RE, xM = xE + RE + 90 + rM, xL = xM + rM + 80 + rL;
   const yE = mid, yM = mid, yL = mid;
@@ -129,7 +130,7 @@ export async function renderShareCard(d: ShareCardData, base: string): Promise<B
   ctx.fillStyle = '#8a8f98'; ctx.font = `400 26px ${FONT}`; ctx.fillText('terrain match', W / 2, 960);
 
   ctx.font = `400 25px ${FONT}`;
-  const fills = ['rgba(201,246,139,0.18)', 'rgba(63,210,195,0.18)', 'rgba(140,100,235,0.26)'];
+  const fills = ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.10)', 'rgba(255,255,255,0.10)'];
   const pills = d.pills.slice(0, 3), pad = 26, gap = 16;
   const widths = pills.map(p => ctx.measureText(p).width + 2 * pad);
   let px = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (pills.length - 1)) / 2;
@@ -138,12 +139,9 @@ export async function renderShareCard(d: ShareCardData, base: string): Promise<B
     ctx.fillStyle = '#eef0f2'; ctx.fillText(p, px + widths[i] / 2, 1024); px += widths[i] + gap;
   });
 
-  // QR (static SVG, fixed URL) in a rounded frame with a gradient edge.
+  // QR (static SVG, fixed URL), plain black on white in a rounded frame.
   const QX = 130, QY = 1074, QS = 150;
-  const qg = ctx.createLinearGradient(QX, QY, QX + QS, QY + QS);
-  qg.addColorStop(0, '#c9f68b'); qg.addColorStop(0.5, '#3fd2c3'); qg.addColorStop(1, '#8c64eb');
-  ctx.fillStyle = qg; roundRect(ctx, QX - 8, QY - 8, QS + 16, QS + 16, 28); ctx.fill();
-  ctx.fillStyle = '#ffffff'; roundRect(ctx, QX - 2, QY - 2, QS + 4, QS + 4, 22); ctx.fill();
+  ctx.fillStyle = '#ffffff'; roundRect(ctx, QX - 4, QY - 4, QS + 8, QS + 8, 22); ctx.fill();
   ctx.drawImage(qr, QX + 6, QY + 6, QS - 12, QS - 12);
   ctx.textAlign = 'left'; ctx.fillStyle = '#eef0f2'; ctx.font = `400 30px ${FONT}`; ctx.fillText(SCAN_TEXT, 340, 1140);
   ctx.fillStyle = '#c9f68b'; ctx.font = `400 26px ${FONT}`; ctx.fillText(PUBLIC_SITE, 340, 1182);
