@@ -65,7 +65,8 @@ export async function getSuitability(signal: AbortSignal, body: SuitabilityBody 
 }
 export async function getSuitabilityImage(criterion: Criterion, signal: AbortSignal, body: SuitabilityBody = 'moon') {
   // Offline: the exported PNGs are bundled in public/data/suitability.
-  const url = demoMode ? `${staticBase}data/suitability/${body}_${criterion}.png` : `${suitabilityUrls[body]}/${criterion}`;
+  const prefix = body === 'moon' ? 'moon_south' : 'mars';   // bundled file names (public/data/suitability)
+  const url = demoMode ? `${staticBase}data/suitability/${prefix}_${criterion}.png` : `${suitabilityUrls[body]}/${criterion}`;
   const response = await request(url, signal);
   if (!response.headers.get('Content-Type')?.startsWith('image/png')) throw new Error('The suitability layer must be a PNG image.');
   return response.blob();

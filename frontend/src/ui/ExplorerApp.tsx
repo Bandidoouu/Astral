@@ -69,6 +69,22 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     resetDetailIfNeeded(coordinates, nextTargets);
     setTargets(nextTargets);
   }
+  /** Base → analog flow: search Earth analogs of a base site (60 m at the lunar south pole, else 1 km). */
+  function findEarthAnalogs(location: Location) {
+    setBody(location.body);
+    setLat(String(Math.round(location.lat * 10000) / 10000));
+    setLon(String(Math.round(location.lon * 10000) / 10000));
+    setTargets(['earth']);
+    setScale(location.body === 'moon' && location.lat <= -80 ? 60 : 1000);
+    setScaleNotice('');
+    if (location.body !== 'mars' && profile === 'astrobiology') setProfile('general');
+  }
+  /** Repeat the current search at Global (1 km) toward both other bodies (Mars only exists at 1 km). */
+  function repeatGlobally() {
+    setScale(1000); setScaleNotice('');
+    setTargets(otherBodies(body));
+  }
+  const analogsTitle = targets.length === 0 ? 'ANALOGS OF THIS SITE' : targets.length === 1 ? `${bodyNames[targets[0]].toUpperCase()} ANALOGS OF THIS SITE` : 'ANALOGS OF THIS SITE ON ' + targets.map(t => bodyNames[t].toUpperCase()).join(' & ');
   function selectLocation(location: Location) {
     const nextTargets = location.body === body ? targets : otherBodies(location.body);
     resetDetailIfNeeded(location, nextTargets);
@@ -145,7 +161,9 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         <button className="origin-chip" onClick={() => togglePanel('search')} aria-label="Edit origin" aria-expanded={panel === 'search'}>
           <span className={`body-disc ${body}`} /><strong>{bodyNames[body]}</strong><span>{valid ? `${coordinates.lat.toFixed(2)}°, ${coordinates.lon.toFixed(2)}°` : 'Check coordinates'}</span><ChevronDown size={13} />
         </button>
-        <p className="map-caption">{view === 'system' ? 'Visual orbit guides · not to scale' : demoMode ? '3D UMAP of the model v2 terrain embeddings (bundled for offline use)' : `${galaxy.length.toLocaleString()} projected patches`}</p>
+
+        {view === 'system' && <p className="flow-hint"><span>1 · Pick a base site</span> (<button className="inline-action" aria-label="Open the base suitability layers" onClick={() => togglePanel('suitability')}>Base suitability</button>) <span aria-hidden="true">→</span> <span>2 · Find its Earth analogs</span> <small>· orbits not to scale</small></p>}
+        {view !== 'system' && <p className="map-caption">{ demoMode ? '3D UMAP of the model v2 terrain embeddings (bundled for offline use)' : `${galaxy.length.toLocaleString()} projected patches`}</p>}
       </div>
       <div className="map-tools">
         <button className="icon-button" onClick={() => { setFocusedId(''); setResetKey(k => k + 1); }} aria-label="Reset camera" title="Reset camera"><RotateCcw size={17} /></button>
@@ -161,8 +179,9 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         {!!result?.warnings.length && <button className="map-notice" onClick={() => setPanel('results')}><Info size={14} />{result.warnings.length} coverage / data {result.warnings.length === 1 ? 'notice' : 'notices'}</button>}
       </div>
       {dockVisible && <section className="match-dock" aria-label="Match overview">
-        <div className="dock-heading"><button onClick={() => togglePanel('results')} aria-expanded={panel === 'results'}><span>TERRAIN MATCHES</span><strong>{result?.results.length ?? '—'}</strong><ArrowRight size={14} /></button><span>{scale === 1000 ? '1 km / pixel' : '60 m / pixel'}</span></div>
+        <div className="dock-heading"><button onClick={() => togglePanel('results')} aria-expanded={panel === 'results'}><span>{analogsTitle}</span><strong>{result?.results.length ?? '—'}</strong><ArrowRight size={14} /></button><span>{scale === 1000 ? '1 km / pixel' : '60 m / pixel'}</span></div>
         <p className="rank-note">Ordered by terrain similarity (network + terrain formula). % = profile score across the available dimensions.</p>
+        {scale === 60 && <p className="rank-note scale-note">Detail (60 m) compares the lunar south pole with Mexico only; Mars is compared only at Global (1 km). <button className="inline-action" onClick={repeatGlobally}>Repeat at 1 km · {otherBodies(body).map(t => bodyNames[t]).join(' + ')}</button></p>}
         <div className="match-strip">
           {result?.results.map(r => <button key={r.patch_id} className={`match-chip ${active?.patch_id === r.patch_id ? 'active' : ''}`} aria-pressed={active?.patch_id === r.patch_id} aria-label={`Inspect ${r.region}`} onClick={() => showMatch(r.patch_id)}>
             <span className={`body-disc ${r.body}`} /><span className="match-chip-name"><small>{bodyNames[r.body]}</small><strong>{r.region}</strong></span>
@@ -200,7 +219,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
             <p className="selection-note">{demoMode ? 'Offline mode: real ASTRAL model v2 results. Global (1 km): every patch of the three bodies is precomputed, so any click uses its nearest 1 km patch and profiles recompute the score. Detail (60 m) and Gravity-scaled use the nearest curated site.' : `${scale} m/pixel · ${scale === 60 ? '7.68' : '128'} km terrain patches · ranking supplied by the API`}</p>
           </div></>}
         {panel === 'results' && <>        <aside className="results-panel" aria-label="Analog results">
-          <div className="results-heading"><div><p className="eyebrow">ACROSS THE WORLDS</p><h2>Terrain matches</h2></div><span className="count">{result?.results.length ?? '—'}</span></div>
+          <div className="results-heading"><div><p className="eyebrow">ACROSS THE WORLDS</p><h2>{targets.length === 1 ? `${bodyNames[targets[0]]} analogs of this site` : 'Analogs of this site'}</h2></div><span className="count">{result?.results.length ?? '—'}</span></div>
           <p className="rank-note">Ordered by terrain similarity (our network fused with a terrain formula, RRF). The % on each card is the <strong>profile score</strong>: the weighted mean of the dimensions with data for the selected mission profile, so it does not have to decrease down the list.</p>
           <div className="mode-note"><Info size={16} /><p>{demoMode ? <><strong>Offline mode</strong> · Precomputed outputs of the ASTRAL model v2 (nearest 1 km patch, or nearest curated site at 60 m and gravity-scaled). Similarity is not a safety or mission suitability assessment.</> : <><strong>Live API</strong> · Search across Earth, Moon and Mars. Similarity is not a safety or mission suitability assessment.</>}</p></div>
           {result && result.warnings.length > 0 && <div className="search-warnings" role="status">
@@ -222,7 +241,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         {panel === 'details' && <><button className="back-button" onClick={() => setPanel('results')}><ArrowLeft size={14} />All matches</button>      {active && <section className="comparison" aria-label="Selected match details"><div className="comparison-title"><p className="eyebrow">READ THE ANALOGY</p><h2>Similar terrain.<br /><span>Different realities.</span></h2><p>{bodyNames[body]} <ArrowRight size={13} /> {active.region}</p>{result?.demo && <small>Precomputed model v2 scores.</small>}</div><RadarChart scores={active.scores} /><div className="dimension-detail"><h3>What the dimensions tell us</h3>{dimensions.map(d => <div key={d}><span>{labels[d]}</span><strong>{active.scores[d] === null ? 'No data' : `${Math.round(active.scores[d]! * 100)}% similarity`}</strong></div>)}</div><div className="limits"><Info size={18} /><h3>Where the analogy stops</h3><p>Terrain similarity does not reproduce the full environment of another world.</p><div>{Array.from(new Set([...active.not_comparable, 'gravity', body === 'moon' || active.body === 'moon' ? 'vacuum' : 'atmosphere', 'radiation'])).map(limit => <span key={limit}>{limit.replaceAll('_', ' ')}</span>)}</div></div></section>}
       {active && result && <><AnalogEvidence key={active.patch_id} match={active} result={result} /><MatchDetails active={active} result={result} /></>}
 {!active && <p className="empty-state">Select a match to inspect its data.</p>}</>}
-        {panel === 'suitability' && <SuitabilityPanel MapView={LunarSuitabilityMap} onSelect={location => { selectLocation(location); setView('system'); setPanel(null); }} />}
+        {panel === 'suitability' && <SuitabilityPanel MapView={LunarSuitabilityMap} onSelect={location => { findEarthAnalogs(location); setView('system'); setPanel(null); }} />}
         {panel === 'sources' && <>      <section id="science" className="science"><div className="science-heading"><p className="eyebrow">GROUNDED IN PLANETARY SCIENCE</p><h2>Real worlds. Open data.</h2><p>The project uses NASA terrain data. Globe textures and relief come from NASA missions. Offline results are precomputed outputs of our model v2; live results and suitability maps come from the connected data service.</p></div><div className="sources">{sources.map(s => <a key={s.body} href={s.href} target="_blank" rel="noreferrer"><span>{s.body}<ExternalLink size={13} /></span><h3>{s.title}</h3><p>{s.text}</p></a>)}</div></section><a className="resource-link" href="https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources" target="_blank" rel="noreferrer">Challenge resources <ExternalLink size={14} /></a></>}
       </MapPanel>}
     </main>
