@@ -1,61 +1,123 @@
-/** Instagram-style share card (1080×1350, 4:5) drawn in the browser from real NASA mosaics
- * (the globe textures this site already serves). Nothing is uploaded: the image is a local file. */
+/** Minimal share image (1080×1350, 4:5) drawn in the browser. Whole planets to scale, each an
+ * orthographic projection of its NASA mosaic (the globe textures this site already serves),
+ * centered on the place. Nothing is uploaded: the image is a local file. */
 export interface ShareCardData {
   homeRegion: string; homeLat: number; homeLon: number;
   marsName: string; marsLat: number; marsLon: number;
-  moonName?: string;
-  stats: { label: string; home: string; twin: string }[];
-  terrainPct: number; url: string;
+  moonName?: string; moonLat?: number; moonLon?: number;
+  terrainPct: number;
+  /** At most three sourced facts, shown as pills (e.g. "0.38 g"). */
+  pills: string[];
 }
 
 const W = 1080, H = 1350;
+/** Fixed public address shown on the image (never the current page address). */
+export const PUBLIC_SITE = 'bandidoouu.github.io/Astral';
+export const FOOTER_LINK = `find yours → ${PUBLIC_SITE}`;
+export const FOOTER_NOTE = 'terrain similarity by a neural network · not a habitability rating';
+export const CREDITS = 'imagery: nasa blue marble · viking mdim (mars trek) · lroc wac (svs cgi moon kit)';
+/** Radii relative to Earth (NASA Planetary Fact Sheets, volumetric mean radius). */
+export const SCALE = { earth: 1, mars: 0.532, moon: 0.273 } as const;
+const FONT = 'Inter, "Segoe UI", Arial, sans-serif';
+const MONO = 'Consolas, monospace';
+
+/** Three sourced facts at most: Mars gravity relative to Earth, Mars surface pressure, radiation ratio. */
+export function defaultPills() {
+  return [`${(3.73 / 9.82).toFixed(2)} g`, '6 hPa', `${Math.round(640 / 8)}× radiation`];
+}
+/** "Nuevo León, Mexico" → "nuevo león, mx"; IAU names lower-cased. */
+const CC: Record<string, string> = { mexico: 'mx', 'united states of america': 'us', usa: 'us', canada: 'ca', chile: 'cl', peru: 'pe', argentina: 'ar', china: 'cn', mongolia: 'mn', russia: 'ru', india: 'in', australia: 'au', brazil: 'br', spain: 'es', namibia: 'na', algeria: 'dz', egypt: 'eg', iran: 'ir', 'saudi arabia': 'sa', 'south africa': 'za' };
+export function shortPlace(name: string) {
+  const parts = name.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    const c = parts[parts.length - 1].toLowerCase();
+    return `${parts.slice(0, -1).join(', ')}, ${CC[c] ?? c}`.toLowerCase();
+  }
+  return name.toLowerCase();
+}
+
+/** IAU name as given; an unnamed site stays honest but short ("unnamed site, moon"). */
+export function siteLabel(name: string, body: string) {
+  return /^an unnamed site/i.test(name) ? `unnamed site, ${body}` : name.toLowerCase();
+}
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
 }
-/** Crop of an equirectangular mosaic around (lat, lon), drawn as a circle. */
-function drawCrop(ctx: CanvasRenderingContext2D, img: HTMLImageElement, lat: number, lon: number, spanDeg: number, cx: number, cy: number, r: number, ring: string) {
-  const sx = ((lon + 180) / 360) * img.width, sy = ((90 - lat) / 180) * img.height;
-  const sw = (spanDeg / 360) * img.width, sh = sw;
-  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-  ctx.drawImage(img, sx - sw / 2, sy - sh / 2, sw, sh, cx - r, cy - r, 2 * r, 2 * r);
-  const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.2, cx, cy, r); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r); ctx.restore();
-  ctx.lineWidth = 8; ctx.strokeStyle = ring; ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+function pixels(img: HTMLImageElement) {
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d', { willReadFrequently: true })!; x.drawImage(img, 0, 0);
+  return { w: img.width, h: img.height, data: x.getImageData(0, 0, img.width, img.height).data };
 }
-function fit(ctx: CanvasRenderingContext2D, text: string, max: number, size: number, weight = 700) {
-  let s = size; do { ctx.font = `${weight} ${s}px Inter, Segoe UI, system-ui, sans-serif`; s -= 2; } while (ctx.measureText(text).width > max && s > 20);
+/** Whole disk, orthographic projection centered on (lat0, lon0). */
+function drawPlanet(ctx: CanvasRenderingContext2D, tex: ReturnType<typeof pixels>, lat0: number, lon0: number, cx: number, cy: number, r: number) {
+  const size = Math.ceil(2 * r), out = ctx.createImageData(size, size);
+  const p0 = lat0 * Math.PI / 180, l0 = lon0 * Math.PI / 180, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
+    const x = (i + 0.5 - r) / r, y = (r - j - 0.5) / r, rho2 = x * x + y * y;
+    if (rho2 > 1) continue;
+    const cz = Math.sqrt(1 - rho2);
+    const lat = Math.asin(cz * sp0 + y * cp0);
+    const lon = l0 + Math.atan2(x, cz * cp0 - y * sp0);
+    const u = ((((lon * 180 / Math.PI) + 180) % 360 + 360) % 360) / 360, v = (90 - lat * 180 / Math.PI) / 180;
+    const k = (Math.min(tex.h - 1, Math.floor(v * tex.h)) * tex.w + Math.min(tex.w - 1, Math.floor(u * tex.w))) * 4;
+    const shade = 0.55 + 0.45 * cz, o = (j * size + i) * 4;
+    out.data[o] = tex.data[k] * shade; out.data[o + 1] = tex.data[k + 1] * shade; out.data[o + 2] = tex.data[k + 2] * shade;
+    out.data[o + 3] = rho2 > 0.985 ? 255 * (1 - rho2) / 0.015 : 255;
+  }
+  const tmp = document.createElement('canvas'); tmp.width = size; tmp.height = size; tmp.getContext('2d')!.putImageData(out, 0, 0);
+  ctx.drawImage(tmp, cx - r, cy - r);
+}
+function marker(ctx: CanvasRenderingContext2D, x: number, y: number, ring: number) {
+  ctx.strokeStyle = '#c9f68b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, ring, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#c9f68b'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
 }
 
 export async function renderShareCard(d: ShareCardData, base: string): Promise<Blob> {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
-  const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#0b1119'); bg.addColorStop(0.55, '#1a1230'); bg.addColorStop(1, '#3a1a12');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 260; i++) { ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.7 + 0.2})`; ctx.beginPath(); ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 1.8 + 0.4, 0, Math.PI * 2); ctx.fill(); }
-  ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#c9f68b'; ctx.font = '700 34px Inter, Segoe UI, system-ui, sans-serif';
-  ctx.fillText('A S T R A L', 70, 100); ctx.fillStyle = '#9aa9b9'; ctx.font = '500 22px Consolas, monospace'; ctx.fillText('PLANETARY ANALOG EXPLORER', 70, 134);
-  ctx.fillStyle = '#e8ecdf'; fit(ctx, 'My home’s twin on Mars', W - 140, 64, 800); ctx.fillText('My home’s twin on Mars', 70, 236);
-  const [earth, mars] = await Promise.all([loadImage(`${base}textures/earth/color_4k.jpg`), loadImage(`${base}textures/mars/color_4k.jpg`)]);
-  drawCrop(ctx, earth, d.homeLat, d.homeLon, 6, 300, 470, 170, '#2f8cff');
-  drawCrop(ctx, mars, d.marsLat, d.marsLon, 12, 780, 470, 170, '#ff7a3d');
-  ctx.setLineDash([16, 14]); ctx.lineWidth = 6; ctx.strokeStyle = '#c9f68b'; ctx.beginPath(); ctx.moveTo(470, 470); ctx.quadraticCurveTo(540, 330, 610, 470); ctx.stroke(); ctx.setLineDash([]);
-  ctx.textAlign = 'center'; ctx.fillStyle = '#9fc8ff'; fit(ctx, d.homeRegion, 380, 34, 700); ctx.fillText(d.homeRegion, 300, 700);
-  ctx.fillStyle = '#ffb08a'; fit(ctx, d.marsName, 380, 34, 700); ctx.fillText(d.marsName, 780, 700);
-  ctx.fillStyle = '#c9f68b'; ctx.font = '800 120px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText(`${d.terrainPct}%`, W / 2, 850);
-  ctx.fillStyle = '#c3c2b7'; ctx.font = '500 30px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText('terrain similarity · our neural network', W / 2, 896);
-  ctx.textAlign = 'left'; let y = 955;
-  ctx.font = '600 24px Consolas, monospace'; ctx.fillStyle = '#9aa9b9'; ctx.fillText('', 70, y);
-  ctx.fillStyle = '#9fc8ff'; ctx.fillText('HOME', 520, y); ctx.fillStyle = '#ffb08a'; ctx.fillText('MARS TWIN', 790, y); y += 42;
-  for (const s of d.stats.slice(0, 6)) {
-    ctx.fillStyle = '#c3c2b7'; ctx.font = '500 28px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText(s.label, 70, y);
-    ctx.fillStyle = '#e8ecdf'; ctx.font = '700 28px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText(s.home, 520, y); ctx.fillText(s.twin, 790, y); y += 40;
+  ctx.fillStyle = '#0a0a0c'; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 40; i++) { ctx.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.12})`; ctx.fillRect(Math.random() * W, Math.random() * H, 1.4, 1.4); }
+  ctx.textAlign = 'left'; ctx.fillStyle = '#c9f68b'; ctx.font = `400 34px ${FONT}`; ctx.fillText('astral', 80, 110);
+  ctx.fillStyle = '#8a8f98'; ctx.font = `400 24px ${FONT}`; ctx.fillText('my planetary twin', 80, 146);
+
+  const [earthImg, marsImg, moonImg] = await Promise.all(['earth', 'mars', 'moon'].map(b => loadImage(`${base}textures/${b}/color_4k.jpg`)));
+  const RE = 190, base_y = 720;                                   // planets aligned by their base
+  const rM = RE * SCALE.mars, rL = RE * SCALE.moon;
+  const xE = 80 + RE, xM = xE + RE + 100 + rM, xL = xM + rM + 80 + rL;
+  const yE = base_y - RE, yM = base_y - rM, yL = base_y - rL;
+  drawPlanet(ctx, pixels(earthImg), d.homeLat, d.homeLon, xE, yE, RE);
+  drawPlanet(ctx, pixels(marsImg), d.marsLat, d.marsLon, xM, yM, rM);
+  const hasMoon = d.moonLat !== undefined && d.moonLon !== undefined;
+  if (hasMoon) drawPlanet(ctx, pixels(moonImg), d.moonLat!, d.moonLon!, xL, yL, rL);
+  ctx.setLineDash([3, 9]); ctx.strokeStyle = 'rgba(201,246,139,0.85)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(xE, yE); ctx.quadraticCurveTo((xE + xM) / 2, Math.min(yE, yM) - 190, xM, yM); ctx.stroke(); ctx.setLineDash([]);
+  marker(ctx, xE, yE, 16); marker(ctx, xM, yM, 13); if (hasMoon) marker(ctx, xL, yL, 10);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#d6d8dc'; ctx.font = `400 24px ${FONT}`;
+  ctx.fillText(shortPlace(d.homeRegion), xE, base_y + 46);
+  ctx.fillText(siteLabel(d.marsName, 'mars'), xM, base_y + 46);
+  if (hasMoon && d.moonName) {
+    ctx.font = `400 20px ${FONT}`; const t = siteLabel(d.moonName, 'moon');
+    ctx.fillText(t, Math.min(xL, W - 60 - ctx.measureText(t).width / 2), base_y + 76);
   }
-  if (d.moonName) { ctx.fillStyle = '#e6e3da'; ctx.font = '500 26px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText(`On the Moon: ${d.moonName}`, 70, y + 4); }
-  ctx.fillStyle = '#c9f68b'; ctx.font = '700 30px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText('Find yours →', 70, H - 70);
-  ctx.fillStyle = '#e8ecdf'; ctx.font = '600 28px Consolas, monospace';
-  ctx.fillText(new URL(d.url).host + new URL(d.url).pathname.replace(/\/$/, ''), 300, H - 70);
-  ctx.fillStyle = '#9aa9b9'; ctx.font = '400 17px Inter, Segoe UI, system-ui, sans-serif'; ctx.fillText('Imagery: NASA Blue Marble, Viking MDIM · Radiation: UNSCEAR, MSL/RAD · Not a mission suitability rating', 70, H - 28);
+  ctx.fillStyle = '#5c6068'; ctx.font = `400 18px ${MONO}`; ctx.fillText('to scale', W / 2, base_y + 118);
+
+  ctx.fillStyle = '#ffffff'; ctx.font = `800 150px ${FONT}`; ctx.fillText(`${d.terrainPct}%`, W / 2, 1000);
+  ctx.fillStyle = '#8a8f98'; ctx.font = `400 28px ${FONT}`; ctx.fillText('terrain match', W / 2, 1044);
+
+  ctx.font = `400 26px ${FONT}`;
+  const pills = d.pills.slice(0, 3), pad = 26, gap = 18;
+  const widths = pills.map(p => ctx.measureText(p).width + 2 * pad);
+  let px = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (pills.length - 1)) / 2;
+  pills.forEach((p, i) => {
+    ctx.strokeStyle = 'rgba(214,216,220,0.45)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(px, 1092, widths[i], 50, 25); ctx.stroke();
+    ctx.fillStyle = '#d6d8dc'; ctx.fillText(p, px + widths[i] / 2, 1126); px += widths[i] + gap;
+  });
+
+  ctx.fillStyle = '#c9f68b'; ctx.font = `400 30px ${FONT}`; ctx.fillText(FOOTER_LINK, W / 2, 1238);
+  ctx.fillStyle = '#5c6068'; ctx.font = `400 16px ${FONT}`; ctx.fillText(CREDITS, W / 2, 1290);
+  ctx.fillText(FOOTER_NOTE, W / 2, 1314);
   return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not render the card'))), 'image/png'));
 }
 

@@ -12,7 +12,7 @@ import StartTour from './components/StartTour';
 import TwinPanel from './components/TwinPanel';
 import { buildShareUrl, parseShareParams } from './shareLink';
 import type { HomePatch } from './homePatch';
-import { celsius, renderShareCard } from './shareCard';
+import { celsius, defaultPills, renderShareCard } from './shareCard';
 import { FACTS } from './planetFacts';
 import { markTourSeen, tourSeen } from './startTour';
 import { sortResults } from './sortResults';
@@ -255,16 +255,11 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
             {mars && <button className="text-button social-card-btn" disabled={cardBusy} onClick={async () => {
               setCardBusy(true);
               try {
-                const h = result.query.attributes;
-                const link = buildShareUrl(window.location.href, { body, lat: Number(lat), lon: Number(lon), scale, gravity: scale === 1000 && scaleMode === 'gravity_scaled' });
+                                const link = buildShareUrl(window.location.href, { body, lat: Number(lat), lon: Number(lon), scale, gravity: scale === 1000 && scaleMode === 'gravity_scaled' });
                 const blob = await renderShareCard({ homeRegion: twin.region, homeLat: Number(lat), homeLon: Number(lon),
-                  marsName: place(mars, 'Mars'), marsLat: mars.lat, marsLon: mars.lon, moonName: moon ? place(moon, 'Moon') : undefined,
-                  terrainPct: Math.round((mars.scores.terrain ?? 0) * 100), url: link,
-                  stats: [{ label: 'Gravity', home: '9.82 m/s²', twin: '3.73 m/s²' },
-                    { label: 'Air pressure', home: '≈ 1,000 hPa', twin: '6.36 hPa' },
-                    { label: 'Length of day', home: '24.0 h', twin: '24.66 h' },
-                    { label: 'Radiation', home: '≈ 8 µSv/day', twin: '≈ 640 µSv/day' },
-                    { label: 'Rain per year', home: h?.precip_mm == null ? 'No data' : `${Math.round(h.precip_mm)} mm`, twin: '0 mm' }] }, import.meta.env.BASE_URL.replace(/\/?$/, '/'));
+                  marsName: place(mars, 'Mars'), marsLat: mars.lat, marsLon: mars.lon,
+                  moonName: moon ? place(moon, 'Moon') : undefined, moonLat: moon?.lat, moonLon: moon?.lon,
+                  terrainPct: Math.round((mars.scores.terrain ?? 0) * 100), pills: defaultPills() }, import.meta.env.BASE_URL.replace(/\/?$/, '/'));
                 const file = new File([blob], 'astral-planetary-twin.png', { type: 'image/png' });
                 if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My planetary twin', text: `My home's twin on Mars: ${place(mars, 'Mars')} · ${link}` });
                 else { const u = URL.createObjectURL(blob); setCardUrl(u); const a = document.createElement('a'); a.href = u; a.download = 'astral-planetary-twin.png'; a.click(); }
