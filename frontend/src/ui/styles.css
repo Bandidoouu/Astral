@@ -182,3 +182,12 @@ input { font-family: Consolas, monospace; }
 .sort-by label { display: inline-flex; align-items: center; gap: 6px; color: #e8ecdf; font-size: 11px; }
 .sort-by select { background: #0e1823; color: #e8ecdf; border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; font-size: 11px; }
 .results-panel > .sort-by { margin: 0 18px 12px; }
+.limits-table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 10px 0 8px; }
+.limits-table th, .limits-table td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.limits-table thead th { color: var(--muted); font-weight: 500; font-size: 10px; letter-spacing: .5px; }
+.limits-table tbody th { color: var(--muted); font-weight: 500; }
+.limits-table em { color: var(--muted); font-style: italic; }
+.limits-table small { color: var(--muted); }
+.limits-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.limits-note { color: var(--muted); font-size: 10.5px; margin-top: 6px; }
+.limits-sources { font-size: 10px; color: var(--muted); margin-top: 6px; }.limits-sources ul { padding-left: 16px; margin: 4px 0 0; }

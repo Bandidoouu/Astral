@@ -163,6 +163,29 @@ detalle en su `README.md`; fuentes crudas en `data/raw/textures/`, fuera de git)
 | Luna, Marte | Aptitud | Nuestras capas de aptitud (`ml/suitability_moon.py`, `ml/suitability_mars.py`) | — |
 
 
+## 4b. Contexto físico de "Where the analogy stops" (frontend)
+
+Valores tal como los publican las fuentes (citas textuales), en `frontend/src/ui/planetFacts.ts`:
+
+| Dato | Tierra | Luna | Marte | Fuente |
+| --- | --- | --- | --- | --- |
+| Gravedad en superficie | 9.820 m/s² (media) | 1.62 m/s² | 3.73 m/s² (media) | NASA Planetary Fact Sheets: https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html, …/moonfact.html (tabla comparativa), …/marsfact.html |
+| Presión en superficie | 1014 mb | 3 × 10⁻¹⁵ bar (noche) | 6.36 mb al radio medio (4.0 a 8.7 mb según estación) | Ídem |
+| Duración del día | 24.0000 h | 708.7 h (tabla comparativa) | 24.6597 h | Ídem; la Luna, de https://nssdc.gsfc.nasa.gov/planetary/factsheet/ |
+| Dosis de radiación en superficie | pendiente | 1369 μSv/día (dosis equivalente) | pendiente | Luna: Zhang et al. 2020, *First measurements of the radiation dose on the lunar surface*, Sci. Adv. 6, eaaz1334, doi:10.1126/sciadv.aaz1334 (texto completo abierto: PMC7518862): "LND measured an average dose equivalent of 1369 μSv/day on the surface of the Moon". El mismo artículo compara con **LRO/CRaTER**: "CRaTER measured a dose rate of 13.29 μGy/hour (reported by the CRaTER team as converted to water and to the lunar surface) … while LND measured … 13.2 ± 1.4 μGy/hour converted to water" |
+
+- **Marte (MSL/RAD):** la referencia es Hassler et al. 2014, Science 343, 1244797
+  (doi:10.1126/science.1244797; NTRS 20180007641), pero su resumen no trae la cifra y el texto
+  completo no fue accesible en la sesión (science.org y las revistas de los artículos de
+  comparación bloquean la descarga automática). La celda queda **"pending citation"** hasta
+  copiar la cifra de una fuente verificada; no se usa un valor de memoria.
+- **Tierra:** igual, sin dosis de referencia verificada (UNSCEAR y NRC bloquean la descarga).
+- **Presión del sitio terrestre:** fórmula barométrica estándar (atmósfera estándar ISA,
+  troposfera): p = 1013.25 hPa · (1 − 2.25577·10⁻⁵ · h)^5.25588, con h = elevación del sitio
+  en el mapa de altura NASA SRTMGL30 que usa el globo (rejilla de ~10 km). Se muestra como
+  "closest Earth gets".
+- Polvo y viento, y subsuelo: etiquetas sin número ("not modeled; future work").
+
 ## 5. Fuentes fuera de la lista (permitidas, pero se citan)
 
 - **Gazetteer of Planetary Nomenclature (IAU WGPSN / USGS Astrogeology), puntos centrales
