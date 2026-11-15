@@ -8,6 +8,12 @@ Challenge: *Identify Earth Locations that Analog the Permanent Moon Base Locatio
 > worlds, scores how alike they are in seven separate dimensions, and says honestly
 > what Earth can never reproduce: gravity, vacuum or atmosphere, radiation.
 
+**▶ Try it: https://bandidoouu.github.io/Astral/** — it opens on the Faustini rim, an
+Artemis III candidate at the lunar south pole, at 60 m: its third Earth match is El Pinacate,
+which the network never saw during training.
+
+![ASTRAL: Faustini rim (Moon) and its Earth analogs; El Pinacate, Sonora, is the third match](docs/img/astral-faustini-pinacate.jpg)
+
 ## Why it matters
 
 Astronauts train on Earth for places they have never been. NASA trained the Apollo
@@ -98,6 +104,31 @@ not for ease of landing. On the Moon, Faustini, Haworth, Mons Mouton and Amundse
 score highest among the Artemis III candidates; Shackleton and Malapert score low,
 likely because illumination — which we do not model — is their main advantage.
 
+## How the live site works (precomputed)
+
+The site at **https://bandidoouu.github.io/Astral/** runs with no server. Our real network
+(model v2, release `v2-1km-r4`) was run beforehand, through the same search API, on
+**every 1 km patch of Earth, the Moon and Mars** (18,808 patches): the top 10 matches toward
+each of the other two bodies, with all seven dimension scores. The site looks up those
+answers for the patch nearest to your click and recomputes the mission-profile score in the
+browser with the same formula as the API (the ranking itself, terrain similarity, does not
+depend on the profile). **Checked: 300 of 300 random clicks, with random profiles, match the
+live API** (same order, same scores, same percentages).
+
+**Offline limits.** Detail (60 m) is available only for the eight curated lunar south-pole sites
+(Shackleton, Mons Mouton, Malapert Massif and the Haworth, Nobile, de Gerlache, Faustini and
+Amundsen rims) and El Pinacate; Grad-CAM figures and the
+gravity-scaled mode only for the curated sites; the Earth land-cover notice uses the nearest
+patch center instead of the exact clicked point. For anything else, run the backend:
+
+```bash
+gh release download v2-1km-r4 -R Bandidoouu/Astral -p 'astral-v2-1km-r4.tar.gz*'
+sha256sum -c astral-v2-1km-r4.tar.gz.sha256 && tar -xzf astral-v2-1km-r4.tar.gz
+pip install -r backend/requirements.txt          # plus PyTorch only to re-embed (not needed to search)
+cd backend && ASTRAL_ARTIFACTS=$PWD/../v2-1km-r4 uvicorn app.main:app --port 8000
+cd ../frontend && npm ci && VITE_DATA_MODE=api VITE_API_URL=http://127.0.0.1:8000 npm run dev
+```
+
 ## Honest limitations
 
 - **Lunar maria vs flood basalts fails** at 1 km: eroded terrestrial basalts do not look
@@ -125,7 +156,7 @@ likely because illumination — which we do not model — is their main advantag
 | [`contracts/`](contracts/) | Example JSON for every API / artifact contract | All |
 
 Search artifacts (indexes, embeddings, encoders, suitability layers) are published as a
-[GitHub release](https://github.com/Bandidoouu/Astral/releases/tag/v2-1km-r3).
+[GitHub release](https://github.com/Bandidoouu/Astral/releases/tag/v2-1km-r4).
 
 ## References
 
