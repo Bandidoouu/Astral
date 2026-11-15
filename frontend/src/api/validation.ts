@@ -46,8 +46,12 @@ export function parseSearchResponse(value: unknown, request: SimilarRequest): Si
   return value as unknown as SimilarResponse;
 }
 
-export function parseSuitability(value: unknown): Suitability {
-  const criteria = ['landing', 'rover', 'ice', 'temperature'];
+export const suitabilityCriteria = {
+  moon: ['landing', 'rover', 'ice', 'temperature'],
+  mars: ['landing', 'rover', 'elevation', 'hydrogen'],
+} as const;
+export function parseSuitability(value: unknown, body: 'moon' | 'mars' = 'moon'): Suitability {
+  const criteria: readonly string[] = suitabilityCriteria[body];
   if (!record(value) || !record(value.weights) || !record(value.rules) ||
     !criteria.every(c => score((value.weights as Record<string, unknown>)[c])) ||
     ![...criteria, 'total'].every(c => typeof (value.rules as Record<string, unknown>)[c] === 'string') ||
@@ -57,7 +61,7 @@ export function parseSuitability(value: unknown): Suitability {
       typeof c.group === 'string' && finite(c.lat) && finite(c.lon) && validCoordinates({lat:c.lat, lon:c.lon}) &&
       (c.total_p90 === null || score(c.total_p90)) && (c.percentile_vs_random === null ||
         (finite(c.percentile_vs_random) && c.percentile_vs_random >= 0 && c.percentile_vs_random <= 100)))) {
-    throw new Error('Invalid lunar suitability metadata.');
+    throw new Error(`Invalid ${body === 'moon' ? 'lunar' : 'Mars'} suitability metadata.`);
   }
   return value as unknown as Suitability;
 }

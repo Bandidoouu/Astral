@@ -63,3 +63,10 @@ test('suitability metadata keeps missing candidate data null and rejects invalid
   assert.equal(parseSuitability(data).candidates[0].total_p90, null);
   assert.throws(() => parseSuitability({...data,weights:{...data.weights,ice:NaN}}), /metadata/);
 });
+test('Mars suitability uses its own criteria and the bundled ML exports parse', async () => {
+  const mars = (await import('../../../contracts/suitability_mars.json', { with: { type: 'json' } })).default;
+  const moon = (await import('../../../contracts/suitability_moon_south.json', { with: { type: 'json' } })).default;
+  assert.equal(parseSuitability(mars, 'mars').candidates.length > 0, true);
+  assert.equal(parseSuitability(moon, 'moon').candidates.length > 0, true);
+  assert.throws(() => parseSuitability(mars, 'moon'), /lunar/);
+});

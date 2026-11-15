@@ -109,7 +109,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     setTargets(nextTargets); setProfile(nextProfile);
     setView('system'); setPanel('results');
   }
-  const panelTitles = { search: 'Choose your origin', results: 'Analog results', details: 'Match details', sources: 'Data sources', suitability: 'Lunar suitability', missions: 'Plan an investigation' };
+  const panelTitles = { search: 'Choose your origin', results: 'Analog results', details: 'Match details', sources: 'Data sources', suitability: 'Base suitability', missions: 'Plan an investigation' };
   function togglePanel(next: NonNullable<typeof panel>) {
     setPanel(current => current === next ? null : next);
   }
@@ -123,7 +123,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       <nav className="view-switch" aria-label="Visualization">
         <button aria-pressed={view === 'system'} onClick={() => setView('system')}><Orbit size={14} /><span>System</span></button>
         <button aria-pressed={view === 'galaxy'} onClick={() => setView('galaxy')}><Sparkles size={14} /><span>Terrain galaxy</span></button>
-        <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Lunar suitability</span></button>
+        <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
       </nav>
       <div className="header-actions">
         <button className="text-button mission-launcher" aria-label="Missions" aria-expanded={panel === 'missions'} onClick={() => togglePanel('missions')}><Crosshair size={15} /><span>Missions</span></button>
