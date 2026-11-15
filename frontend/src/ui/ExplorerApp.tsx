@@ -15,8 +15,8 @@ import type { VisualizationComponents } from '../shared/visualization';
 const bodyNames = { earth: 'Earth', moon: 'Moon', mars: 'Mars' };
 const sites: Record<Body, { name: string; lat: number; lon: number }[]> = {
   earth: [{ name: 'Sonora, Mexico', lat: 31.77, lon: -113.5 }, { name: 'Puebla, Mexico', lat: 19.02, lon: -98.62 }],
-  moon: [{ name: 'Lunar south pole', lat: -89.5, lon: 130 }, { name: 'Montes Marius', lat: 14, lon: -56 }],
-  mars: [{ name: 'Jezero region', lat: 18.38, lon: 77.58 }, { name: 'Gale region', lat: -5.4, lon: 137.8 }],
+  moon: [{ name: 'Faustini rim (Artemis III region)', lat: -87.3, lon: 77 }, { name: 'Shackleton rim', lat: -89.67, lon: 129.78 }, { name: 'Montes Marius', lat: 14, lon: -56 }],
+  mars: [{ name: 'Olympus Mons', lat: 18.65, lon: -133.8 }, { name: 'Jezero region', lat: 18.38, lon: 77.58 }, { name: 'Gale region', lat: -5.4, lon: 137.8 }, { name: 'Meridiani Planum (Opportunity)', lat: -1.95, lon: -5.53 }],
 };
 const profiles: { id: Profile; label: string }[] = [{ id: 'general', label: 'General · balanced comparison' }, { id: 'rover', label: 'Rover & mobility' }, { id: 'isru', label: 'Resources · ISRU' }, { id: 'habitat', label: 'Habitat & construction' }, { id: 'eva', label: 'Spacewalks · EVA' }, { id: 'astrobiology', label: 'Astrobiology' }];
 const sources = [
@@ -27,15 +27,16 @@ const sources = [
 
 export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: VisualizationComponents) {
   const [body, setBody] = useState<Body>('moon');
-  const [lat, setLat] = useState('-89.5');
-  const [lon, setLon] = useState('130');
+  // Opening search: Faustini rim (Artemis III candidate) at 60 m → Earth; El Pinacate is in the top 3.
+  const [lat, setLat] = useState('-87.3');
+  const [lon, setLon] = useState('77');
   const [profile, setProfile] = useState<Profile>('general');
   const [view, setView] = useState<'system' | 'galaxy'>('system');
   const [panel, setPanel] = useState<'search' | 'results' | 'details' | 'sources' | 'suitability' | 'missions' | null>(null);
   const [dockVisible, setDockVisible] = useState(true);
   const [focusedId, setFocusedId] = useState('');
-  const [targets, setTargets] = useState<Body[]>(['earth', 'mars']);
-  const [scale, setScale] = useState<Scale>(1000);
+  const [targets, setTargets] = useState<Body[]>(['earth']);
+  const [scale, setScale] = useState<Scale>(60);
   const [scaleMode, setScaleMode] = useState<ScaleMode>('same_size');
   const [scaleNotice, setScaleNotice] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
