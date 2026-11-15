@@ -12,6 +12,8 @@ Challenge: *Identify Earth Locations that Analog the Permanent Moon Base Locatio
 Artemis III candidate at the lunar south pole, at 60 m: its third Earth match is El Pinacate,
 which the network never saw during training.
 
+![ASTRAL on Mars: click any point and find its Earth and Moon analogs](docs/img/img-mars.PNG)
+
 ![ASTRAL: Faustini rim (Moon) and its Earth analogs; El Pinacate, Sonora, is the third match](docs/img/astral-faustini-pinacate.jpg)
 
 ## Why it matters
@@ -41,6 +43,8 @@ terrain (Montes Marius), does the network find it on its own?
   rules (not the network), with NASA candidate sites overlaid.
 
 ## How it works
+
+![ASTRAL on the Moon: selecting a lunar point and its cross-body matches](docs/img/img-moon.PNG)
 
 1. **Terrain patches.** Elevation is resampled into 128×128 patches in a local
    equal-area projection centered on each patch (no polar distortion). Five channels:
@@ -82,9 +86,16 @@ El Pinacate blind test was run once per model.
 | 60 m (55,444 Earth patches) | median rank **147**; top 50 in **49 / 195** queries | median rank 320; top 50 in 12 / 195 | median rank 345; top 50 in 0 / 195 |
 | 1 km (7,669 Earth patches) | median percentile **0.48 %** | 15.4 % | 8.8 % |
 
+
 At 60 m El Pinacate covers 115 patches, so even a random ordering reaches one of them
 early (rank 345): the formula barely beats random, while the network halves the rank and
 puts El Pinacate in the top 50 for a quarter of the queries.
+
+![The neural network matching terrain embeddings across Earth, Moon and Mars](docs/img/img-neuroonal-network.PNG)
+
+<video src="docs/img/video-neural-network.mp4" controls muted loop width="100%"></video>
+
+[▶ Watch the neural-network demo (docs/img/video-neural-network.mp4)](docs/img/video-neural-network.mp4)
 
 **Known analogs at 1 km (network only, median percentile among 7,669 Earth patches)**
 
