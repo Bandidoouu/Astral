@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
+import { createBackgroundQueue } from '../shared/networkGate';
 import earthUrl from './assets/earth.height.gz?url';
 import moonUrl from './assets/moon.height.gz?url';
 import marsUrl from './assets/mars.height.gz?url';
@@ -48,7 +49,10 @@ async function packagedHeight(body: Body, signal: AbortSignal) {
   } finally { bitmap.close(); canvas.width = 0; canvas.height = 0; }
 }
 
-export function useTerrain(enabled: boolean, source: HeightSource = 'packaged') {
+/** Relief of the active body first; the other bodies in the background, paused while a search waits. */
+export function useTerrain(enabled: boolean, source: HeightSource = 'packaged', focusBody: Body = 'earth') {
+  const focus = useRef(focusBody);
+  focus.current = focusBody;
   const [fields, setFields] = useState<TerrainFields>({});
   const [status, setStatus] = useState<Record<Body, TerrainStatus>>({ earth: 'loading', moon: 'loading', mars: 'loading' });
   const [metadata, setMetadata] = useState<Partial<Record<Body, HeightMetadata>>>({});
@@ -58,8 +62,10 @@ export function useTerrain(enabled: boolean, source: HeightSource = 'packaged') 
     const controller = new AbortController();
     setFields({}); setMetadata({}); setOrigins({});
     setStatus({ earth: 'loading', moon: 'loading', mars: 'loading' });
-    for (const body of ['earth', 'moon', 'mars'] as Body[]) {
-      (async () => {
+    const queue = createBackgroundQueue();
+    const first = focus.current;
+    for (const body of [first, ...(['earth', 'moon', 'mars'] as Body[]).filter(b => b !== first)]) {
+      const task = async () => {
         try {
           if (source === 'global') {
             const field = await globalHeight(body, controller.signal);
@@ -88,9 +94,10 @@ export function useTerrain(enabled: boolean, source: HeightSource = 'packaged') 
         } catch {
           if (!controller.signal.aborted) setStatus(previous => ({ ...previous, [body]: 'unavailable' }));
         }
-      })();
+      };
+      if (body === first) task(); else queue.add(task);
     }
-    return () => controller.abort();
+    return () => { queue.cancel(); controller.abort(); };
   }, [enabled, source]);
   return { fields, status, metadata, origins };
 }
