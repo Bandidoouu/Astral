@@ -155,15 +155,15 @@ README, gráficas, etiquetas, la interfaz y el video. La documentación interna
 
 ## 5. Checkpoints del equipo
 
-**Estado del frente de ML (H8.5):** v2 a 60 m en producción (prueba ciega: la red deja El
-Pinacate en el lugar 147 de 55,444 contra 320 de la fórmula); v3 multimodal probado y
-descartado por validación. Por recomendación de un mentor, los resultados hacia la
-Tierra salen solo de zonas prometedoras (MODIS MCD12C1: desiertos, matorral disperso,
-pastizal, hielo; ~49% de los parches) y la búsqueda tiene `scale_mode`
-(`same_size` / `gravity_scaled`). Escala de 1 km lista (red propia de 3 cuerpos:
-Olympus Mons → Mauna Loa en el lugar 1 de 7,669; Pinacate ciego en 0.48%), con
-`gravity_scaled` y capa de aptitud de Marte (MOLA + Mars Odyssey). Paquete `release/v2-1km`. Detalle completo:
-`ml/CLAUDE.md` §1b.
+**Estado del proyecto (H24, entrega):** ML congelado (modelo v2: 60 m `encoder_v2sel.pt`, 1 km
+`encoder_v2_1000.pt`; artefactos en el release `v2-1km-r4`). Prueba ciega: El Pinacate en el lugar
+147 de 55,444 a 60 m (fórmula 320, azar 345) y 0.48% a 1 km; Olympus Mons → Mauna Loa en el lugar 1
+de 7,669 (fórmula 1,720). Sitio público sin servidor: https://bandidoouu.github.io/Astral/ (abre
+en Faustini a 60 m, El Pinacate 3.º; búsqueda offline de 1 km para los 18,808 parches, 300/300 clics
+iguales a la API). Backend con `scale_mode` y aptitud de la Luna y Marte; frontend con capas NASA,
+modo gravedad, flujo base → análogos. `main` congelado para el video: solo documentación con
+permiso de Esteban. Textos de envío: `docs/submission.md`; guiones: `docs/demo_script.md`,
+`docs/video_script.md`. Detalle de ML: `ml/CLAUDE.md` §1b.
 
 
 | Hora | Qué debe estar listo |

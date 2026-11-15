@@ -5,6 +5,12 @@
 > `suitability/*.json`, `frontend/src/mocks/precomputed-results.json`). Si un número
 > cambia, se corrige aquí y en el README en el mismo commit.
 
+## Links
+
+- **Live site (no server needed):** https://bandidoouu.github.io/Astral/
+- **Code:** https://github.com/Bandidoouu/Astral
+- **Search artifacts (indexes, embeddings, encoders, suitability layers):** https://github.com/Bandidoouu/Astral/releases/tag/v2-1km-r4
+
 ## Project name
 
 **ASTRAL — a planetary Shazam for Moon and Mars analogs**
@@ -83,6 +89,31 @@ Haworth and Faustini rims, Artemis III candidate regions.
 
 **Tools.** Python (PyTorch, FAISS, GDAL, rasterio), FastAPI backend, React Three Fiber
 frontend. Search artifacts are published as GitHub releases.
+
+**How the live site works (precomputed).**
+The site at **https://bandidoouu.github.io/Astral/** runs with no server. Our real network
+(model v2, release `v2-1km-r4`) was run beforehand, through the same search API, on
+**every 1 km patch of Earth, the Moon and Mars** (18,808 patches): the top 10 matches toward
+each of the other two bodies, with all seven dimension scores. The site looks up those
+answers for the patch nearest to your click and recomputes the mission-profile score in the
+browser with the same formula as the API (the ranking itself, terrain similarity, does not
+depend on the profile). **Checked: 300 of 300 random clicks, with random profiles, match the
+live API** (same order, same scores, same percentages).
+
+**Offline limits.** Detail (60 m) is available only for the eight curated lunar south-pole sites
+(Shackleton, Mons Mouton, Malapert Massif and the Haworth, Nobile, de Gerlache, Faustini and
+Amundsen rims) and El Pinacate; Grad-CAM figures and the
+gravity-scaled mode only for the curated sites; the Earth land-cover notice uses the nearest
+patch center instead of the exact clicked point. For anything else, run the backend:
+
+```bash
+gh release download v2-1km-r4 -R Bandidoouu/Astral -p 'astral-v2-1km-r4.tar.gz*'
+sha256sum -c astral-v2-1km-r4.tar.gz.sha256 && tar -xzf astral-v2-1km-r4.tar.gz
+pip install -r backend/requirements.txt          # plus PyTorch only to re-embed (not needed to search)
+cd backend && ASTRAL_ARTIFACTS=$PWD/../v2-1km-r4 uvicorn app.main:app --port 8000
+cd ../frontend && npm ci && VITE_DATA_MODE=api VITE_API_URL=http://127.0.0.1:8000 npm run dev
+```
+
 
 ## NASA data used and how
 
