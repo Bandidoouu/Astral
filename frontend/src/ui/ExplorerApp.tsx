@@ -264,7 +264,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
                 if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My planetary twin', text: `My home's twin on Mars: ${place(mars, 'Mars')} · ${link}` });
                 else { const u = URL.createObjectURL(blob); setCardUrl(u); const a = document.createElement('a'); a.href = u; a.download = 'astral-planetary-twin.png'; a.click(); }
               } catch { /* user cancelled sharing */ } finally { setCardBusy(false); }
-            }}>{cardBusy ? 'Making card…' : 'Share card (Instagram)'}</button>}
+            }}>{cardBusy ? 'Making card…' : 'Share card'}</button>}
           </div>
           {cardUrl && <p className="selection-note">Card saved as astral-planetary-twin.png (1080×1350, ready for Instagram stories and posts).</p>}
           <small>Your location is not stored or sent anywhere.</small>

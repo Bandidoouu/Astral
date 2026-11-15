@@ -1,4 +1,4 @@
-/** Minimal share image (1080×1350, 4:5) drawn in the browser. Whole planets to scale, each an
+/** App-card share image (1080×1350, 4:5) drawn in the browser. Whole planets to scale, each an
  * orthographic projection of its NASA mosaic (the globe textures this site already serves),
  * centered on the place. Nothing is uploaded: the image is a local file. */
 export interface ShareCardData {
@@ -14,6 +14,10 @@ const W = 1080, H = 1350;
 /** Fixed public address shown on the image (never the current page address). */
 export const PUBLIC_SITE = 'bandidoouu.github.io/Astral';
 export const FOOTER_LINK = `find yours → ${PUBLIC_SITE}`;
+export const SCAN_TEXT = 'scan to find your twin';
+/** Static QR for https://bandidoouu.github.io/Astral/ (generated once; public/qr-astral.svg). */
+export const QR_FILE = 'qr-astral.svg';
+export const QR_URL = `https://${PUBLIC_SITE}/`;
 export const FOOTER_NOTE = 'terrain similarity by a neural network · not a habitability rating';
 export const CREDITS = 'imagery: nasa blue marble · viking mdim (mars trek) · lroc wac (svs cgi moon kit)';
 /** Radii relative to Earth (NASA Planetary Fact Sheets, volumetric mean radius). */
@@ -23,7 +27,7 @@ const MONO = 'Consolas, monospace';
 
 /** Three sourced facts at most: Mars gravity relative to Earth, Mars surface pressure, radiation ratio. */
 export function defaultPills() {
-  return [`${(3.73 / 9.82).toFixed(2)} g`, '6 hPa', `${Math.round(640 / 8)}× radiation`];
+  return [`${(3.73 / 9.82).toFixed(2)} g`, '6 hPa', `≈${Math.round(640 / 8)}× radiation`];
 }
 /** "Nuevo León, Mexico" → "nuevo león, mx"; IAU names lower-cased. */
 const CC: Record<string, string> = { mexico: 'mx', 'united states of america': 'us', usa: 'us', canada: 'ca', chile: 'cl', peru: 'pe', argentina: 'ar', china: 'cn', mongolia: 'mn', russia: 'ru', india: 'in', australia: 'au', brazil: 'br', spain: 'es', namibia: 'na', algeria: 'dz', egypt: 'eg', iran: 'ir', 'saudi arabia': 'sa', 'south africa': 'za' };
@@ -73,51 +77,79 @@ function marker(ctx: CanvasRenderingContext2D, x: number, y: number, ring: numbe
   ctx.fillStyle = '#c9f68b'; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
 }
 
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+}
+
 export async function renderShareCard(d: ShareCardData, base: string): Promise<Blob> {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#0a0a0c'; ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 40; i++) { ctx.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.12})`; ctx.fillRect(Math.random() * W, Math.random() * H, 1.4, 1.4); }
-  ctx.textAlign = 'left'; ctx.fillStyle = '#c9f68b'; ctx.font = `400 34px ${FONT}`; ctx.fillText('astral', 80, 110);
-  ctx.fillStyle = '#8a8f98'; ctx.font = `400 24px ${FONT}`; ctx.fillText('my planetary twin', 80, 146);
+  const [earthImg, marsImg, moonImg, logo, qr] = await Promise.all([
+    ...['earth', 'mars', 'moon'].map(b => loadImage(`${base}textures/${b}/color_4k.jpg`)),
+    loadImage(`${base}favicon.svg`), loadImage(`${base}${QR_FILE}`)]);
 
-  const [earthImg, marsImg, moonImg] = await Promise.all(['earth', 'mars', 'moon'].map(b => loadImage(`${base}textures/${b}/color_4k.jpg`)));
-  const RE = 190, base_y = 720;                                   // planets aligned by their base
+  // App card: rounded, 40 px margin; gradient band (38 %) over charcoal.
+  const CX = 40, CY = 40, CW = W - 80, CH = H - 80, BAND = Math.round(CH * 0.38);
+  ctx.save(); roundRect(ctx, CX, CY, CW, CH, 48); ctx.clip();
+  ctx.fillStyle = '#141418'; ctx.fillRect(CX, CY, CW, CH);
+  const g = ctx.createLinearGradient(CX, CY, CX + CW, CY + BAND);
+  g.addColorStop(0, '#c9f68b'); g.addColorStop(0.5, '#3fd2c3'); g.addColorStop(1, '#3a1f78');
+  ctx.fillStyle = g; ctx.fillRect(CX, CY, CW, BAND);
+  ctx.fillStyle = 'rgba(10,10,12,0.10)';
+  for (let y = CY + 8; y < CY + BAND; y += 16) for (let x = CX + 8; x < CX + CW; x += 16) { ctx.beginPath(); ctx.arc(x, y, 1.3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+
+  ctx.drawImage(logo, W / 2 - 52, 78, 104, 104);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#0a0a0c'; ctx.font = `400 40px ${FONT}`; ctx.fillText('astral', W / 2, 232);
+  ctx.fillStyle = 'rgba(10,10,12,0.72)'; ctx.font = `400 24px ${FONT}`; ctx.fillText('my planetary twin', W / 2, 266);
+
+  // Planets to scale, centered on the band edge so all three stand out of it.
+  const RE = 170, mid = CY + BAND, base_y = mid + RE;
   const rM = RE * SCALE.mars, rL = RE * SCALE.moon;
-  const xE = 80 + RE, xM = xE + RE + 100 + rM, xL = xM + rM + 80 + rL;
-  const yE = base_y - RE, yM = base_y - rM, yL = base_y - rL;
+  const xE = 100 + RE, xM = xE + RE + 90 + rM, xL = xM + rM + 80 + rL;
+  const yE = mid, yM = mid, yL = mid;
   drawPlanet(ctx, pixels(earthImg), d.homeLat, d.homeLon, xE, yE, RE);
   drawPlanet(ctx, pixels(marsImg), d.marsLat, d.marsLon, xM, yM, rM);
   const hasMoon = d.moonLat !== undefined && d.moonLon !== undefined;
   if (hasMoon) drawPlanet(ctx, pixels(moonImg), d.moonLat!, d.moonLon!, xL, yL, rL);
-  ctx.setLineDash([3, 9]); ctx.strokeStyle = 'rgba(201,246,139,0.85)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(xE, yE); ctx.quadraticCurveTo((xE + xM) / 2, Math.min(yE, yM) - 190, xM, yM); ctx.stroke(); ctx.setLineDash([]);
-  marker(ctx, xE, yE, 16); marker(ctx, xM, yM, 13); if (hasMoon) marker(ctx, xL, yL, 10);
-  ctx.textAlign = 'center'; ctx.fillStyle = '#d6d8dc'; ctx.font = `400 24px ${FONT}`;
-  ctx.fillText(shortPlace(d.homeRegion), xE, base_y + 46);
-  ctx.fillText(siteLabel(d.marsName, 'mars'), xM, base_y + 46);
+  ctx.setLineDash([3, 9]); ctx.strokeStyle = 'rgba(201,246,139,0.95)'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(xE, yE); ctx.quadraticCurveTo((xE + xM) / 2, Math.min(yE, yM) - 120, xM, yM); ctx.stroke(); ctx.setLineDash([]);
+  marker(ctx, xE, yE, 15); marker(ctx, xM, yM, 12); if (hasMoon) marker(ctx, xL, yL, 9);
+  ctx.fillStyle = '#d6d8dc'; ctx.font = `400 23px ${FONT}`;
+  ctx.fillText(shortPlace(d.homeRegion), xE, base_y + 42);
+  ctx.fillText(siteLabel(d.marsName, 'mars'), xM, mid + rM + 42);
   if (hasMoon && d.moonName) {
-    ctx.font = `400 20px ${FONT}`; const t = siteLabel(d.moonName, 'moon');
-    ctx.fillText(t, Math.min(xL, W - 60 - ctx.measureText(t).width / 2), base_y + 76);
+    ctx.font = `400 19px ${FONT}`; const t = siteLabel(d.moonName, 'moon');
+    ctx.fillText(t, Math.min(xL, CX + CW - 36 - ctx.measureText(t).width / 2), mid + rL + 40);
   }
-  ctx.fillStyle = '#5c6068'; ctx.font = `400 18px ${MONO}`; ctx.fillText('to scale', W / 2, base_y + 118);
+  ctx.fillStyle = '#5c6068'; ctx.font = `400 17px ${MONO}`; ctx.fillText('to scale', W / 2, base_y + 104);
 
-  ctx.fillStyle = '#ffffff'; ctx.font = `800 150px ${FONT}`; ctx.fillText(`${d.terrainPct}%`, W / 2, 1000);
-  ctx.fillStyle = '#8a8f98'; ctx.font = `400 28px ${FONT}`; ctx.fillText('terrain match', W / 2, 1044);
+  ctx.fillStyle = '#ffffff'; ctx.font = `800 128px ${FONT}`; ctx.fillText(`${d.terrainPct}%`, W / 2, 922);
+  ctx.fillStyle = '#8a8f98'; ctx.font = `400 26px ${FONT}`; ctx.fillText('terrain match', W / 2, 960);
 
-  ctx.font = `400 26px ${FONT}`;
-  const pills = d.pills.slice(0, 3), pad = 26, gap = 18;
+  ctx.font = `400 25px ${FONT}`;
+  const fills = ['rgba(201,246,139,0.18)', 'rgba(63,210,195,0.18)', 'rgba(140,100,235,0.26)'];
+  const pills = d.pills.slice(0, 3), pad = 26, gap = 16;
   const widths = pills.map(p => ctx.measureText(p).width + 2 * pad);
   let px = W / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (pills.length - 1)) / 2;
   pills.forEach((p, i) => {
-    ctx.strokeStyle = 'rgba(214,216,220,0.45)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(px, 1092, widths[i], 50, 25); ctx.stroke();
-    ctx.fillStyle = '#d6d8dc'; ctx.fillText(p, px + widths[i] / 2, 1126); px += widths[i] + gap;
+    ctx.fillStyle = fills[i]; roundRect(ctx, px, 990, widths[i], 50, 25); ctx.fill();
+    ctx.fillStyle = '#eef0f2'; ctx.fillText(p, px + widths[i] / 2, 1024); px += widths[i] + gap;
   });
 
-  ctx.fillStyle = '#c9f68b'; ctx.font = `400 30px ${FONT}`; ctx.fillText(FOOTER_LINK, W / 2, 1238);
-  ctx.fillStyle = '#5c6068'; ctx.font = `400 16px ${FONT}`; ctx.fillText(CREDITS, W / 2, 1290);
-  ctx.fillText(FOOTER_NOTE, W / 2, 1314);
+  // QR (static SVG, fixed URL) in a rounded frame with a gradient edge.
+  const QX = 130, QY = 1074, QS = 150;
+  const qg = ctx.createLinearGradient(QX, QY, QX + QS, QY + QS);
+  qg.addColorStop(0, '#c9f68b'); qg.addColorStop(0.5, '#3fd2c3'); qg.addColorStop(1, '#8c64eb');
+  ctx.fillStyle = qg; roundRect(ctx, QX - 8, QY - 8, QS + 16, QS + 16, 28); ctx.fill();
+  ctx.fillStyle = '#ffffff'; roundRect(ctx, QX - 2, QY - 2, QS + 4, QS + 4, 22); ctx.fill();
+  ctx.drawImage(qr, QX + 6, QY + 6, QS - 12, QS - 12);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#eef0f2'; ctx.font = `400 30px ${FONT}`; ctx.fillText(SCAN_TEXT, 340, 1140);
+  ctx.fillStyle = '#c9f68b'; ctx.font = `400 26px ${FONT}`; ctx.fillText(PUBLIC_SITE, 340, 1182);
+
+  ctx.textAlign = 'center'; ctx.fillStyle = '#5c6068'; ctx.font = `400 15px ${FONT}`;
+  ctx.fillText(CREDITS, W / 2, 1268); ctx.fillText(FOOTER_NOTE, W / 2, 1290);
   return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not render the card'))), 'image/png'));
 }
 
