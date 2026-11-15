@@ -15,12 +15,12 @@ for (const body of bodies) {
   fields[body] = decodeHeightMap(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
 }
 
-test('official maps locate Himalaya, Olympus Mons and South Pole–Aitken in the correct hemispheres', () => {
+test('official NASA maps locate Himalaya, Olympus Mons and South Pole–Aitken in the correct hemispheres', () => {
   assert.ok(elevationKm(fields.earth, 28, 86.9) > 3, 'Himalaya above 3 km after area averaging');
   assert.ok(elevationKm(fields.mars, 18.65, -133.8) > 15, 'Olympus Mons above 15 km');
   assert.ok(elevationKm(fields.moon, -53, -169) < -3, 'SPA basin below -3 km');
   assert.ok(elevationKm(fields.moon, -53, -169) < elevationKm(fields.moon, -20, -169), 'SPA below northern highlands');
-  assert.ok(elevationKm(fields.earth, 0, -140) < 0, 'Pacific retains negative bathymetry in data');
+  assert.ok(elevationKm(fields.earth, 0, -140) <= 0, 'Pacific at or below sea level (NASA SRTMGL30 has no bathymetry)');
 });
 
 test('ocean surface stays at sea level while exaggeration changes mountains and basins radially', () => {

@@ -28,7 +28,7 @@ No se usa el PNG polar de suitability como textura. La Luna desplaza su geometr�
 
 ## Relieve vigente de los tres cuerpos
 
-La implementación actual usa NOAA ETOPO 2022 60s (Tierra), NASA LOLA
+La implementación actual usa NASA SRTMGL30 (Tierra; reemplaza a NOAA ETOPO 2022), NASA LOLA
 ldem_4_uint.tif (Luna) y NASA MOLA megt90n000cb.img + XML (Marte).
 Procedencia, unidades, referencias, comandos y formato: ../RELIEF.md.
 Hashes y resultados de conversión: heights.manifest.json.

@@ -5,10 +5,10 @@ import type { SurfaceMaps } from './useSurfaceTextures';
 import { textureUrl } from './textureLayers';
 
 const bodies: Body[] = ['earth', 'moon', 'mars'];
-export default function LayerControls({ layer, onLayer, heightSource, onHeightSource, normals, onNormals, selectedBody,
+export default function LayerControls({ layer, onLayer, heightSource, normals, onNormals, selectedBody,
   metadata, origins, maps, status }: {
   layer: SurfaceLayer; onLayer: (layer: SurfaceLayer) => void;
-  heightSource: HeightSource; onHeightSource: (source: HeightSource) => void;
+  heightSource: HeightSource; onHeightSource?: (source: HeightSource) => void;
   normals: boolean; onNormals: (value: boolean) => void; selectedBody: Body;
   metadata: Partial<Record<Body, HeightMetadata>>; origins: Partial<Record<Body, TerrainOrigin>>;
   maps: SurfaceMaps; status: Record<Body, TerrainStatus>;
@@ -21,9 +21,7 @@ export default function LayerControls({ layer, onLayer, heightSource, onHeightSo
       <option value="shadows">Shaded relief</option><option value="topography">Topography</option>
       <option value="suitability">Base suitability</option>
     </select></label>
-    <label>Height source<select aria-label="Height source" value={heightSource} onChange={e => onHeightSource(e.target.value as HeightSource)}>
-      <option value="packaged">Packaged NASA elevation</option><option value="global">Global DEMs (ETOPO / LOLA / MOLA)</option>
-    </select></label>
+    {/* Height source fixed to NASA elevation (LOLA, MOLA, SRTMGL30): the ETOPO (NOAA) option was removed so every layer is NASA data. */}
     <label className="astral-normal-toggle"><input type="checkbox" aria-label="Normal-map lighting" checked={normals}
       disabled={!normalsApply || heightSource !== 'packaged'} onChange={e => onNormals(e.target.checked)} />Normal-map lighting</label>
     <p aria-live="polite">{bodies.map(body => `${body[0].toUpperCase()}${body.slice(1)}: ${status[body] === 'ready' ? 'relief ready' : status[body] === 'loading' ? 'loading relief' : 'relief unavailable; color only'}`).join(' · ')}</p>

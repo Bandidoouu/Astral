@@ -9,8 +9,8 @@ dependencias y publicación quedan fuera de esta tarea.
 Abrir la demo local y usar el panel de la escena (arriba a la derecha):
 
 - **Surface layer:** Visible color, Height map, Shaded relief, Topography o Base suitability.
-- **Height source:** Packaged NASA elevation (predeterminado) o los DEM globales
-  anteriores ETOPO/LOLA/MOLA.
+- **Height source:** fijo en la elevación NASA empaquetada (LOLA, MOLA, SRTMGL30). La opción
+  ETOPO/LOLA/MOLA se retiró; si faltan las texturas, el respaldo usa SRTMGL30, LOLA y MOLA.
 - **Normal-map lighting:** normales de public/textures en Visible y Base suitability.
   Se desactiva para los DEM globales porque representan otras fuentes/resoluciones.
 - **Vertical exaggeration:** 1..30×; 1× conserva la escala física vertical.
