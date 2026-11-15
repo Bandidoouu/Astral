@@ -1,9 +1,10 @@
 name: Deploy frontend (demo mode) to GitHub Pages
 
+# Publishes only when a release tag is pushed (e.g. git tag site-v1 && git push origin site-v1)
+# or when run by hand, so merges to main never change the live site during the freeze.
 on:
   push:
-    branches: [main]
-    paths: ['frontend/**', '.github/workflows/pages.yml']
+    tags: ['site-v*']
   workflow_dispatch:
 
 permissions:
