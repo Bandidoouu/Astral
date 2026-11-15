@@ -21,7 +21,7 @@ PER_SCALE = ["meta_{s}.parquet", "emb_{s}.npy", "index_{s}.faiss", "baseline_fea
 SUIT = ["suitability/moon_south_{k}.tif", "suitability/moon_south_{k}.png"]
 SUIT_K = ["landing", "rover", "ice", "temperature", "total"]
 SUIT_EXTRA = ["suitability/suitability_moon.json", "suitability/recommended_zones.json",
-              "suitability/suitability_candidates.png"]
+              "suitability/suitability_candidates.png", "earth_landcover_005deg.tif"]
 
 README = """# Paquete ASTRAL para Backend: {version}
 
@@ -43,6 +43,7 @@ Generado: {date}. Encoder: `{encoder}`. Escalas: {scales}.
 | `emb_{{s}}.npy`, `index_{{s}}.faiss` | Embeddings de forma (norma 1) e índice FAISS |
 | `baseline_feat_{{s}}.npy/.json` | Fórmula base (para la fusión RRF y `operations`) |
 | `features_{{s}}.parquet` | Temperatura, albedo, hielo, suelo y aridez por parche (`NaN` = sin dato) |
+| `earth_landcover_005deg.tif` | Máscara de zonas prometedoras (MODIS MCD12C1): clase IGBP y % prometedor; la búsqueda la usa para el aviso del clic |
 | `suitability/` | Capa de aptitud lunar (GeoTIFF + PNG), reglas y pesos, candidatos de la NASA, `recommended_zones.json` |
 
 `manifest.json` lista cada archivo con su tamaño y SHA-256 para verificar la copia.

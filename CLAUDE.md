@@ -140,7 +140,26 @@ README, gráficas, etiquetas, la interfaz y el video. La documentación interna
 - Si una decisión cambia algo de un `CLAUDE.md` o de `docs/`, **se actualiza en el
   mismo commit**.
 
+### 4.6 Git en el equipo (vigente desde H7)
+
+- **Nunca trabajar directo en `main` ni en ramas ajenas.** ML trabaja en ramas `ml/...`.
+- **Hacer commit antes de cambiar de rama.** Antes de un `merge`, revisar que no queden
+  marcas de conflicto (`git grep -n -E "^(<<<<<<<|>>>>>>>)"`).
+- Claude abre los PR de sus ramas con `gh` (instalado en `~/.local/bin/gh`); **las
+  fusiones a `main` las hace una persona después de revisarlas.**
+- Al empezar a trabajar: `git pull` de `main` y verificar que todo corra.
+
 ## 5. Checkpoints del equipo
+
+**Estado del frente de ML (H7):** v2 a 60 m en producción (prueba ciega: la red deja El
+Pinacate en el lugar 147 de 55,444 contra 320 de la fórmula); v3 multimodal probado y
+descartado por validación. Por recomendación de un mentor, los resultados hacia la
+Tierra salen solo de zonas prometedoras (MODIS MCD12C1: desiertos, matorral disperso,
+pastizal, hielo; ~49% de los parches) y la búsqueda tendrá `scale_mode`
+(`same_size` / `gravity_scaled`). Siguen la validación y el entrenamiento de 1 km, los
+modos de escala y la aptitud de Marte (solo MOLA y Mars Odyssey). Detalle completo:
+`ml/CLAUDE.md` §1b.
+
 
 | Hora | Qué debe estar listo |
 | --- | --- |

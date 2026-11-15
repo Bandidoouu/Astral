@@ -1,14 +1,25 @@
 """Aplicación FastAPI de ASTRAL: CORS y routers de la API."""
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import galaxy, health, patches, similar, suitability
 from app.api.patches import HEIGHT_HEADERS
+from app.services.artifacts import get_searcher
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_searcher()  # carga única al arrancar
+    yield
+
 
 app = FastAPI(
     title="ASTRAL API",
     description="Planetary Shazam for Moon and Mars analogs · NASA Space Apps Challenge 2026",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

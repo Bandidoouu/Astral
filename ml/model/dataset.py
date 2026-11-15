@@ -33,6 +33,16 @@ class PatchSet:
     idx: np.ndarray              # índices usables (sin holdout si se pidió)
     scale_m: float
     name: str = ""               # p. ej. "moon_60_train" (para cachés)
+    tab: np.ndarray = None       # v3: N x 14 (percentiles + marcas de sin dato) o None
+
+    def attach_tab(self, features_path=None):
+        """Carga data/patches/features_{name}.parquet y arma el vector tabular de v3."""
+        from ml.features.reference import tab_vector
+        fp = Path(features_path or ROOT / "data/patches" / f"features_{self.name}.parquet")
+        f = pd.read_parquet(fp)
+        assert (f.patch_id.values == self.meta.patch_id.values).all(), f"{fp.name} desalineado"
+        self.tab = tab_vector(self.body, f)
+        return self
 
     @classmethod
     def load(cls, npy, parquet, exclude_holdout=True):
@@ -46,7 +56,7 @@ class PatchSet:
         return cls(body, patches, meta, np.flatnonzero(keep), scale, name)
 
 
-def default_sources(scale=60, exclude_holdout=True):
+def default_sources(scale=60, exclude_holdout=True, with_tab=False):
     """Conjuntos de ENTRENAMIENTO por escala. La Luna usa la versión con
     traslape (_train); la Tierra, la rejilla (sin los parches de Pinacate)."""
     d = ROOT / "data/patches"
@@ -57,7 +67,8 @@ def default_sources(scale=60, exclude_holdout=True):
     for body, tag in names.items():
         npy, pq = d / f"patches_{tag}.npy", d / f"meta_{tag}.parquet"
         if npy.exists():
-            out.append(PatchSet.load(npy, pq, exclude_holdout))
+            ps = PatchSet.load(npy, pq, exclude_holdout)
+            out.append(ps.attach_tab() if with_tab else ps)
         else:
             print(f"[dataset] aviso: falta {npy.name}")
     return out
@@ -73,7 +84,7 @@ def patch_stats(pset, batch=1024, device="cuda"):
             return s
     from ml.baseline import features            # import tardío: evita ciclos
     out = np.zeros((len(pset.patches), 2), np.float32)
-    for a, z, px in iter_all(pset, batch, device):
+    for a, z, px, *_ in iter_all(pset, batch, device):
         out[a:a + len(z)] = features(z, px)[:, [0, 5]].cpu().numpy()
     np.save(cache, out)
     return out
@@ -139,7 +150,7 @@ class BalancedLoader:
         return self.steps
 
     def _make_batch(self):
-        zs, pxs, bodies = [], [], []
+        zs, pxs, bodies, tabs = [], [], [], []
         bins = (self.rng.choice(len(self.w), self.per_body, p=self.w)
                 if self.strata is not None else None)
         for k, s in enumerate(self.sets):
@@ -147,8 +158,11 @@ class BalancedLoader:
             zs.append(np.asarray(s.patches[ii]))
             pxs.append(np.full(self.per_body, s.scale_m, np.float32))
             bodies.append(np.full(self.per_body, BODY_ID[s.body], np.int64))
+            if s.tab is not None:
+                tabs.append(s.tab[ii])
         z = torch.from_numpy(np.concatenate(zs)).unsqueeze(1).pin_memory()
-        return z, torch.from_numpy(np.concatenate(pxs)), torch.from_numpy(np.concatenate(bodies))
+        tab = torch.from_numpy(np.concatenate(tabs)) if len(tabs) == len(self.sets) else None
+        return z, torch.from_numpy(np.concatenate(pxs)), torch.from_numpy(np.concatenate(bodies)), tab
 
     def __iter__(self):
         q = queue.Queue(maxsize=self.prefetch)
@@ -165,10 +179,12 @@ class BalancedLoader:
         t.start()
         try:
             while (item := q.get()) is not None:
-                z, px, body = item
-                yield (z.to(self.device, non_blocking=True),
+                z, px, body, tab = item
+                out = (z.to(self.device, non_blocking=True),
                        px.to(self.device, non_blocking=True),
                        body.to(self.device, non_blocking=True))
+                # v2 recibe (z, px, body) como siempre; v3 además el vector tabular
+                yield out + (tab.to(self.device, non_blocking=True),) if tab is not None else out
         finally:
             stop.set()
 
@@ -179,4 +195,7 @@ def iter_all(pset, batch=512, device="cuda"):
     for a in range(0, n, batch):
         z = torch.from_numpy(np.array(pset.patches[a:a + batch])).unsqueeze(1)
         px = torch.full((len(z),), pset.scale_m)
-        yield a, z.to(device), px.to(device)
+        if pset.tab is not None:
+            yield a, z.to(device), px.to(device), torch.from_numpy(pset.tab[a:a + batch]).to(device)
+        else:
+            yield a, z.to(device), px.to(device)
