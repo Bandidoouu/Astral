@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("ASTRAL_ROOT", Path(__file__).resolve().parents[1]))
 ART = ROOT / "data/artifacts"
-PER_SCALE = ["meta_{s}.parquet", "emb_{s}.npy", "index_{s}.faiss", "baseline_feat_{s}.npy",
+PER_SCALE = ["galaxy_{s}.json", "meta_{s}.parquet", "emb_{s}.npy", "index_{s}.faiss", "baseline_feat_{s}.npy",
              "baseline_feat_{s}.json", "features_{s}.parquet"]
 SUIT = ["suitability/moon_south_{k}.tif", "suitability/moon_south_{k}.png"]
 SUIT_K = ["landing", "rover", "ice", "temperature", "total"]

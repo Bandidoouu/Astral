@@ -238,6 +238,16 @@ y `ml.check_delivery` sobre el paquete. Sin reentrenar ni repetir la prueba cieg
 `frontend/public/textures/{earth,moon,mars}/` (50 MB en git). Crudos en
 `data/raw/textures/`.
 
+**Galaxia y nombres (rama `ml/galaxy-regions`):** `ml/galaxy.py` → `galaxy_1000.json`
+(18,808 puntos, los tres cuerpos) y `galaxy_60.json` (30,000: toda la Luna + Tierra al
+azar), UMAP 3D coseno, semilla 0. `ml/data/add_planet_regions.py`: `region` de la Luna y
+Marte con la nomenclatura IAU/USGS (accidente más pequeño que contiene el centro con
+diámetro >= 80% del lado del parche; si no, "near X" a <= 300 km; si no, >= 20 km).
+Con nombre: 94% a 1 km, 98% en Marte, 86% en el polo sur a 60 m. Rankings y puntajes sin
+cambio (770 resultados idénticos). Paquete local **`release/v2-1km-r4`** (125 archivos,
+244 MB, con galaxias y Grad-CAM regenerado en `gradcam-r4`); r3 sigue publicado en GitHub.
+Figura de validación: `ml/figure_validation.py` → `data/artifacts/figures/`.
+
 ### Siguientes pasos (en orden de prioridad)
 
 1. Esteban comparte el PR de revisión y la ruta del paquete; confirmar recepción y

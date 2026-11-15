@@ -165,6 +165,12 @@ detalle en su `README.md`; fuentes crudas en `data/raw/textures/`, fuera de git)
 
 ## 5. Fuentes fuera de la lista (permitidas, pero se citan)
 
+- **Gazetteer of Planetary Nomenclature (IAU WGPSN / USGS Astrogeology), puntos centrales
+  de la Luna y Marte** (`MOON_nomenclature_center_pts.zip`, `MARS_nomenclature_center_pts.zip`,
+  https://planetarynames.wr.usgs.gov): solo para nombrar regiones legibles en la Luna y
+  Marte (p. ej. "Mare Imbrium"). Es la nomenclatura oficial de la IAU, publicada por el
+  USGS; no aporta datos al modelo. Archivo local: `data/raw/nomenclature/`.
+
 | Fuente | Para qué | Nota |
 | --- | --- | --- |
 | Natural Earth admin-1 (10m), `https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip` | `region` = "Estado, País" y columna `country` (`ml/data/add_regions.py`) | Dominio público; descargado en `data/raw/earth/naturalearth/`; citar en referencias |
