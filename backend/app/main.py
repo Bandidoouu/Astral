@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import galaxy, patches, similar
+from app.api import galaxy, health, patches, similar, suitability
 from app.api.patches import HEIGHT_HEADERS
 from app.services.artifacts import get_searcher
 
@@ -15,7 +15,12 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ASTRAL API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="ASTRAL API",
+    description="Planetary Shazam for Moon and Mars analogs · NASA Space Apps Challenge 2026",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,8 +34,15 @@ app.add_middleware(
 app.include_router(galaxy.router)
 app.include_router(patches.router)
 app.include_router(similar.router)
+app.include_router(suitability.router)
+app.include_router(health.router)
 
 
-@app.get("/api/health")
-def health() -> dict:
-    return {"status": "ok", "encoder_version": 1}
+@app.get("/")
+def root():
+    return {
+        "service": "ASTRAL Backend API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/health",
+    }

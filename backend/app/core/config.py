@@ -16,3 +16,17 @@ def get_artifacts_dir() -> Path:
 
 def get_contracts_dir() -> Path:
     return CONTRACTS_DIR
+
+
+ROOT_DIR = REPO_ROOT
+ARTIFACTS_DIR = get_artifacts_dir()
+PORT = int(os.environ.get("PORT", 8000))
+HOST = os.environ.get("HOST", "0.0.0.0")
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "*",
+]

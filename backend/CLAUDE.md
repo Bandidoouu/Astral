@@ -13,7 +13,7 @@ aviso de cambios, nada de co-autores de IA) y **también aplican aquí**.
 - **No hace:** entrenar, regenerar embeddings ni cambiar el índice. Si algo de eso
   hace falta, se le pide a ML.
 
-## 1b. Lo que cambió (requisitos centrales, ver `docs/contratos.md`)
+## 1b. Requisitos centrales (ver `docs/contratos.md`)
 
 - **Clic en cualquier punto de cualquier cuerpo:** la petición trae `body`, `lat`,
   `lon` y opcionalmente `target_bodies` (por defecto, los otros dos cuerpos).
@@ -30,70 +30,77 @@ aviso de cambios, nada de co-autores de IA) y **también aplican aquí**.
 
 ### Cómo implementar `POST /api/similar`
 
-No reimplementen la búsqueda: usen `ml.search.Searcher` (solo numpy, pandas y faiss).
+No reimplementen la búsqueda ni instancien `Searcher` en cada petición: usen el singleton de `app.services.search_service.get_searcher()`.
 
 ```python
-from ml.search import Searcher
-searcher = Searcher()            # una vez al arrancar; lee data/artifacts/
+from app.core.schemas import SimilarRequest
+from app.services.search_service import get_searcher
 
-@app.post("/api/similar")
-def similar(req: SimilarRequest):
-    return searcher.search(req.body, req.lat, req.lon, req.target_bodies, req.k,
-                           req.profile, method="rrf", scale_m=req.scale_m)
+@router.post("/similar")
+def find_similar(req: SimilarRequest):
+    searcher = get_searcher()
+    if searcher is not None:
+        return searcher.search(
+            body=req.body, lat=req.lat, lon=req.lon,
+            target_bodies=req.target_bodies, k=req.k, profile=req.profile,
+            method=req.method or "rrf", scale_m=req.scale_m
+        )
+    # Si searcher es None, hacer fallback estricto al mock de contracts/similar_response.json
 ```
-
-Devuelve ya el JSON del contrato. El ranking de terreno por defecto es la fusión
-RRF de la red y la fórmula base (`method="rrf"`).
 
 ### Artefactos que lee el `Searcher` (en `data/artifacts/`, por escala)
 
 `meta_{scale}.parquet`, `emb_{scale}.npy`, `baseline_feat_{scale}.npy` + `.json` y
-`features_{scale}.parquet` (temperatura, albedo, hielo). Hoy existe la escala 60;
-la de 1000 llega con el modelo global. Si falta una escala, el `Searcher` responde
-con un aviso en `warnings`, no con un error.
+`features_{scale}.parquet` (temperatura, albedo, hielo). Si falta una escala, el `Searcher`
+responde con un aviso en `warnings`, no con un error.
 
 ### Capa de aptitud lunar (`data/artifacts/suitability/`)
 
-`moon_south_{landing,rover,ice,temperature,total}.tif` (GeoTIFF, estereográfica polar
-sur de LOLA, 480 m) y `.png` (para mostrar directo), más `suitability_moon.json` (pesos,
-reglas, candidatos de la NASA y sus puntajes). Endpoint sugerido:
-`GET /api/suitability/moon_south/{criterion}` (PNG) y `GET /api/suitability/moon_south`
-(el JSON).
+`moon_south_{landing,rover,ice,temperature,total}.tif` y `.png` (para mostrar directo), más `suitability_moon.json`. Endpoints:
+`GET /api/suitability/moon_south/{criterion}` (PNG) y `GET /api/suitability/moon_south` (JSON).
 
 ## 2. Estructura
 
 ```text
 backend/
 ├── app/
-│   ├── main.py          # crea la app FastAPI, CORS, incluye los routers
-│   ├── api/             # routers: similar.py, galaxy.py, patches.py, health.py
-│   ├── services/        # lógica: search.py (FAISS), scoring.py (dimensiones y perfiles),
-│   │                    #         thermal.py (Diviner/MODIS), artifacts.py (carga única)
-│   └── core/            # config.py: rutas y variables de entorno
-├── tests/               # pruebas contra los ejemplos de contracts/
-└── requirements.txt     # fastapi, uvicorn, faiss-cpu, numpy, pandas, pyarrow
+│   ├── main.py              # crea la app FastAPI, CORS, incluye los routers
+│   ├── api/                 # routers: similar.py, galaxy.py, patches.py, health.py, suitability.py
+│   ├── core/                # config.py (get_artifacts_dir, get_contracts_dir), schemas.py (Pydantic)
+│   └── services/            # search_service.py (singleton Searcher), scoring.py, thermal.py
+├── tests/                   # pruebas: test_api.py, test_contracts.py, test_scoring.py, ...
+├── pytest.ini
+└── requirements.txt         # fastapi, uvicorn, faiss-cpu, numpy, pandas, pyarrow
 ```
 
-## 3. Reglas del módulo
+## 3. Reglas de arquitectura para IAs y desarrolladores
 
-- **Los formatos salen de `docs/contratos.md`.** Las respuestas deben validar contra
-  los ejemplos de `contracts/`; hay que tener una prueba que lo verifique.
-- **Arrancar con mocks:** hasta que ML entregue artefactos (H10 a H12), los
-  endpoints devuelven los ejemplos de `contracts/`. Así el frontend avanza sin esperar.
-- Los artefactos se leen desde `ASTRAL_ARTIFACTS` (por defecto `../data/artifacts`).
-  Se cargan **una sola vez** al arrancar (no en cada petición).
-- Si el backend necesita un campo nuevo de ML (p. ej. otra estadística por parche),
-  se pide con el protocolo de aviso; no se calcula por fuera con otra fórmula.
-- Nada de rutas absolutas en el código. CORS abierto para el servidor de desarrollo
-  del frontend.
-- **Nunca rellenar un dato faltante** (ni con 0 ni con promedios): si el `Searcher`
-  devuelve `null`, se manda `null`.
-- Commits pequeños, en inglés, **sin co-autores de IA**.
+1. **Gestión del Searcher de ML:**
+   - Usar **únicamente** `get_searcher()` de `app.services.search_service`.
+   - Inicializa `Searcher(art=get_artifacts_dir())`. Nunca usar `root=...` ni instanciar `Searcher()` directamente.
+   - Si los artefactos no existen en disco, `get_searcher()` retorna `None`. Los endpoints deben responder con mocks compatibles de `contracts/`, garantizando que el frontend **nunca se bloquee**.
+2. **Esquemas Pydantic (`app/core/schemas.py`):**
+   - Usar tipado estricto con `Literal[...]` (`CelestialBody = Literal["earth", "moon", "mars"]`, `ScaleM = Literal[60, 1000]`, `MissionProfile`, etc.).
+   - Mantener las validaciones de rango numérico (`ge`, `le`) para que FastAPI responda HTTP 422 automáticamente en peticiones malformadas.
+3. **Rutas dinámicas y variables de entorno:**
+   - Usar **siempre** `get_artifacts_dir()` y `get_contracts_dir()` de `app.core.config`.
+   - **Prohibido** congelar rutas en constantes a nivel de módulo o usar rutas absolutas, ya que rompen tests con fixtures como `artifacts_dir` (`ASTRAL_ARTIFACTS`).
+4. **Validación de endpoints con archivos del sistema:**
+   - Todo endpoint que sirva archivos según parámetros de ruta (ej. `{criterion}`) debe validar contra una lista blanca fija (`landing`, `rover`, `ice`, `temperature`, `total`) para impedir *path traversal*.
+5. **Alineación con contratos (`docs/contratos.md` y `contracts/`):**
+   - Las respuestas mock y reales deben coincidir exactamente con la estructura esperada: llaves `query`, `results`, `warnings`, `scores` (`null` = sin dato), `attributes`, `not_comparable`.
+   - Nunca rellenar datos faltantes con 0 o promedios: si falta, se envía `null`.
+6. **Pruebas obligatorias:**
+   - Toda adición o cambio debe acompañarse de pruebas en `backend/tests/` y correr con `pytest` sin errores antes de finalizar.
+7. **Identidad y autoría (Regla de oro §4.2):**
+   - **Prohibido** agregar `Co-Authored-By: Claude`, `Copilot`, `ChatGPT`, `Gemini` o firmas de IA en commits, PRs o archivos.
+   - Commits concisos, en inglés, usando únicamente la identidad configurada en git.
 
-## 4. Correr
+## 4. Correr y probar
 
 ```bash
 cd backend
 uv venv && uv pip install -r requirements.txt   # o pip, dentro de un venv
-uvicorn app.main:app --reload --port 8000
+pytest                                         # correr la suite de pruebas
+uvicorn app.main:app --reload --port 8000      # servidor de desarrollo
 ```

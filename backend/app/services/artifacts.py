@@ -19,8 +19,8 @@ def get_searcher():
     art = get_artifacts_dir()
     try:
         searcher = Searcher(art=art)
-    except AssertionError:
-        log.warning("Sin artefactos en %s: /api/similar usa el ejemplo de contracts/", art)
+    except (AssertionError, Exception) as exc:
+        log.warning("Sin artefactos o error en %s (%s): /api/similar usa el ejemplo de contracts/", art, exc)
         return None
     log.info("Searcher listo con escalas %s", sorted(searcher.idx))
     return searcher
