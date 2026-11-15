@@ -1,3 +1,28 @@
 .astral-lunar-map { margin: 0; }
 .astral-lunar-map img { display: block; max-width: 100%; max-height: 450px; margin: auto; object-fit: contain; }
 .astral-lunar-map figcaption { margin-top: 10px; color: #9ba8bb; font-size: 10px; line-height: 1.8; }
+.astral-scene-fallback { padding: 24px; color: #b8c6d9; line-height: 1.6; }
+.astral-planetary-scene { position: relative; width: 100%; height: 100%; min-height: 320px; }
+.astral-terrain-controls { position: absolute; top: 12px; left: 12px; z-index: 1; max-width: min(480px, calc(100% - 24px)); padding: 10px 12px; border: 1px solid #38475b; border-radius: 8px; background: #09101de6; color: #d8e3f1; font: 12px/1.5 system-ui, sans-serif; }
+.astral-terrain-controls label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.astral-terrain-controls input { width: 130px; accent-color: #c9f68b; }
+.astral-terrain-controls p { margin: 6px 0 0; font-size: 10px; color: #b5c4d8; }
+.astral-terrain-landmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.astral-terrain-landmarks button { border: 1px solid #4c617c; border-radius: 4px; padding: 3px 7px; background: #182438; color: #d8e3f1; cursor: pointer; font: inherit; }
+.astral-terrain-landmarks button:focus-visible, .astral-terrain-controls input:focus-visible { outline: 2px solid #c9f68b; outline-offset: 3px; }
+.astral-terrain-controls { top: 72px; left: auto; right: 12px; background: #09101df7; }
+.astral-terrain-controls label { font: inherit; letter-spacing: normal; text-transform: none; }
+@media (max-width: 600px) { .astral-terrain-controls { top: 68px; max-width: calc(100% - 24px); } }
+.astral-terrain-controls label { flex-direction: row; justify-content: flex-start; text-align: left; }
+.astral-scene-fallback { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 140px 24px; box-sizing: border-box; text-align: center; }
+.astral-layer-controls { margin-top: 10px; border-top: 1px solid #38475b; padding-top: 8px; }
+.astral-layer-controls > label { margin: 5px 0; display: flex; justify-content: space-between; gap: 10px; }
+.astral-layer-controls select { min-width: 150px; max-width: 235px; background: #162437; border: 1px solid #4c617c; color: #d8e3f1; border-radius: 4px; padding: 4px 6px; font: inherit; letter-spacing: normal; }
+.astral-layer-controls .astral-normal-toggle { justify-content: flex-start; }
+.astral-layer-controls .astral-normal-toggle input { width: auto; margin: 0; }
+.astral-layer-reference { margin-top: 8px; max-height: 185px; overflow: auto; }
+.astral-layer-reference summary { cursor: pointer; color: #c9f68b; }
+.astral-layer-legend { display: block; width: 100%; max-width: 340px; height: auto; margin-top: 8px; background: white; border-radius: 4px; }
+.astral-terrain-controls { max-height: calc(100% - 120px); overflow: auto; }
+.astral-layer-controls .astral-layer-caveat { color: #e6d2a6; max-width: 380px; }
+.astral-layer-controls select:focus-visible, .astral-layer-reference summary:focus-visible { outline: 2px solid #c9f68b; outline-offset: 3px; }

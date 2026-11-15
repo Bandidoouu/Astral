@@ -1,0 +1,78 @@
+{
+  "earth": {
+    "source_url": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/data/60s/60s_surface_elev_gtif/ETOPO_2022_v1_60s_N90W180_surface.tif",
+    "source_sha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e",
+    "source_dimensions": [
+      21600,
+      10800
+    ],
+    "vertical_reference": "EGM2008 geoid; ice-surface version",
+    "width": 1440,
+    "height": 720,
+    "units": "meters",
+    "bounds": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "rows": "north to south",
+    "pixel_registration": "area; pixel centers",
+    "longitude": "east-positive",
+    "min_m": -9677,
+    "max_m": 6164,
+    "bytes": 1676465,
+    "sha256": "1290af187bef02bb2a49452a693e90debb7ce0de743660b27cbfc5ccbfd9be02"
+  },
+  "moon": {
+    "source_url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_4_uint.tif",
+    "source_sha256": "e6668bec27fc9b8fbb02d198c7ddfb08eedeeb790167b494f95e6b34201da05e",
+    "source_dimensions": [
+      1440,
+      720
+    ],
+    "vertical_reference": "LOLA sphere radius 1737400 m",
+    "width": 1440,
+    "height": 720,
+    "units": "meters",
+    "bounds": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "rows": "north to south",
+    "pixel_registration": "area; pixel centers",
+    "longitude": "east-positive",
+    "min_m": -8878,
+    "max_m": 10504,
+    "bytes": 1788773,
+    "sha256": "042e2e63e77f3e4df327ec2738de9aa8aed2064a59f6ac020ec345476e61e0d1"
+  },
+  "mars": {
+    "source_url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+    "source_sha256": "25f16fb7aaf857898dcf98bc4f841341a24f8b9f7e98453ca083bc45d897ca2c",
+    "source_dimensions": [
+      1440,
+      720
+    ],
+    "vertical_reference": "GMM3 areoid; presentation sphere 3396000 m",
+    "width": 1440,
+    "height": 720,
+    "units": "meters",
+    "bounds": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "rows": "north to south",
+    "pixel_registration": "area; pixel centers",
+    "longitude": "east-positive",
+    "min_m": -8068,
+    "max_m": 21134,
+    "bytes": 1660405,
+    "sha256": "bdfc3df35d277f1f3e48a5f8a27f265ba8cbe8575d94f5ea8667a1dce79187f2",
+    "xml_sha256": "e3982cb17458a9d59896b0c21e0485322ccc42f8e6089d9d856a62032775b60b"
+  }
+}
