@@ -1,8 +1,10 @@
-import { Component, useDeferredValue, useMemo, useState } from 'react';
+import { Component, useDeferredValue, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Line, Stars } from '@react-three/drei';
 import { Color, CubicBezierCurve3, Vector3 } from 'three';
+import type { Mesh } from 'three';
+import { markerRadius } from './markerSize';
 import { fromVector } from '../api/coordinates';
 import type { Analog, Body, GalaxyPoint, Location } from '../api/types';
 import type { PlanetarySceneProps } from '../shared/visualization';
@@ -37,15 +39,24 @@ function Graticule({ body, fields, exaggeration }: TerrainProps & { body: Body }
   return <>{lines.map((points, i) => <Line key={i} points={points} color={bodyColors[body]} transparent opacity={0.08} lineWidth={0.6} />)}</>;
 }
 function Marker({ location, color, fields, exaggeration, onClick }: TerrainProps & { location: Location; color: string; onClick?: () => void }) {
-  return <mesh position={surfacePoint(location, fields, exaggeration, globeRadii[location.body] * 0.025)}
+  // Constant size on screen: the sphere is rescaled every frame from its camera distance,
+  // so zooming in reveals the site and the window_km footprint instead of hiding them.
+  const mesh = useRef<Mesh>(null);
+  const world = useMemo(() => new Vector3(), []);
+  useFrame(({ camera }) => {
+    if (!mesh.current) return;
+    mesh.current.getWorldPosition(world);
+    mesh.current.scale.setScalar(markerRadius(camera.position.distanceTo(world), globeRadii[location.body]));
+  });
+  return <mesh ref={mesh} position={surfacePoint(location, fields, exaggeration, globeRadii[location.body] * 0.004)}
     onClick={onClick ? event => { if (event.delta <= 5) { event.stopPropagation(); onClick(); } } : undefined}
     raycast={onClick ? undefined : () => {}}>
-    <sphereGeometry args={[globeRadii[location.body] * 0.035, 12, 12]} /><meshBasicMaterial color={color} />
+    <sphereGeometry args={[1, 32, 24]} /><meshBasicMaterial color={color} />
   </mesh>;
 }
 const bodyRadiusKm: Record<Body, number> = { earth: 6371, moon: 1737.4, mars: 3396.19 };
 /** Outline of the compared patch: a circle of half the patch side (window_km / 2) on the body. */
-function Footprint({ match, fields, exaggeration }: TerrainProps & { match: Analog }) {
+function Footprint({ match, fields, exaggeration, active = true }: TerrainProps & { match: Analog; active?: boolean }) {
   const points = useMemo(() => {
     const windowKm = match.window_km ?? 128 * match.scale_m / 1000;
     const d = windowKm / 2 / bodyRadiusKm[match.body];
@@ -60,7 +71,7 @@ function Footprint({ match, fields, exaggeration }: TerrainProps & { match: Anal
     }
     return out;
   }, [match, fields, exaggeration]);
-  return <Line points={points} color="#c9f68b" lineWidth={1.5} transparent opacity={0.9} />;
+  return <Line points={points} color={active ? '#c9f68b' : bodyColors[match.body]} lineWidth={active ? 1.8 : 1} transparent opacity={active ? 0.95 : 0.55} />;
 }
 function Globe({ body, selected, results, onSelect, fields, exaggeration, onInspect, focusedMatch, layer, maps, normalRatio }: TerrainProps & {
   body: Body; selected: Location; results: Analog[]; onSelect: (location: Location) => void; onInspect: (patchId: string) => void; focusedMatch: Analog | null; layer: SurfaceLayer; maps?: BodySurface; normalRatio: number;
@@ -81,7 +92,7 @@ function Globe({ body, selected, results, onSelect, fields, exaggeration, onInsp
     <WorldLabel text={body.toUpperCase()} position={[0, (body === 'moon' ? -1 : 1) * (globeRadii[body] + 0.38), 0]} color={bodyColors[body]} />
     <Graticule body={body} fields={fields} exaggeration={exaggeration} />
     {selected.body === body && <Marker location={selected} fields={fields} exaggeration={exaggeration} color="#c9f68b" />}
-    {focusedMatch?.body === body && <Footprint match={focusedMatch} fields={fields} exaggeration={exaggeration} />}
+    {results.filter(r => r.body === body).map(r => <Footprint key={`fp-${r.patch_id}`} match={r} fields={fields} exaggeration={exaggeration} active={focusedMatch?.patch_id === r.patch_id} />)}
     {results.filter(r => r.body === body).map(r => <Marker key={r.patch_id} location={r} fields={fields} exaggeration={exaggeration} color={focusedMatch?.patch_id === r.patch_id ? '#c9f68b' : bodyColors[body]} onClick={() => onInspect(r.patch_id)} />)}
   </group>;
 }
