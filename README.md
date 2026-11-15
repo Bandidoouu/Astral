@@ -73,8 +73,12 @@ El Pinacate blind test was run once per model.
 
 | Scale | Network | 20-statistic formula | Random |
 | --- | --- | --- | --- |
-| 60 m (55,444 Earth patches) | median rank **147**; top 50 in **49 / 195** queries | median rank 320; top 50 in 12 / 195 | — |
+| 60 m (55,444 Earth patches) | median rank **147**; top 50 in **49 / 195** queries | median rank 320; top 50 in 12 / 195 | median rank 345; top 50 in 0 / 195 |
 | 1 km (7,669 Earth patches) | median percentile **0.48 %** | 15.4 % | 8.8 % |
+
+At 60 m El Pinacate covers 115 patches, so even a random ordering reaches one of them
+early (rank 345): the formula barely beats random, while the network halves the rank and
+puts El Pinacate in the top 50 for a quarter of the queries.
 
 **Known analogs at 1 km (network only, median percentile among 7,669 Earth patches)**
 

@@ -148,6 +148,10 @@ README, gráficas, etiquetas, la interfaz y el video. La documentación interna
 - Claude abre los PR de sus ramas con `gh` (instalado en `~/.local/bin/gh`); **las
   fusiones a `main` las hace una persona después de revisarlas.**
 - Al empezar a trabajar: `git pull` de `main` y verificar que todo corra.
+- **Una sola sesión de agente (Claude Code, Codex u otra) por carpeta de trabajo.** Si hace
+  falta otra sesión en paralelo, que use su propio `git worktree` (p. ej.
+  `git worktree add ../astral-<tarea> -b ml/<tarea>`), nunca la misma carpeta: dos
+  sesiones en la misma carpeta se pisan los commits y las ramas (pasó en H10).
 
 ## 5. Checkpoints del equipo
 
