@@ -10,7 +10,7 @@ export default function AnalogEvidence({ match, result }: { match: Analog; resul
   const score = match.scores[dimension];
   const available = dimensions.filter(d => match.scores[d] !== null);
   function downloadBrief() {
-    const lines = ['# ASTRAL analog investigation brief', '', result.demo ? '**ILLUSTRATIVE DEMO — fixed examples, not validated findings.**' : '**API-provided comparison — not a validated site recommendation.**', '',
+    const lines = ['# ASTRAL analog investigation brief', '', result.precomputed ? `**PRECOMPUTED — real ASTRAL model ${result.precomputed.model} outputs for ${result.precomputed.site ?? 'a curated site'}, not a validated site recommendation.**` : result.demo ? '**ILLUSTRATIVE DEMO — fixed examples, not validated findings.**' : '**API-provided comparison — not a validated site recommendation.**', '',
       `Mission: ${mission.title}`, `Question: ${mission.question}`,
       `Origin: ${result.query.body} (${result.query.lat}, ${result.query.lon})`,
       `Match: ${match.region} — ${match.body} (${match.lat}, ${match.lon})`,

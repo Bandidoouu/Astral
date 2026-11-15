@@ -23,10 +23,20 @@ ML los genera en `data/artifacts/` (fuera de git).
 | `index_{scale}.faiss` | `faiss.IndexFlatIP` (producto punto = coseno, búsqueda exacta) | Backend |
 | `meta_{scale}.parquet` | Metadatos de todos los parches de esa escala, todos los cuerpos (columnas en §2) | Backend |
 | `galaxy.json` | Lista de `{id, body, x, y, z}`: UMAP 3D de una submuestra de ~30 mil parches | Frontend 3D (vía backend o archivo estático) |
-| `gradcam/{query_id}__{patch_id}.png` | Mapa de calor sobre el parche terrestre para una consulta | Backend → Frontend UI |
+| `gradcam/{query_id}__{patch_id}.png` | Atribución del coseno de terreno sobre ambos parches (1 km, same_size) | Backend → Frontend UI |
 | `heights/{patch_id}.bin` + `.json` | Float32 little-endian 128x128 (elevación absoluta, m) + `{min, max, m_per_px}` | Frontend 3D (vista de detalle) |
 
 `{scale}` es `1000` (escala global, los tres cuerpos) o `60` (detalle Luna ↔ Tierra).
+
+**Grad-CAM de la entrega r3:** mantiene el nombre PNG y endpoint acordados.
+`gradcam/index.json` conserva `pairs` (sitio, IDs, destino, rank, archivo y coseno) y
+agrega distancia al parche, procedencia SHA-256 y errores numéricos. Ejemplo real
+reducido: `contracts/gradcam.example.json`. Son 102 asociaciones para 72 pares únicos;
+varios sitios usan el mismo parche. La figura identifica el parche, no atribuye ese
+centro al sitio solicitado. Gradientes sobre cuatro rotaciones como `ml.embed`;
+explicación aproximada del coseno neuronal, no del ranking RRF ni de los puntajes
+ambientales. Solo 1000 m, `same_size`; no usarla para 60 m o `gravity_scaled`.
+
 
 **Cómo llegan los artefactos al backend:** ML los publica con un número de versión
 (`encoder_v1`, etc.) y avisa por el chat del equipo. *Pendiente acordar el medio
@@ -185,13 +195,22 @@ perfil le da más de 0.3 al terreno.
 | `eva` | 0.30 | 0.20 | 0.05 | 0.15 | 0.05 | 0.20 | 0.05 |
 | `astrobiology` | 0.10 | 0.00 | 0.15 | 0.10 | 0.30 | 0.10 | 0.25 |
 
-## 4b. Capa de aptitud para base (polo sur lunar; Marte después)
+## 4b. Capa de aptitud para base (polo sur lunar y Marte)
 
 Reglas transparentes, **no la red**. Cada criterio de 0 a 1 con pesos visibles; ML
 exporta un raster por criterio y uno del total en `data/artifacts/suitability/`
 (GeoTIFF en estereográfica polar sur + PNG para el frontend + JSON con pesos, reglas
 y el puntaje de los candidatos de la NASA). **Es una sugerencia, no una elección
 final:** faltan iluminación y visibilidad de la Tierra, que no están en los portales.
+
+**Marte** (`suitability/mars_{landing,rover,elevation,hydrogen,total}.{tif,png}`, rejilla
+global de 0.25° en grados, `suitability_mars.json`, `suitability_mars_candidates.png`):
+pendiente de MOLA < 2° (aterrizaje, 0.30) y < 5° (rover, 0.20) a ~926 m de base,
+altitud baja (1 en ≤ −1 km, 0 en ≥ +1 km, 0.20) e hidrógeno de Mars Odyssey GRS (0 en
+≤ 2% en peso de agua equivalente, 1 en ≥ 7%, 0.30; solo entre 60° N y 60° S). Recorte
+de alcance: sin TES, minerales, polvo ni radiación. En la búsqueda, los parches de Marte
+traen `h2o_wt_pct` en `attributes` y la dimensión `ice` sale del índice de hidrógeno;
+`thermal`, `albedo` y `soil` de Marte son `null`.
 
 **Lo que nunca se puede comparar** (va en `not_comparable` de cada resultado):
 `dust_and_wind` (polvo y viento), `subsurface` (subsuelo), `gravity` (Luna 0.17 g,
@@ -208,7 +227,19 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 | `GET /api/galaxy?scale=60` | `galaxy.json` (`contracts/galaxy.example.json`) | Frontend 3D |
 | `GET /api/patch/{patch_id}/heights` | Binario Float32 128x128 + cabeceras `X-Min`, `X-Max`, `X-M-Per-Px` | Frontend 3D |
 | `GET /api/gradcam/{query_id}/{patch_id}` | PNG | Frontend UI |
+| `GET /api/suitability/moon_south` | `contracts/suitability_moon_south.json` (= `suitability/api_moon_south.json` del paquete) | Frontend UI |
+| `GET /api/suitability/moon_south/{criterion}` | PNG `suitability/moon_south_{criterion}.png` (`landing`, `rover`, `ice`, `temperature`, `total`) | Frontend UI |
+| `GET /api/suitability/mars` | `contracts/suitability_mars.json` (= `suitability/api_mars.json`) | Frontend UI |
+| `GET /api/suitability/mars/{criterion}` | PNG `suitability/mars_{criterion}.png` (`landing`, `rover`, `elevation`, `hydrogen`, `total`) | Frontend UI |
 
+- **`suitability`**: Backend solo sirve el JSON tal cual (criterios, pesos, reglas,
+  `missing`, `caveat`, `grid`, candidatos con `total_p90` y `percentile_vs_random`,
+  `recommended_zones` e `images`). Marte usa el mismo formato con sus criterios
+  (`landing`, `rover`, `elevation`, `hydrogen`); el validador del frontend hoy espera
+  los de la Luna y hay que generalizarlo para Marte.
+- **Resultados precalculados para la demo sin API:** `frontend/src/mocks/precomputed-results.json`
+  (`python -m ml.demo_results`): respuestas reales del contrato para 17 sitios curados,
+  cada una con `precomputed` (`model: "v2"`, encoder, método, fecha).
 - **`galaxy`**: se busca `galaxy_{scale}.json`; si no existe, `galaxy.json`; si
   tampoco, el ejemplo de `contracts/`. Así el frontend nunca se queda sin globos.
 - **`heights`**: el cuerpo es Float32 little-endian, 128×128, con las cabeceras
@@ -220,9 +251,11 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
+| 2026-11-14 | Grad-CAM: mismo PNG/endpoint; índice con asociaciones compartidas, distancia y trazabilidad; alcance 1 km same_size | Backend, Frontend | Pendiente |
 | 2026-11-14 | Versión inicial | Todos | — |
 | 2026-11-14 | Dimensiones `ice`, `soil`, `aridity`; perfil por defecto `general` (pesos iguales; terreno ≤ 0.3 en todos los perfiles); `not_comparable` agrega `dust_and_wind` y `subsurface` | Backend, Frontend | Pendiente |
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |
+| 2026-11-14 | `window_km` por parche; capa de aptitud de Marte (§4b); `h2o_wt_pct` en `attributes`; índice `gravity_scaled` disponible a 1 km | Backend, Frontend | Pendiente |
 | 2026-11-14 | Zonas prometedoras de la Tierra (máscara MCD12C1): `query.land_cover`, aviso si el clic cae fuera, `land_cover` por resultado, columnas `lc_*` y `promising` en `meta`; `scale_mode` (`same_size` / `gravity_scaled`) en la petición y en `query` | Backend, Frontend | Pendiente |
 | 2026-11-14 | Consulta desde cualquier punto de cualquier cuerpo: `target_bodies`, `method`, `scale_m` en la petición (1000 global por defecto, 60 de detalle solo dentro de cobertura; reemplaza a la escala de 500 m), `query.patches`, `scale_m` por resultado, `warnings`; `region` en inglés ("Sonora, Mexico") | Backend, Frontend | Pendiente |
 | 2026-11-14 | Normalización explícita de `operations`; atributos por parche en `features_{scale}.parquet`; formato binario de `heights` con sidecar; resolución `galaxy_{scale}.json` → `galaxy.json` → ejemplo | Backend, Frontend, ML | Pendiente |

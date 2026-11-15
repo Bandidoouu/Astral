@@ -82,10 +82,17 @@ def main():
     meta = pd.read_parquet(art / f"meta_{a.scale}{a.tag}.parquet")
     out = np.zeros((len(meta), len(NAMES)), np.float32)
     # los parches están en archivos por cuerpo; meta trae el índice dentro de cada uno
-    for body, g in meta.groupby("body", sort=False):
+    # por archivo de origen (columna src/src_idx si existe; si no, el índice va en patch_id)
+    if "src" in meta and meta.src.notna().all():
+        groups = meta.groupby("src", sort=False)
+    else:
+        groups = meta.groupby(meta.body + "_" + meta.scale_m.astype(int).astype(str), sort=False)
+    for src, g in groups:
+        body = g.body.iloc[0]
         px_m = int(g.scale_m.iloc[0])                    # gravity_scaled: 6050 (Luna), 2640 (Marte)
-        arr = np.load(ROOT / f"data/patches/patches_{body}_{px_m}.npy", mmap_mode="r")
-        local = g.patch_id.str.split("-").str[2].astype(int).to_numpy()
+        arr = np.load(ROOT / f"data/patches/patches_{src}.npy", mmap_mode="r")
+        local = (g.src_idx.astype(int).to_numpy() if "src" in meta and meta.src.notna().all()
+                 else g.patch_id.str.split("-").str[2].astype(int).to_numpy())
         rows = g.index.to_numpy()
         for s in range(0, len(g), a.batch):
             z = torch.from_numpy(np.array(arr[local[s:s + a.batch]])).unsqueeze(1).cuda()

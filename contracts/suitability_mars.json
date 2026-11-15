@@ -1,0 +1,322 @@
+{
+ "weights": {
+  "landing": 0.3,
+  "rover": 0.2,
+  "hydrogen": 0.3,
+  "elevation": 0.2
+ },
+ "rules": {
+  "landing": "fraction of MOLA pixels (~926 m) with slope < 2 deg (km-baseline slopes are much lower than lander-scale slopes)",
+  "rover": "fraction of MOLA pixels with slope < 5 deg",
+  "elevation": "MOLA elevation: 1 at <= -1 km, 0 at >= +1 km (thicker atmosphere for entry)",
+  "hydrogen": "Mars Odyssey GRS water-equivalent hydrogen: 0 at <= 2 wt%, 1 at >= 7 wt% (60 N to 60 S only)",
+  "total": "weighted mean where all criteria have data"
+ },
+ "missing": [
+  "thermal inertia and albedo (TES)",
+  "minerals",
+  "dust and wind",
+  "radiation",
+  "illumination"
+ ],
+ "caveat": "Suggestion, not a final site selection. Scope: MOLA slope and elevation plus Mars Odyssey hydrogen only.",
+ "grid": {
+  "crs": "Mars equirectangular (deg)",
+  "cell_deg": 0.25,
+  "lat_top": 87.99999999999979,
+  "lon_left": -6.901549214401314e-09,
+  "pixel_m": 14819
+ },
+ "candidates": [
+  {
+   "name": "Jezero crater (Perseverance)",
+   "lat": 18.38,
+   "lon": 77.58,
+   "group": "landed missions",
+   "total": 0.6154877543449402,
+   "percentile_vs_mars": 46.4,
+   "landing": 0.5137219429016113,
+   "rover": 0.8475561141967773,
+   "hydrogen": 0.30619996786117554,
+   "elevation": 1.0,
+   "h2o_wt_pct": 3.5309998989105225,
+   "total_p90": 0.734,
+   "percentile_vs_random": 67.3,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Gale crater (Curiosity)",
+   "lat": -5.4,
+   "lon": 137.8,
+   "group": "landed missions",
+   "total": 0.6045182943344116,
+   "percentile_vs_mars": 43.7,
+   "landing": 0.3066934049129486,
+   "rover": 0.5506756901741028,
+   "hydrogen": 0.6811187863349915,
+   "elevation": 0.990197479724884,
+   "h2o_wt_pct": 5.405594825744629,
+   "total_p90": 0.847,
+   "percentile_vs_random": 89.4,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Utopia Planitia (Zhurong)",
+   "lat": 25.1,
+   "lon": 109.9,
+   "group": "landed missions",
+   "total": 0.7771228551864624,
+   "percentile_vs_mars": 75.5,
+   "landing": 0.9939903616905212,
+   "rover": 0.9987980723381042,
+   "hydrogen": 0.2638871371746063,
+   "elevation": 1.0,
+   "h2o_wt_pct": 3.3194355964660645,
+   "total_p90": 0.787,
+   "percentile_vs_random": 77.6,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Elysium Planitia (InSight)",
+   "lat": 4.5,
+   "lon": 135.62,
+   "group": "landed missions",
+   "total": 0.8653913736343384,
+   "percentile_vs_mars": 92.7,
+   "landing": 0.9500411152839661,
+   "rover": 0.9754317402839661,
+   "hydrogen": 0.6176422238349915,
+   "elevation": 1.0,
+   "h2o_wt_pct": 5.0882110595703125,
+   "total_p90": 0.89,
+   "percentile_vs_random": 96.3,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Meridiani Planum (Opportunity)",
+   "lat": -1.95,
+   "lon": -5.53,
+   "group": "landed missions",
+   "total": 0.8832727670669556,
+   "percentile_vs_mars": 95.3,
+   "landing": 0.9463169574737549,
+   "rover": 0.9823660850524902,
+   "hydrogen": 0.6763485670089722,
+   "elevation": 1.0,
+   "h2o_wt_pct": 5.38174295425415,
+   "total_p90": 0.901,
+   "percentile_vs_random": 97.4,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Gusev crater (Spirit)",
+   "lat": -14.57,
+   "lon": 175.47,
+   "group": "landed missions",
+   "total": 0.966335117816925,
+   "percentile_vs_mars": 99.8,
+   "landing": 0.9122121930122375,
+   "rover": 0.9735814332962036,
+   "hydrogen": 0.9931844472885132,
+   "elevation": 1.0,
+   "h2o_wt_pct": 7.212552547454834,
+   "total_p90": 1.0,
+   "percentile_vs_random": 100.0,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Arcadia Planitia (shallow ice)",
+   "lat": 40.0,
+   "lon": -160.0,
+   "group": "human-exploration candidates",
+   "total": 0.8799100518226624,
+   "percentile_vs_mars": 95.1,
+   "landing": 1.0,
+   "rover": 1.0,
+   "hydrogen": 0.5996999740600586,
+   "elevation": 1.0,
+   "h2o_wt_pct": 4.998500347137451,
+   "total_p90": 0.889,
+   "percentile_vs_random": 96.1,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Deuteronilus Mensae",
+   "lat": 44.0,
+   "lon": 22.0,
+   "group": "human-exploration candidates",
+   "total": 0.7634799480438232,
+   "percentile_vs_mars": 73.1,
+   "landing": 0.7587890625,
+   "rover": 0.9007161259651184,
+   "hydrogen": 0.5189999938011169,
+   "elevation": 1.0,
+   "h2o_wt_pct": 4.59499979019165,
+   "total_p90": 0.856,
+   "percentile_vs_random": 90.8,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Mawrth Vallis",
+   "lat": 22.6,
+   "lon": -16.5,
+   "group": "human-exploration candidates",
+   "total": 0.7634943127632141,
+   "percentile_vs_mars": 73.1,
+   "landing": 0.591503918170929,
+   "rover": 0.8910156488418579,
+   "hydrogen": 0.6928000450134277,
+   "elevation": 1.0,
+   "h2o_wt_pct": 5.464000225067139,
+   "total_p90": 0.893,
+   "percentile_vs_random": 96.6,
+   "zone": "disc",
+   "radius_km": 50
+  },
+  {
+   "name": "Erebus Montes",
+   "lat": 38.0,
+   "lon": -170.0,
+   "group": "human-exploration candidates",
+   "total": 0.8273258805274963,
+   "percentile_vs_mars": 85.5,
+   "landing": 0.9045631885528564,
+   "rover": 0.9763849377632141,
+   "hydrogen": 0.5356000661849976,
+   "elevation": 1.0,
+   "h2o_wt_pct": 4.677999496459961,
+   "total_p90": 0.863,
+   "percentile_vs_random": 92.3,
+   "zone": "disc",
+   "radius_km": 50
+  }
+ ],
+ "candidate_coordinates": "approximate centers; confirm with Science",
+ "body": "mars",
+ "region": "global",
+ "recommended_zones": {
+  "method": "top 2x2 deg cells by mean total score, at least 10 deg apart",
+  "zones": [
+   {
+    "rank": 1,
+    "lat": -7.0,
+    "lon": 179.0,
+    "total": 0.994,
+    "size_deg": 2
+   },
+   {
+    "rank": 2,
+    "lat": 1.0,
+    "lon": 3.0,
+    "total": 0.952,
+    "size_deg": 2
+   },
+   {
+    "rank": 3,
+    "lat": -1.0,
+    "lon": 167.0,
+    "total": 0.944,
+    "size_deg": 2
+   },
+   {
+    "rank": 4,
+    "lat": 17.0,
+    "lon": 21.0,
+    "total": 0.941,
+    "size_deg": 2
+   },
+   {
+    "rank": 5,
+    "lat": 5.0,
+    "lon": 179.0,
+    "total": 0.915,
+    "size_deg": 2
+   },
+   {
+    "rank": 6,
+    "lat": 49.0,
+    "lon": 169.0,
+    "total": 0.913,
+    "size_deg": 2
+   },
+   {
+    "rank": 7,
+    "lat": 13.0,
+    "lon": 5.0,
+    "total": 0.907,
+    "size_deg": 2
+   },
+   {
+    "rank": 8,
+    "lat": 23.0,
+    "lon": -5.0,
+    "total": 0.907,
+    "size_deg": 2
+   },
+   {
+    "rank": 9,
+    "lat": 43.0,
+    "lon": -153.0,
+    "total": 0.901,
+    "size_deg": 2
+   },
+   {
+    "rank": 10,
+    "lat": 51.0,
+    "lon": -15.0,
+    "total": 0.9,
+    "size_deg": 2
+   },
+   {
+    "rank": 11,
+    "lat": 49.0,
+    "lon": -177.0,
+    "total": 0.895,
+    "size_deg": 2
+   },
+   {
+    "rank": 12,
+    "lat": 17.0,
+    "lon": 33.0,
+    "total": 0.894,
+    "size_deg": 2
+   },
+   {
+    "rank": 13,
+    "lat": 43.0,
+    "lon": -131.0,
+    "total": 0.892,
+    "size_deg": 2
+   },
+   {
+    "rank": 14,
+    "lat": 43.0,
+    "lon": 147.0,
+    "total": 0.89,
+    "size_deg": 2
+   },
+   {
+    "rank": 15,
+    "lat": 41.0,
+    "lon": -163.0,
+    "total": 0.889,
+    "size_deg": 2
+   }
+  ]
+ },
+ "images": {
+  "landing": "/api/suitability/mars/landing",
+  "rover": "/api/suitability/mars/rover",
+  "elevation": "/api/suitability/mars/elevation",
+  "hydrogen": "/api/suitability/mars/hydrogen",
+  "total": "/api/suitability/mars/total"
+ }
+}
