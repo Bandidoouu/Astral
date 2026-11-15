@@ -23,6 +23,7 @@ def similar(req: SimilarRequest) -> Dict[str, Any]:
             k=req.k,
             profile=req.profile,
             scale_m=req.scale_m,
+            scale_mode=req.scale_mode,
             method=req.method or "rrf",
         )
     except ValueError as exc:

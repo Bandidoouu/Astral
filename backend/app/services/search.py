@@ -17,6 +17,7 @@ def mock_response(
     profile="general",
     scale_m=1000,
     method="rrf",
+    scale_mode="same_size",
 ) -> dict:
     path = get_contracts_dir() / "similar_response.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -28,6 +29,7 @@ def mock_response(
         data["query"]["profile"] = profile
         data["query"]["scale_m"] = scale_m
         data["query"]["method"] = method or "rrf"
+        data["query"]["scale_mode"] = scale_mode
         data["query"]["target_bodies"] = targets
         if "patches" in data["query"]:
             data["query"]["patches"] = {
@@ -56,10 +58,11 @@ def search_similar(
     profile="general",
     scale_m=1000,
     method="rrf",
+    scale_mode="same_size",
 ) -> dict:
     searcher = get_searcher()
     if searcher is None:
-        return mock_response(body, lat, lon, target_bodies, k, profile, scale_m, method)
+        return mock_response(body, lat, lon, target_bodies, k, profile, scale_m, method, scale_mode)
     try:
         return searcher.search(
             body,
@@ -70,7 +73,8 @@ def search_similar(
             profile,
             method=method,
             scale_m=scale_m,
+            scale_mode=scale_mode,
         )
     except Exception as exc:
         log.warning("Fallo en Searcher.search (%s), recurriendo al mock", exc)
-        return mock_response(body, lat, lon, target_bodies, k, profile, scale_m, method)
+        return mock_response(body, lat, lon, target_bodies, k, profile, scale_m, method, scale_mode)

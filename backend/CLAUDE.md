@@ -43,7 +43,7 @@ def find_similar(req: SimilarRequest):
         return searcher.search(
             body=req.body, lat=req.lat, lon=req.lon,
             target_bodies=req.target_bodies, k=req.k, profile=req.profile,
-            method=req.method or "rrf", scale_m=req.scale_m
+            method=req.method or "rrf", scale_m=req.scale_m, scale_mode=req.scale_mode
         )
     # Si searcher es None, hacer fallback estricto al mock de contracts/similar_response.json
 ```
@@ -56,8 +56,13 @@ responde con un aviso en `warnings`, no con un error.
 
 ### Capa de aptitud lunar (`data/artifacts/suitability/`)
 
-`moon_south_{landing,rover,ice,temperature,total}.tif` y `.png` (para mostrar directo), más `suitability_moon.json`. Endpoints:
-`GET /api/suitability/moon_south/{criterion}` (PNG) y `GET /api/suitability/moon_south` (JSON).
+`moon_south_{landing,rover,ice,temperature,total}.tif` y `.png` (para mostrar directo), más `api_moon_south.json`
+(o `suitability_moon.json` si falta). Endpoints: `GET /api/suitability/moon_south/{criterion}` (PNG) y
+`GET /api/suitability/moon_south` (JSON). **Marte:** `GET /api/suitability/mars` (`api_mars.json`) y
+`GET /api/suitability/mars/{criterion}` con lista blanca `landing`, `rover`, `elevation`, `hydrogen`, `total`
+(`mars_{criterion}.png`).
+
+**`scale_mode`** (`same_size` por defecto, `gravity_scaled`) viaja de `SimilarRequest` a `searcher.search(...)`.
 
 ## 2. Estructura
 
