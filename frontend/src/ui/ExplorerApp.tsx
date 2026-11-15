@@ -7,6 +7,8 @@ import MapPanel from './components/MapPanel';
 import MatchDetails from './components/MatchDetails';
 import AstralLogo from './AstralLogo';
 import AnalogyLimits from './components/AnalogyLimits';
+import StartTour from './components/StartTour';
+import { markTourSeen, tourSeen } from './startTour';
 import { sortResults } from './sortResults';
 import type { SortMode } from './sortResults';
 import SuitabilityPanel from './components/SuitabilityPanel';
@@ -43,6 +45,8 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [scale, setScale] = useState<Scale>(60);
   const [scaleMode, setScaleMode] = useState<ScaleMode>('same_size');
   const [sortBy, setSortBy] = useState<SortMode>('terrain');
+  const [tourOpen, setTourOpen] = useState(() => !tourSeen(typeof window === 'undefined' ? undefined : window.localStorage));
+  function closeTour() { setTourOpen(false); markTourSeen(typeof window === 'undefined' ? undefined : window.localStorage); }
   const [scaleNotice, setScaleNotice] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
   const [activeId, setActiveId] = useState('');
@@ -152,6 +156,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
       </nav>
       <div className="header-actions">
+        <button className="text-button" aria-label="Start here (tour)" onClick={() => setTourOpen(true)}><Sparkles size={15} /><span>Start here</span></button>
         <button className="text-button mission-launcher" aria-label="Missions" aria-expanded={panel === 'missions'} onClick={() => togglePanel('missions')}><Crosshair size={15} /><span>Missions</span></button>
         <button className="text-button" aria-expanded={panel === 'sources'} onClick={() => togglePanel('sources')}><Info size={15} /><span>Data sources</span></button>
         <button className="search-launcher" aria-expanded={panel === 'search'} onClick={() => togglePanel('search')}><Search size={15} /><span>Explore</span></button>
@@ -178,6 +183,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         <button className="icon-button" aria-label={dockVisible ? 'Hide match strip' : 'Show match strip'} title={dockVisible ? 'Hide match strip' : 'Show match strip'} aria-pressed={!dockVisible} onClick={() => setDockVisible(v => !v)}>{dockVisible ? <Minimize2 size={17} /> : <PanelsTopLeft size={17} />}</button>
       </div>
       {view === 'galaxy' && (galaxyLoading || galaxyError || galaxy.length === 0) && <div className="galaxy-status" role="status">{galaxyLoading ? 'Loading terrain galaxy…' : galaxyError || 'No galaxy points available at this scale.'}{galaxyError && <button onClick={() => setAttempt(a => a + 1)}>Retry</button>}</div>}
+      {tourOpen && <StartTour onClose={closeTour} onOpen={p => { setPanel(p); if (p !== 'details') setView('system'); }} />}
       <div className="map-notices" aria-live="polite">
         {loading && <p className="map-notice"><span className="loader" />Looking across worlds…</p>}
         {error && <button className="map-notice error" onClick={() => setPanel('results')}><Info size={14} />Search unavailable · View error</button>}
