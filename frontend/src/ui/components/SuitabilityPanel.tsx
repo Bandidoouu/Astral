@@ -62,6 +62,9 @@ export default function SuitabilityPanel({ onSelect, MapView }: { onSelect: (loc
   }, [body, criterion, attempt, key]);
 
   const label = criteria.find(c => c.id === criterion)?.label ?? criterion;
+  // recommended_zones: Moon {zones: [{rank, lat, lon, total, why}]}, Mars {method, zones: [...]}.
+  const zones = ((data as unknown as { recommended_zones?: { zones?: { rank: number; lat: number; lon: number; total: number; why?: string }[] } } | null)
+    ?.recommended_zones?.zones ?? []);
   return <section className="suitability-panel" aria-label="Base suitability">
     <div className="suitability-heading"><div><p className="eyebrow">{titles[body].eyebrow}</p><h2>Base suitability</h2></div>
       <label>BODY<select value={body} onChange={e => { setBody(e.target.value as SuitabilityBody); setCriterion('total'); }}>
@@ -85,7 +88,17 @@ export default function SuitabilityPanel({ onSelect, MapView }: { onSelect: (loc
         <strong>{c.name}</strong><span>{c.lat}°, {c.lon}° · {c.group}</span>
         <span>Area score (90th percentile): {c.total_p90 === null ? 'No data' : c.total_p90.toFixed(3)}</span>
         <span>Percentile vs random zones: {c.percentile_vs_random === null ? 'No data' : `${c.percentile_vs_random.toFixed(1)}%`}</span>
+        <span className="find-analogs">Find Earth analogs →</span>
       </button>)}</div>
+      {zones.length > 0 && <>
+        <h3>Recommended zones</h3>
+        <p className="selection-note">Top zones by the combined score (rules above). Pick one to search its Earth analogs.</p>
+        <div className="candidate-list">{zones.slice(0, 8).map(z => <button key={`zone-${z.rank}`} onClick={() => onSelect({ body, lat: z.lat, lon: z.lon })}>
+          <strong>Zone {z.rank}</strong><span>{z.lat.toFixed(2)}°, {z.lon.toFixed(2)}° · score {z.total.toFixed(3)}</span>
+          {z.why && <span>{z.why}</span>}
+          <span className="find-analogs">Find Earth analogs →</span>
+        </button>)}</div>
+      </>}
     </>}
   </section>;
 }

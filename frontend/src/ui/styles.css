@@ -173,3 +173,8 @@ input { font-family: Consolas, monospace; }
 .dock-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(201, 246, 139, 0.25); border-top-color: #c9f68b; animation: dock-spin 0.8s linear infinite; flex: none; }
 @keyframes dock-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .dock-spinner { animation: none; } }
+.find-analogs { color: #c9f68b; font-weight: 600; font-size: 11px; margin-top: 4px; }
+.inline-action { background: none; border: 0; padding: 0; color: #c9f68b; text-decoration: underline; cursor: pointer; font: inherit; }
+.scale-note { color: #e8d9a8; }
+.flow-hint { font-size: 11px; color: var(--muted); margin: 8px 0 2px; line-height: 1.5; }.flow-hint span:first-child, .flow-hint span:nth-of-type(3) { color: #e8ecdf; }
+.flow-hint .inline-action { pointer-events: auto; }
