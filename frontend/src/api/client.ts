@@ -1,4 +1,4 @@
-import { demoGalaxy, demoSearch } from '../mocks/search';
+import { demoSearch } from '../mocks/search';
 import { toApiRequest } from './coordinates';
 import { parseSearchResponse, parseSuitability } from './validation';
 import type { Criterion, GalaxyPoint, Scale, SearchQuery, SearchResult, SuitabilityBody } from './types';
@@ -6,6 +6,7 @@ import moonSuitabilityFile from '../../../contracts/suitability_moon_south.json'
 import marsSuitabilityFile from '../../../contracts/suitability_mars.json' with { type: 'json' };
 
 export const demoMode = import.meta.env.VITE_DATA_MODE !== 'api';
+const staticBase = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 export const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const suitabilityUrl = (import.meta.env.VITE_SUITABILITY_URL || `${apiUrl}/api/suitability/moon_south`).replace(/\/$/, '');
 async function request(url: string, signal: AbortSignal, init?: RequestInit) {
@@ -24,9 +25,9 @@ export async function search(query: SearchQuery, signal: AbortSignal): Promise<S
   return { ...parseSearchResponse(await response.json(), payload), demo: false };
 }
 export async function getGalaxy(scale: Scale, signal: AbortSignal): Promise<GalaxyPoint[]> {
-  // The only shared galaxy fixture is at 60 m. Do not relabel it as global data.
-  if (demoMode) return scale === 60 ? demoGalaxy : [];
-  const data: unknown = await (await request(`${apiUrl}/api/galaxy?scale=${scale}`, signal)).json();
+  // Offline: the real galaxy files (3D UMAP of the model embeddings) are bundled in public/data.
+  const url = demoMode ? `${staticBase}data/galaxy_${scale}.json` : `${apiUrl}/api/galaxy?scale=${scale}`;
+  const data: unknown = await (await request(url, signal)).json();
   if (!Array.isArray(data) || !data.every(p => p && typeof p.id === 'string' && ['earth','moon','mars'].includes(p.body) &&
     [p.x, p.y, p.z].every(n => typeof n === 'number' && Number.isFinite(n)))) throw new Error('Invalid galaxy data.');
   return data;
@@ -44,10 +45,13 @@ export async function getSuitability(signal: AbortSignal, body: SuitabilityBody 
   return parseSuitability(await (await request(suitabilityUrls[body], signal)).json(), body);
 }
 export async function getSuitabilityImage(criterion: Criterion, signal: AbortSignal, body: SuitabilityBody = 'moon') {
-  const response = await request(`${suitabilityUrls[body]}/${criterion}`, signal);
+  // Offline: the exported PNGs are bundled in public/data/suitability.
+  const url = demoMode ? `${staticBase}data/suitability/${body}_${criterion}.png` : `${suitabilityUrls[body]}/${criterion}`;
+  const response = await request(url, signal);
   if (!response.headers.get('Content-Type')?.startsWith('image/png')) throw new Error('The suitability layer must be a PNG image.');
   return response.blob();
 }
 export function gradcamUrl(queryPatchId: string, resultPatchId: string) {
+  if (demoMode) return `${staticBase}data/gradcam/${encodeURIComponent(queryPatchId)}__${encodeURIComponent(resultPatchId)}.png`;
   return `${apiUrl}/api/gradcam/${encodeURIComponent(queryPatchId)}/${encodeURIComponent(resultPatchId)}`;
 }

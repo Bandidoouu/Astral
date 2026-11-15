@@ -31,9 +31,9 @@ export default function AnalogEvidence({ match, result }: { match: Analog; resul
   }
   return <section className="analog-evidence" aria-label="Mission evidence">
     <p className="eyebrow">WHY THIS ANALOG?</p><h3>{mission.title}</h3><p>{mission.question}</p>
-    <p className="evidence-coverage">{available.length} / {dimensions.length} dimensions have data{result.demo ? ' in this illustrative example' : ''}. Missing data is not zero similarity.</p>
+    <p className="evidence-coverage">{available.length} / {dimensions.length} dimensions have data{result.demo ? ' in this precomputed result' : ''}. Missing data is not zero similarity.</p>
     <div className="evidence-tabs" aria-label="Evidence dimensions">{dimensions.map(d => <button key={d} aria-pressed={dimension === d} onClick={() => setDimension(d)}>{labels[d]}{match.scores[d] === null ? ' · —' : ''}</button>)}</div>
-    <div className="evidence-explanation" aria-live="polite"><strong>{labels[dimension]}: {score === null ? 'No data' : `${Math.round(score * 100)}% ${result.demo ? 'illustrative similarity' : 'reported similarity'}`}</strong>
+    <div className="evidence-explanation" aria-live="polite"><strong>{labels[dimension]}: {score === null ? 'No data' : `${Math.round(score * 100)}% ${result.demo ? 'precomputed similarity' : 'reported similarity'}`}</strong>
       <p>{dimensionContext[dimension]}</p><p>{score === null ? 'This response provides no evidence for this dimension. It cannot support a match claim.' : 'This score describes one dimension; it does not validate the site or explain the entire ranking.'}</p>
       <p>Weight supplied: {match.weights_used?.[dimension] == null ? 'Not supplied' : `${(match.weights_used[dimension]! * 100).toFixed(1)}%`}</p>
     </div>
