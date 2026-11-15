@@ -161,10 +161,11 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       </div>
       {dockVisible && <section className="match-dock" aria-label="Match overview">
         <div className="dock-heading"><button onClick={() => togglePanel('results')} aria-expanded={panel === 'results'}><span>TERRAIN MATCHES</span><strong>{result?.results.length ?? '—'}</strong><ArrowRight size={14} /></button><span>{scale === 1000 ? '1 km / pixel' : '60 m / pixel'}</span></div>
+        <p className="rank-note">Ordered by terrain similarity (network + terrain formula). % = profile score across the available dimensions.</p>
         <div className="match-strip">
           {result?.results.map(r => <button key={r.patch_id} className={`match-chip ${active?.patch_id === r.patch_id ? 'active' : ''}`} aria-pressed={active?.patch_id === r.patch_id} aria-label={`Inspect ${r.region}`} onClick={() => showMatch(r.patch_id)}>
             <span className={`body-disc ${r.body}`} /><span className="match-chip-name"><small>{bodyNames[r.body]}</small><strong>{r.region}</strong></span>
-            <span className="match-chip-score">{Math.round(r.score * 100)}<small>%</small></span><ArrowUpRight size={13} />
+            <span className="match-chip-score" title="Profile score (all available dimensions). Order: terrain similarity.">{Math.round(r.score * 100)}<small>%</small></span><ArrowUpRight size={13} />
           </button>)}
           {!result?.results.length && <button className="dock-empty" onClick={() => setPanel(error ? 'results' : 'search')}>{loading ? 'Finding matches…' : error ? 'Search unavailable. Open results for details.' : 'No matches yet. Choose a location to explore.'}<ArrowRight size={14} /></button>}
         </div>
@@ -199,6 +200,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
           </div></>}
         {panel === 'results' && <>        <aside className="results-panel" aria-label="Analog results">
           <div className="results-heading"><div><p className="eyebrow">ACROSS THE WORLDS</p><h2>Terrain matches</h2></div><span className="count">{result?.results.length ?? '—'}</span></div>
+          <p className="rank-note">Ordered by terrain similarity (our network fused with a terrain formula, RRF). The % on each card is the <strong>profile score</strong>: the weighted mean of the dimensions with data for the selected mission profile, so it does not have to decrease down the list.</p>
           <div className="mode-note"><Info size={16} /><p>{demoMode ? <><strong>Offline mode</strong> · Precomputed outputs of the ASTRAL model v2 for the nearest curated site. Similarity is not a safety or mission suitability assessment.</> : <><strong>Live API</strong> · Search across Earth, Moon and Mars. Similarity is not a safety or mission suitability assessment.</>}</p></div>
           {result && result.warnings.length > 0 && <div className="search-warnings" role="status">
             <strong>Coverage & data notices</strong><ul>{result.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>

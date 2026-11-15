@@ -28,8 +28,8 @@ export default function ResultCard({ result, index, active, onSelect, demo }: {
 }) {
   return <button className={`result-card ${active ? 'active' : ''}`} onClick={onSelect} aria-pressed={active}>
     <div className="result-top"><span className="rank">{String(index + 1).padStart(2, '0')}</span><span className="body-tag" style={{ color: bodyColors[result.body] }}>{result.body}</span><ArrowUpRight size={16} /></div>
-    <div className="result-title"><h3>{result.region}</h3><strong>{Math.round(result.score * 100)}<small>%</small></strong></div>
-    <div className="result-coords"><MapPin size={11} />{result.lat.toFixed(2)}°, {result.lon.toFixed(2)}° <span>{demo ? 'Precomputed similarity' : 'Weighted similarity'}</span></div>
+    <div className="result-title"><h3>{result.region}</h3><strong title="Profile score: weighted mean of the available dimensions for the selected mission profile. The list order comes from terrain similarity.">{Math.round(result.score * 100)}<small>%</small></strong></div>
+    <div className="result-coords"><MapPin size={11} />{result.lat.toFixed(2)}°, {result.lon.toFixed(2)}° <span>{demo ? 'Profile score · precomputed' : 'Profile score'}</span></div>
     <p className="card-scale">{result.scale_m === 1000 ? '1 km/pixel · 128 km patch' : '60 m/pixel · 7.68 km patch'}</p>
     <div className="score-bars">{dimensions.map(d => <div key={d}><span>{labels[d]}</span><div className="track">{result.scores[d] !== null && <i style={{ width: `${result.scores[d]! * 100}%` }} />}</div><b>{result.scores[d] === null ? 'No data' : `${Math.round(result.scores[d]! * 100)}%`}</b></div>)}</div>
   </button>;
