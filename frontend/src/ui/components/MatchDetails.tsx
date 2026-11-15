@@ -34,7 +34,7 @@ export default function MatchDetails({ active, result }: { active: Analog; resul
   const patch = result.query.patches?.[active.body];
   return <section className="match-metadata" aria-label="Match measurements">
     <div>
-      <h3>{result.demo ? 'Illustrative patch information' : 'Compared patch'}</h3>
+      <h3>Compared patch</h3>
       <p>{active.scale_m} m/pixel · {windowKm(active).toLocaleString('en-US', { maximumFractionDigits: 1 })} km across{patch?.window_km !== undefined && patch.window_km !== windowKm(active) ? ` (origin patch ${patch.window_km.toLocaleString('en-US', { maximumFractionDigits: 1 })} km, gravity-scaled)` : ''}</p>
       {active.land_cover && <p>Land cover at the match center: {active.land_cover} (MODIS)</p>}
       <p>Origin patch: <code>{patch?.patch_id ?? 'No data'}</code></p>
@@ -47,9 +47,9 @@ export default function MatchDetails({ active, result }: { active: Analog; resul
       {active.weights_used === undefined ? <p>No data — weights were not supplied.</p> :
         <dl className="weights">{dimensions.map(d => <div key={d}><dt>{labels[d]}</dt><dd>{active.weights_used?.[d] == null ? 'Not used' : `${(active.weights_used[d]! * 100).toFixed(1)}%`}</dd></div>)}</dl>}
     </div>
-    {!result.demo && active.scale_m === 1000 && patch?.patch_id && <GradCam key={`${patch.patch_id}-${active.patch_id}`} queryId={patch.patch_id} patchId={active.patch_id} />}
+    {active.scale_m === 1000 && (patch?.window_km ?? 128) <= 128 && patch?.patch_id && <GradCam key={`${patch.patch_id}-${active.patch_id}`} queryId={patch.patch_id} patchId={active.patch_id} />}
     <div className="measurement-table">
-      <h3>{result.demo ? 'Illustrative site attributes' : 'Site attributes'}</h3>
+      <h3>Site attributes</h3>
       <table><thead><tr><th>Measurement</th><th>Origin</th><th>Match</th></tr></thead><tbody>
         {attributes.map(a => <tr key={a.key}><th scope="row">{a.label}</th><td>{value(result.query.attributes?.[a.key], a.unit)}</td><td>{value(active.attributes[a.key], a.unit)}</td></tr>)}
       </tbody></table>

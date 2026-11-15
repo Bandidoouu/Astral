@@ -8,7 +8,7 @@ export default function MissionPanel({ body, profile, demo, onChoose }: { body: 
     <h3>What are you preparing for?</h3>
     <p>Choose an investigation, search for analogs, then examine the evidence and its limits.</p>
     <p className="mission-notice">{body === 'earth' ? 'Earth is your origin. Compare this field location with the Moon and Mars.' : 'This search will target Earth analogs for your selected planetary origin.'}</p>
-    {demo && <p className="mission-notice">Demo: profiles change the investigation brief, but example rankings and scores stay fixed. Real reranking requires the API.</p>}
+    {demo && <p className="mission-notice">Offline mode: profiles change the investigation brief; the precomputed results use the general profile. Reranking by profile requires the live API.</p>}
     <div className="mission-cards">{missions.map(m => <button key={m.id} disabled={m.id === 'astrobiology' && body !== 'mars'} aria-pressed={profile === m.id} onClick={() => onChoose(m.id)}>
       <span className="eyebrow">{m.id === profile ? 'CURRENT MISSION' : m.id.toUpperCase()}</span><strong>{m.title}</strong><span>{m.question}</span>
       <small>Investigate: {m.focus.map(d => labels[d]).join(' · ')}</small>

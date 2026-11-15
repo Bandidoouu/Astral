@@ -45,9 +45,7 @@ export default function SuitabilityPanel({ onSelect, MapView }: { onSelect: (loc
       : getSuitability(controller.signal, body);
     metadata.then(d => { if (!controller.signal.aborted) { setData(d); setBundled(false); } })
       .catch(() => { if (!controller.signal.aborted) { setData(bundledSuitabilityFor(body)); setBundled(true); } });
-    const picture = demoMode
-      ? Promise.reject(new Error('Map images need the suitability data service. The Suitability layer on the 3D globe shows the combined score offline.'))
-      : getSuitabilityImage(criterion, controller.signal, body);
+    const picture = getSuitabilityImage(criterion, controller.signal, body);
     picture.then(blob => {
       if (controller.signal.aborted) return;
       url = URL.createObjectURL(blob);
@@ -78,7 +76,7 @@ export default function SuitabilityPanel({ onSelect, MapView }: { onSelect: (loc
       <div className="suitability-legend"><span>0 · lower suitability</span><i /><span>1 · higher suitability</span></div>
     </>}
     {data && <>
-      {bundled && <p className="selection-note">Showing the weights, rules and candidate scores exported by the ASTRAL model pipeline (bundled copy; the data service is not connected).</p>}
+      {bundled && <p className="selection-note">Showing the weights, rules and candidate scores exported by the ASTRAL model pipeline (bundled copy for offline use).</p>}
       <p className="selection-note">{data.rules[criterion]}</p>
       <h3>Criterion weights</h3><dl className="weights">{Object.entries(data.weights).map(([k, weight]) => <div key={k}><dt>{criteria.find(c => c.id === k)?.label ?? k}</dt><dd>{((weight ?? 0) * 100).toFixed(0)}%</dd></div>)}</dl>
       <p className="selection-note">Missing: {data.missing.join('; ')}. {data.caveat}</p>
