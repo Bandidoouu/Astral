@@ -5,8 +5,8 @@ import { gridSearch } from '../src/mocks/offlineGrid.ts';
 import type { OfflineBlocks, OfflineCatalog } from '../src/mocks/offlineGrid.ts';
 import type { Body, Profile } from '../src/api/types.ts';
 
-const [api = 'http://127.0.0.1:8000', nArg = '300'] = process.argv.slice(2);
-const dir = new URL('../public/data/offline1km/', import.meta.url);
+const [api = 'http://127.0.0.1:8000', nArg = '300', mode = 'same_size'] = process.argv.slice(2);
+const dir = new URL(`../public/data/offline1km${mode === 'gravity_scaled' ? '_gravity' : ''}/`, import.meta.url);
 const cat = JSON.parse(readFileSync(new URL('catalog.json', dir), 'utf8')) as OfflineCatalog;
 const blocks: OfflineBlocks = {};
 for (const f of readdirSync(dir)) {
@@ -25,8 +25,9 @@ for (let i = 0; i < Number(nArg); i++) {
   const targets = (['earth', 'moon', 'mars'] as Body[]).filter(b => b !== body);
   const q = { body, lat, lon, profile, k: 10, scale_m: 1000 as const, target_bodies: targets };
   const live = await (await fetch(`${api}/api/similar`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...q, method: 'rrf', scale_mode: 'same_size' }) })).json();
-  const off = gridSearch(q, cat, blocks);
+    body: JSON.stringify({ ...q, method: 'rrf', scale_mode: mode }) })).json();
+  const off = gridSearch({ ...q, scale_mode: mode as 'same_size' | 'gravity_scaled' }, cat, blocks);
+  if (off.results.some((r, j) => r.window_km !== live.results[j]?.window_km)) { orderBad++; continue; }
   const same = JSON.stringify(off.results.map(r => r.patch_id)) === JSON.stringify(live.results.map((r: { patch_id: string }) => r.patch_id));
   if (!same) { orderBad++; continue; }
   let bad = false;
@@ -37,4 +38,4 @@ for (let i = 0; i < Number(nArg); i++) {
   if (off.warnings.length - 1 !== live.warnings.length) warnBad++;
   if (!bad) ok++;
 }
-console.log({ queries: Number(nArg), fully_identical: ok, order_mismatch: orderBad, score_off: scoreBad, shown_pct_off: pctBad, warning_count_diff: warnBad });
+console.log({ mode, queries: Number(nArg), fully_identical: ok, order_mismatch: orderBad, score_off: scoreBad, shown_pct_off: pctBad, warning_count_diff: warnBad });
