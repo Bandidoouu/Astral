@@ -109,7 +109,7 @@ def gc_km(lat1, lon1, lat2, lon2, r):
 
 SCALES = (1000, 60)
 SCALE_MODES = ("same_size", "gravity_scaled")
-DETAIL_BODIES = {"moon", "earth"}      # la escala de 60 m solo compara Luna y Tierra
+DETAIL_BODIES = {"moon", "earth"}      # the 60 m scale only compares Moon and Earth
 
 
 @dataclass
@@ -199,9 +199,9 @@ class Searcher:
     def search(self, body, lat, lon, target_bodies=None, k=10, profile="general",
                method="rrf", n_candidates=500, scale_m=1000, scale_mode="same_size"):
         if scale_m not in SCALES:
-            raise ValueError(f"scale_m debe ser uno de {SCALES}")
+            raise ValueError(f"scale_m must be one of {SCALES}")
         if scale_mode not in SCALE_MODES:
-            raise ValueError(f"scale_mode debe ser uno de {SCALE_MODES}")
+            raise ValueError(f"scale_mode must be one of {SCALE_MODES}")
         targets = [t for t in (target_bodies or BODIES) if t != body]
         weights = PROFILES[profile]
         out = {"query": dict(body=body, lat=lat, lon=lon, profile=profile, scale_m=scale_m,
@@ -223,21 +223,21 @@ class Searcher:
         for target in targets:
             scale = scale_m
             if scale == 60 and {body, target} != DETAIL_BODIES:
-                out["warnings"].append(f"{body}->{target}: la escala de 60 m solo compara Luna y Tierra")
+                out["warnings"].append(f"{body}->{target}: the 60 m scale only compares Moon and Earth")
                 continue
             if scale not in self.idx:
-                out["warnings"].append(f"{body}->{target}: índice de {scale} m aún no disponible")
+                out["warnings"].append(f"{body}->{target}: the {scale} m index is not available yet")
                 continue
             si = self.gidx if gravity else self.idx[scale]
             if not (si.meta.body == target).any():
-                out["warnings"].append(f"{body}->{target}: sin parches de {target} a {scale} m")
+                out["warnings"].append(f"{body}->{target}: no {target} patches at {scale} m")
                 continue
             q, dq = self.query_patch(si, body, lat, lon)
             window_km = 128 * float(si.meta.scale_m.iat[q]) / 1000
             if dq > window_km:
                 out["warnings"].append(
-                    f"{body}: el punto está a {dq:.0f} km del parche más cercano a {scale} m "
-                    f"(fuera de la cobertura de esa escala)")
+                    f"{body}: the point is {dq:.0f} km from the nearest patch at {scale} m "
+                    f"(outside coverage at this scale)")
                 if scale == 60:
                     continue
             fq = dict(zip(ATTR_COLS, si.attrs[q]))
