@@ -2,6 +2,7 @@ import precomputedFile from './precomputed-results.json' with { type: 'json' };
 import galaxyFixture from '../../../contracts/galaxy.example.json' with { type: 'json' };
 import type { Analog, Body, GalaxyPoint, Precomputed, SearchQuery, SearchResult, SimilarResponse } from '../api/types.ts';
 import { toApiRequest } from '../api/coordinates.ts';
+import { profileScore } from './offlineGrid.ts';
 
 export const demoGalaxy = galaxyFixture as GalaxyPoint[];
 
@@ -21,6 +22,11 @@ function angularDistanceDeg(aLat: number, aLon: number, bLat: number, bLon: numb
   return Math.acos(Math.min(1, Math.max(-1, c))) / r;
 }
 
+/** A click on a curated site itself (within ~0.01°) is served from its saved API response. */
+export function exactCuratedSite(body: Body, lat: number, lon: number, key: string) {
+  const hit = nearestCuratedSite(body, lat, lon, key);
+  return hit && hit.distance < 0.01 ? hit : undefined;
+}
 export function nearestCuratedSite(body: Body, lat: number, lon: number, key: string) {
   return curatedSites.filter(s => s.body === body && s.responses[key])
     .map(site => ({ site, distance: angularDistanceDeg(lat, lon, site.lat, site.lon) }))
@@ -40,8 +46,11 @@ export function demoSearch(query: SearchQuery): SearchResult {
     };
   }
   const response = hit.site.responses[key];
+  // Order = terrain similarity (independent of the profile); the profile score is recomputed
+  // from the stored dimension scores exactly like ml/search.py.
   const results: Analog[] = query.target_bodies.flatMap(target =>
-    response.results.filter(r => r.body === target).slice(0, query.k));
+    response.results.filter(r => r.body === target).slice(0, query.k))
+    .map(r => ({ ...r, ...profileScore(r.scores, query.profile) }));
   const patches: SimilarResponse['query']['patches'] = {};
   for (const target of query.target_bodies) {
     const patch = response.query.patches?.[target];
@@ -52,7 +61,7 @@ export function demoSearch(query: SearchQuery): SearchResult {
     query: { body, lat, lon, profile, scale_m, target_bodies, method: response.query.method, patches,
       attributes: response.query.attributes },
     results,
-    warnings: [`Offline mode: precomputed results of the ASTRAL model v2 for the nearest curated site, ${hit.site.name} (${hit.distance.toFixed(1)}° away). Ranking uses the general profile.`,
+    warnings: [`Offline mode: precomputed results of the ASTRAL model v2 for the nearest curated site, ${hit.site.name} (${hit.distance.toFixed(1)}° away). The profile score is recomputed in your browser.`,
       ...response.warnings],
     demo: true,
     precomputed: { ...response.precomputed, site: hit.site.name },

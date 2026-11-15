@@ -1,4 +1,6 @@
-import { demoSearch } from '../mocks/search';
+import { demoSearch, exactCuratedSite } from '../mocks/search';
+import { gridSearch, originChunk } from '../mocks/offlineGrid';
+import type { OfflineBlocks, OfflineCatalog } from '../mocks/offlineGrid';
 import { toApiRequest } from './coordinates';
 import { parseSearchResponse, parseSuitability } from './validation';
 import type { Criterion, GalaxyPoint, Scale, SearchQuery, SearchResult, SuitabilityBody } from './types';
@@ -9,16 +11,27 @@ export const demoMode = import.meta.env.VITE_DATA_MODE !== 'api';
 const staticBase = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 export const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const suitabilityUrl = (import.meta.env.VITE_SUITABILITY_URL || `${apiUrl}/api/suitability/moon_south`).replace(/\/$/, '');
-async function request(url: string, signal: AbortSignal, init?: RequestInit) {
+async function request(url: string, signal: AbortSignal, init?: RequestInit, timeoutMs = 15000) {
   const response = await fetch(url, {
-    ...init, signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+    ...init, signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
   });
   if (!response.ok) throw new Error(`The API returned ${response.status}. Check the backend and try again.`);
   return response;
 }
 export async function search(query: SearchQuery, signal: AbortSignal): Promise<SearchResult> {
   const payload = toApiRequest(query);
-  if (demoMode) return demoSearch(payload);
+  if (demoMode) {
+    prefetchOffline();
+    // 1 km, same size: every index patch is precomputed (loaded on first use). Otherwise
+    // (60 m, gravity-scaled) the nearest curated site is served.
+    if (payload.scale_m === 1000 && (payload.scale_mode ?? 'same_size') === 'same_size'
+        && !exactCuratedSite(payload.body, payload.lat, payload.lon, '1000')) {
+      const catalog = await loadCatalog(signal);
+      const where = originChunk(catalog, payload.body, payload.lat, payload.lon);
+      return gridSearch(payload, catalog, await loadChunk(where.key, where.file, signal));
+    }
+    return demoSearch(payload);
+  }
   const response = await request(`${apiUrl}/api/similar`, signal, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   });
@@ -54,4 +67,29 @@ export async function getSuitabilityImage(criterion: Criterion, signal: AbortSig
 export function gradcamUrl(queryPatchId: string, resultPatchId: string) {
   if (demoMode) return `${staticBase}data/gradcam/${encodeURIComponent(queryPatchId)}__${encodeURIComponent(resultPatchId)}.png`;
   return `${apiUrl}/api/gradcam/${encodeURIComponent(queryPatchId)}/${encodeURIComponent(resultPatchId)}`;
+}
+
+let catalogPromise: Promise<OfflineCatalog> | null = null;
+const blockPromises: Partial<Record<string, Promise<Uint16Array>>> = {};
+const blocks: OfflineBlocks = {};
+function loadCatalog(signal: AbortSignal) {
+  catalogPromise ??= request(`${staticBase}data/offline1km/catalog.json`, signal, undefined, 180000).then(r => r.json() as Promise<OfflineCatalog>)
+    .catch(e => { catalogPromise = null; throw e; });
+  return catalogPromise;
+}
+async function loadChunk(key: string, file: string, signal: AbortSignal): Promise<OfflineBlocks> {
+  blockPromises[key] ??= request(`${staticBase}data/offline1km/${file}`, signal, undefined, 180000)
+    .then(r => r.arrayBuffer()).then(b => new Uint16Array(b))
+    .catch(e => { delete blockPromises[key]; throw e; });
+  blocks[key] = await blockPromises[key]!;
+  return blocks;
+}
+
+/** After the first offline search, fetch the 1 km catalog in the background (low priority)
+ * so later arbitrary clicks only need one ~80 KB result chunk. */
+let prefetched = false;
+function prefetchOffline() {
+  if (prefetched || typeof window === 'undefined') return;
+  prefetched = true;
+  window.setTimeout(() => { loadCatalog(new AbortController().signal).catch(() => { prefetched = false; }); }, 4000);
 }
