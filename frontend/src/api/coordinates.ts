@@ -37,5 +37,8 @@ export function toApiRequest(query: SearchQuery): SimilarRequest {
   if (!Number.isInteger(query.k) || query.k < 1) throw new Error('Choose a positive result count.');
   if (query.scale_m === 60 && !detailAvailable(query, query.target_bodies)) throw new Error('Detail (60 m) is limited to Moon ↔ Earth within coverage. Use Global (1 km).');
   if (query.profile === 'astrobiology' && query.body !== 'mars') throw new Error('Astrobiology is available for Mars only.');
-  return { ...query, target_bodies: [...query.target_bodies] };
+  if (query.scale_mode !== undefined && query.scale_mode !== 'same_size' && query.scale_mode !== 'gravity_scaled') throw new Error('Choose a supported window size.');
+  // gravity_scaled only exists at the global scale.
+  const scale_mode = query.scale_m === 1000 ? (query.scale_mode ?? 'same_size') : 'same_size';
+  return { ...query, scale_mode, target_bodies: [...query.target_bodies] };
 }

@@ -2,10 +2,12 @@ export type Body = 'earth' | 'moon' | 'mars';
 export type Profile = 'general' | 'rover' | 'isru' | 'habitat' | 'eva' | 'astrobiology';
 export type Dimension = 'terrain' | 'operations' | 'thermal' | 'albedo' | 'ice' | 'soil' | 'aridity';
 export type Scale = 60 | 1000;
+// same_size: equal windows in km. gravity_scaled: Moon windows 6x, Mars 2.6x (1 km only).
+export type ScaleMode = 'same_size' | 'gravity_scaled';
 export type Method = 'rrf' | 'hybrid' | 'net' | 'baseline' | 'random';
 export interface Location { body: Body; lat: number; lon: number }
 export interface SearchQuery extends Location {
-  profile: Profile; k: number; scale_m: Scale; target_bodies: Body[];
+  profile: Profile; k: number; scale_m: Scale; target_bodies: Body[]; scale_mode?: ScaleMode;
 }
 export type SimilarRequest = SearchQuery;
 export interface Attributes {
