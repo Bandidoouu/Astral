@@ -15,6 +15,7 @@ import { useSurfaceTextures } from './useSurfaceTextures';
 import type { BodySurface } from './useSurfaceTextures';
 import type { HeightSource, SurfaceLayer } from './textureLayers';
 import LayerControls from './LayerControls';
+import GlobeLabels from './GlobeLabels';
 import OrbitalGuides, { WorldLabel } from './OrbitalGuides';
 import { globeRadii, globeCenters, surfacePoint } from './terrain';
 import type { TerrainFields } from './terrain';
@@ -73,7 +74,8 @@ function Footprint({ match, fields, exaggeration, active = true }: TerrainProps 
   }, [match, fields, exaggeration]);
   return <Line points={points} color={active ? '#c9f68b' : bodyColors[match.body]} lineWidth={active ? 1.8 : 1} transparent opacity={active ? 0.95 : 0.55} />;
 }
-function Globe({ body, selected, results, onSelect, fields, exaggeration, onInspect, focusedMatch, layer, maps, normalRatio }: TerrainProps & {
+function Globe({ body, selected, results, onSelect, fields, exaggeration, onInspect, focusedMatch, layer, maps, normalRatio, labels = true }: TerrainProps & {
+  labels?: boolean;
   body: Body; selected: Location; results: Analog[]; onSelect: (location: Location) => void; onInspect: (patchId: string) => void; focusedMatch: Analog | null; layer: SurfaceLayer; maps?: BodySurface; normalRatio: number;
 }) {
   const geometry = useGeographicGeometry(body, fields[body], exaggeration);
@@ -91,6 +93,7 @@ function Globe({ body, selected, results, onSelect, fields, exaggeration, onInsp
     </mesh>}
     <WorldLabel text={body.toUpperCase()} position={[0, (body === 'moon' ? -1 : 1) * (globeRadii[body] + 0.38), 0]} color={bodyColors[body]} />
     <Graticule body={body} fields={fields} exaggeration={exaggeration} />
+    {labels && <GlobeLabels body={body} fields={fields} exaggeration={exaggeration} />}
     {selected.body === body && <Marker location={selected} fields={fields} exaggeration={exaggeration} color="#c9f68b" />}
     {results.filter(r => r.body === body).map(r => <Footprint key={`fp-${r.patch_id}`} match={r} fields={fields} exaggeration={exaggeration} active={focusedMatch?.patch_id === r.patch_id} />)}
     {results.filter(r => r.body === body).map(r => <Marker key={r.patch_id} location={r} fields={fields} exaggeration={exaggeration} color={focusedMatch?.patch_id === r.patch_id ? '#c9f68b' : bodyColors[body]} onClick={() => onInspect(r.patch_id)} />)}
@@ -135,6 +138,7 @@ export default function PlanetaryScene({ selected, results, onSelect, galaxy, vi
   const [layer, setLayer] = useState<SurfaceLayer>('color');
   const [heightSource, setHeightSource] = useState<HeightSource>('packaged');
   const [normalLighting, setNormalLighting] = useState(true);
+  const [featureNames, setFeatureNames] = useState(true);
   const { fields, status, metadata, origins } = useTerrain(available, heightSource, selected.body);
   const surfaceMaps = useSurfaceTextures(available, layer, normalLighting && heightSource === 'packaged', selected.body);
   if (!available) return <div className="astral-scene-fallback">WebGL is unavailable. Use the site selector or coordinates below to explore.</div>;
@@ -146,7 +150,7 @@ export default function PlanetaryScene({ selected, results, onSelect, galaxy, vi
       </label>
       <div className="astral-terrain-landmarks">{landmarks.map(landmark => <button type="button" key={landmark.label}
         onClick={() => onSelect(landmark.location)}>{landmark.label}</button>)}</div>
-      <LayerControls layer={layer} onLayer={setLayer} heightSource={heightSource} onHeightSource={setHeightSource}
+      <LayerControls featureNames={featureNames} onFeatureNames={setFeatureNames} layer={layer} onLayer={setLayer} heightSource={heightSource} onHeightSource={setHeightSource}
         normals={normalLighting} onNormals={setNormalLighting} selectedBody={selected.body} metadata={metadata}
         origins={origins} maps={surfaceMaps} status={status} />
     </div>}
@@ -157,7 +161,7 @@ export default function PlanetaryScene({ selected, results, onSelect, galaxy, vi
       <Stars radius={70} depth={30} count={1400} factor={2} saturation={0} fade speed={0} />
       {view === 'system' ? <>
         <OrbitalGuides earth={globeCenters.earth} />
-        {bodies.map(body => <Globe key={body} body={body} selected={selected} results={results} onSelect={onSelect} onInspect={onInspect} focusedMatch={focusedMatch} fields={fields} exaggeration={renderedExaggeration}
+        {bodies.map(body => <Globe key={body} labels={featureNames} body={body} selected={selected} results={results} onSelect={onSelect} onInspect={onInspect} focusedMatch={focusedMatch} fields={fields} exaggeration={renderedExaggeration}
           layer={layer} maps={surfaceMaps[body]} normalRatio={normalLighting && origins[body] === 'packaged' ? renderedExaggeration / (metadata[body]?.normal_and_hillshade_vertical_exaggeration ?? 1) : 0} />)}
         {results.map(r => <Arc key={r.patch_id} origin={selected} target={r} fields={fields} exaggeration={renderedExaggeration} />)}
       </> : <Galaxy points={galaxy} />}

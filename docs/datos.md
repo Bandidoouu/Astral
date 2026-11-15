@@ -199,6 +199,15 @@ Valores tal como los publican las fuentes (citas textuales), en `frontend/src/ui
 
 ## 5. Fuentes fuera de la lista (permitidas, pero se citan)
 
+- **Nombres en los globos (frontend, capa "Feature names"):** Luna y Marte con el Gazetteer of
+  Planetary Nomenclature (IAU WGPSN / USGS, puntos centrales, ya registrado abajo); Tierra con
+  **Natural Earth `ne_10m_geography_regions_polys`** (dominio público,
+  https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-physical-labels/;
+  continentes, desiertos, cordilleras, mesetas, llanuras; punto representativo de cada polígono).
+  Solo etiquetas visuales, no entran al modelo. Generador: `frontend/tools/make_globe_labels.py` →
+  `frontend/src/scenes/assets/globe-labels.json` (536 nombres en 3 niveles según el zoom).
+  Archivo local: `data/raw/earth/naturalearth/regions/`.
+
 - **Gazetteer of Planetary Nomenclature (IAU WGPSN / USGS Astrogeology), puntos centrales
   de la Luna y Marte** (`MOON_nomenclature_center_pts.zip`, `MARS_nomenclature_center_pts.zip`,
   https://planetarynames.wr.usgs.gov): solo para nombrar regiones legibles en la Luna y
