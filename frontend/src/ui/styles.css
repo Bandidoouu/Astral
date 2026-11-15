@@ -208,3 +208,17 @@ input { font-family: Consolas, monospace; }
 .galaxy-scale button[aria-pressed="true"] { background: var(--accent); color: #182316; border-color: transparent; font-weight: 600; }
 .galaxy-legend small { display: block; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
 @media (max-width: 720px) { .galaxy-legend { left: 12px; bottom: 230px; } }
+.twin-panel { padding: 20px; }.twin-panel h2 { font-size: 20px; font-weight: 450; margin: 8px 0 6px; }
+.twin-panel .search-launcher { margin: 10px 0 14px; }
+.twin-place label { display: flex; flex-direction: column; gap: 6px; font: 9px Consolas, monospace; letter-spacing: 1.5px; color: var(--muted); }
+.twin-place input { background: #0e1823; color: #e8ecdf; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: 13px system-ui; letter-spacing: 0; }
+.twin-place { display: grid; gap: 8px; margin-bottom: 12px; }
+.twin-gravity { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.twin-card { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); z-index: 21; background: var(--panel); border: 1px solid #c9f68b66; border-radius: 12px; padding: 18px 22px; backdrop-filter: blur(14px); box-shadow: 0 12px 40px #000a; animation: twin-in .5s ease-out; }
+.twin-card h2 { font-size: 22px; font-weight: 500; margin: 8px 0 6px; color: #e8ecdf; }.twin-card h2 span { color: #ff9a6b; }
+.twin-moon { font-size: 14px; color: #e8ecdf; margin: 0 0 8px; }.twin-note { font-size: 12px; color: #e8d9a8; margin: 4px 0; }
+.twin-actions { display: flex; gap: 10px; align-items: center; margin: 12px 0 8px; }.twin-card small { color: var(--muted); font-size: 10.5px; }
+.twin-close { position: absolute; right: 10px; top: 10px; font-size: 18px; line-height: 1; }
+.dock-copy { position: absolute; right: 120px; top: 14px; font-size: 10.5px; }
+@keyframes twin-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .twin-card { animation: none; } }

@@ -9,6 +9,9 @@ import AstralLogo from './AstralLogo';
 import { galaxyColors } from '../api/bodies';
 import AnalogyLimits from './components/AnalogyLimits';
 import StartTour from './components/StartTour';
+import TwinPanel from './components/TwinPanel';
+import { buildShareUrl, parseShareParams } from './shareLink';
+import type { HomePatch } from './homePatch';
 import { markTourSeen, tourSeen } from './startTour';
 import { sortResults } from './sortResults';
 import type { SortMode } from './sortResults';
@@ -39,7 +42,9 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [lon, setLon] = useState('77');
   const [profile, setProfile] = useState<Profile>('general');
   const [view, setView] = useState<'system' | 'galaxy'>('system');
-  const [panel, setPanel] = useState<'search' | 'results' | 'details' | 'sources' | 'suitability' | 'missions' | null>(null);
+  const [panel, setPanel] = useState<'search' | 'results' | 'details' | 'sources' | 'suitability' | 'missions' | 'twin' | null>(null);
+  const [twin, setTwin] = useState<{ label: string; notes: string[]; region: string; flown: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [dockVisible, setDockVisible] = useState(true);
   const [focusedId, setFocusedId] = useState('');
   const [targets, setTargets] = useState<Body[]>(['earth']);
@@ -48,7 +53,15 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [sortBy, setSortBy] = useState<SortMode>('terrain');
   // The galaxy has its own scale: 1 km (all three bodies) by default, 60 m on request.
   const [galaxyScale, setGalaxyScale] = useState<Scale>(1000);
-  const [tourOpen, setTourOpen] = useState(() => !tourSeen(typeof window === 'undefined' ? undefined : window.localStorage));
+  const sharedAtLoad = useMemo(() => (typeof window === 'undefined' ? null : parseShareParams(window.location.search)), []);
+  const [tourOpen, setTourOpen] = useState(() => !sharedAtLoad && !tourSeen(typeof window === 'undefined' ? undefined : window.localStorage));
+  useEffect(() => {
+    if (!sharedAtLoad) return;
+    const s = sharedAtLoad;
+    setBody(s.body); setLat(String(s.lat)); setLon(String(s.lon)); setScale(s.scale); setScaleNotice('');
+    setScaleMode(s.gravity ? 'gravity_scaled' : 'same_size');
+    setTargets(s.scale === 60 ? [s.body === 'earth' ? 'moon' : 'earth'] : otherBodies(s.body));
+  }, [sharedAtLoad]);
   function closeTour() { setTourOpen(false); markTourSeen(typeof window === 'undefined' ? undefined : window.localStorage); }
   const [scaleNotice, setScaleNotice] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -100,6 +113,16 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     setTargets(otherBodies(body));
   }
   const analogsTitle = targets.length === 0 ? 'ANALOGS OF THIS SITE' : targets.length === 1 ? `${bodyNames[targets[0]].toUpperCase()} ANALOGS OF THIS SITE` : 'ANALOGS OF THIS SITE ON ' + targets.map(t => bodyNames[t].toUpperCase()).join(' & ');
+  function findTwin(home: HomePatch, label: string) {
+    setTwin({ label, notes: home.notes, region: home.region, flown: false });
+    setBody('earth'); setLat(String(home.lat)); setLon(String(home.lon));
+    setTargets(['moon', 'mars']); setScale(1000); setScaleNotice('');
+    setView('system'); setPanel(null);
+  }
+  function copyLink() {
+    const url = buildShareUrl(window.location.href, { body, lat: Number(lat), lon: Number(lon), scale, gravity: scale === 1000 && scaleMode === 'gravity_scaled' });
+    navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => window.prompt('Copy this link', url));
+  }
   function selectLocation(location: Location) {
     const nextTargets = location.body === body ? targets : otherBodies(location.body);
     resetDetailIfNeeded(location, nextTargets);
@@ -142,7 +165,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     setTargets(nextTargets); setProfile(nextProfile);
     setView('system'); setPanel('results');
   }
-  const panelTitles = { search: 'Choose your origin', results: 'Analog results', details: 'Match details', sources: 'Data sources', suitability: 'Base suitability', missions: 'Plan an investigation' };
+  const panelTitles = { search: 'Choose your origin', results: 'Analog results', details: 'Match details', sources: 'Data sources', suitability: 'Base suitability', missions: 'Plan an investigation', twin: 'Find your planetary twin' };
   function togglePanel(next: NonNullable<typeof panel>) {
     setPanel(current => current === next ? null : next);
   }
@@ -159,6 +182,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
       </nav>
       <div className="header-actions">
+        <button className="text-button twin-launcher" aria-expanded={panel === 'twin'} onClick={() => togglePanel('twin')}><Sparkles size={15} /><span>Find your planetary twin</span></button>
         <button className="text-button" aria-label="Start here (tour)" onClick={() => setTourOpen(true)}><Sparkles size={15} /><span>Start here</span></button>
         <button className="text-button mission-launcher" aria-label="Missions" aria-expanded={panel === 'missions'} onClick={() => togglePanel('missions')}><Crosshair size={15} /><span>Missions</span></button>
         <button className="text-button" aria-expanded={panel === 'sources'} onClick={() => togglePanel('sources')}><Info size={15} /><span>Data sources</span></button>
@@ -196,6 +220,23 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
         </div>
         <small>Each point is a terrain patch placed by our network's embedding (3D UMAP); nearby points have similar terrain.</small>
       </div>}
+      {twin && result && result.query.body === 'earth' && !loading && (() => {
+        const mars = listed.find(r => r.body === 'mars'), moon = listed.find(r => r.body === 'moon');
+        const place = (r: { region: string; lat: number; lon: number }, world: string) => (r.region === world ? `an unnamed site at ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°` : r.region);
+        return <aside className="twin-card" role="dialog" aria-label="Your planetary twin">
+          <button className="icon-button twin-close" aria-label="Close" onClick={() => setTwin(null)}>×</button>
+          <p className="eyebrow">YOUR PLANETARY TWIN · {twin.label === 'your location' ? 'FROM YOUR LOCATION' : twin.label.toUpperCase()}</p>
+          {mars && <h2>Your home’s twin on Mars: <span>{place(mars, 'Mars')}</span></h2>}
+          {moon && <p className="twin-moon">On the Moon: <strong>{place(moon, 'Moon')}</strong></p>}
+          <p className="selection-note">Home patch: {twin.region} (1 km terrain). Order: terrain similarity of our network.</p>
+          {twin.notes.map(n => <p key={n} className="twin-note">{n}</p>)}
+          <div className="twin-actions">
+            {mars && <button className="search-launcher" onClick={() => showMatch(mars.patch_id)}>Fly to the Mars twin</button>}
+            <button className="text-button" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link'}</button>
+          </div>
+          <small>Your location is not stored or sent anywhere.</small>
+        </aside>;
+      })()}
       <div className="map-notices" aria-live="polite">
         {loading && <p className="map-notice"><span className="loader" />Looking across worlds…</p>}
         {error && <button className="map-notice error" onClick={() => setPanel('results')}><Info size={14} />Search unavailable · View error</button>}
@@ -206,6 +247,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       </div>
       {dockVisible && <section className="match-dock" aria-label="Match overview">
         <div className="dock-heading"><button onClick={() => togglePanel('results')} aria-expanded={panel === 'results'}><span>{analogsTitle}</span><strong>{result?.results.length ?? '—'}</strong><ArrowRight size={14} /></button><span>{scale === 1000 ? '1 km / pixel' : '60 m / pixel'}</span></div>
+        <button className="inline-action dock-copy" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link'}</button>
         <p className="rank-note">{sortBy === 'terrain' ? 'Ordered by terrain similarity (network + terrain formula).' : 'Ordered by overall profile score.'} % = profile score across the available dimensions.</p>
         {sortControl}
         {scale === 60 && <p className="rank-note scale-note">Detail (60 m) compares the lunar south pole with Mexico only; Mars is compared only at Global (1 km). <button className="inline-action" onClick={repeatGlobally}>Repeat at 1 km · {otherBodies(body).map(t => bodyNames[t]).join(' + ')}</button></p>}
@@ -219,6 +261,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       </section>}
       <div className="atlas-status"><span><span className="status-dot" />{demoMode ? 'STATIC SITE · Precomputed model v2 results · Similarity is not mission suitability' : 'LIVE API · Similarity is not mission suitability'}</span><span className="map-hint">Click a globe or match marker · Drag to orbit · Scroll to zoom</span></div>
       {panel && <MapPanel key={panel} id={`${panel}-panel`} title={panelTitles[panel]} side={panel === 'search' ? 'left' : 'right'} onClose={() => setPanel(null)}>
+        {panel === 'twin' && <TwinPanel gravity={scaleMode === 'gravity_scaled'} onGravity={g => setScaleMode(g ? 'gravity_scaled' : 'same_size')} onFound={findTwin} />}
         {panel === 'missions' && <MissionPanel body={body} profile={profile} demo={demoMode} onChoose={chooseMission} />}
         {panel === 'search' && <>          <div className="selection-panel">
             <div className="section-label"><Crosshair size={14} /><h2>Choose your origin</h2><span>01</span></div>

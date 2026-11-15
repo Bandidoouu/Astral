@@ -118,3 +118,8 @@ function prefetchOffline() {
   prefetched = true;
   window.setTimeout(() => { loadCatalog(shared()).catch(() => { prefetched = false; }); }, 4000);
 }
+
+/** Patch catalog of the 1 km index (static file, also available in API mode) for "Find your planetary twin". */
+export function loadPatchCatalog(signal: AbortSignal) {
+  return loadCatalog(signal, 'offline1km');
+}
