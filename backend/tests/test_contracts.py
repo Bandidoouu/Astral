@@ -24,6 +24,7 @@ def test_similar_request_example():
         "scale_m",
         "profile",
         "k",
+        "scale_mode",
     }
     assert request["scale_m"] in {60, 1000}
     assert request["profile"] in {
@@ -49,6 +50,8 @@ def test_similar_response_example_shape():
         "patches",
         "scale_m",
         "attributes",
+        "scale_mode",
+        "land_cover",
     }
     assert set(response["query"]["attributes"]) == set(ATTRIBUTE_KEYS)
     for result in response["results"]:
@@ -64,6 +67,8 @@ def test_similar_response_example_shape():
             "not_comparable",
             "no_data",
             "attributes",
+            "land_cover",
+            "window_km",
         }
         assert set(result["scores"]) == set(DIMENSIONS)
         assert 0.0 <= result["score"] <= 1.0
@@ -123,7 +128,10 @@ def test_score_pair_matches_contract_result_keys():
         query_ops=ops,
         result_ops=ops,
     )
-    assert set(example) <= set(produced)
+    # score_pair produces the core result keys; window_km and land_cover are
+    # added later by the search layer when enriching results.
+    enrichment_keys = {"window_km", "land_cover"}
+    assert set(example) - enrichment_keys <= set(produced)
     assert set(produced) - set(example) == {"weights_used"}
     assert set(produced["scores"]) == set(example["scores"])
     assert produced["not_comparable"] == example["not_comparable"]
