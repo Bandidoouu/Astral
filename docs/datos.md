@@ -172,14 +172,25 @@ Valores tal como los publican las fuentes (citas textuales), en `frontend/src/ui
 | Gravedad en superficie | 9.820 m/s² (media) | 1.62 m/s² | 3.73 m/s² (media) | NASA Planetary Fact Sheets: https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html, …/moonfact.html (tabla comparativa), …/marsfact.html |
 | Presión en superficie | 1014 mb | 3 × 10⁻¹⁵ bar (noche) | 6.36 mb al radio medio (4.0 a 8.7 mb según estación) | Ídem |
 | Duración del día | 24.0000 h | 708.7 h (tabla comparativa) | 24.6597 h | Ídem; la Luna, de https://nssdc.gsfc.nasa.gov/planetary/factsheet/ |
-| Dosis de radiación en superficie | pendiente | 1369 μSv/día (dosis equivalente) | pendiente | Luna: Zhang et al. 2020, *First measurements of the radiation dose on the lunar surface*, Sci. Adv. 6, eaaz1334, doi:10.1126/sciadv.aaz1334 (texto completo abierto: PMC7518862): "LND measured an average dose equivalent of 1369 μSv/day on the surface of the Moon". El mismo artículo compara con **LRO/CRaTER**: "CRaTER measured a dose rate of 13.29 μGy/hour (reported by the CRaTER team as converted to water and to the lunar surface) … while LND measured … 13.2 ± 1.4 μGy/hour converted to water" |
+| Dosis de radiación en superficie | ≈ 3.0 mSv/año de fuentes naturales (≈ 8 μSv/día) | 1369 μSv/día (dosis equivalente) | 0.64 ± 0.12 mSv/día de dosis equivalente (≈ 640 μSv/día) | Luna: Zhang et al. 2020, *First measurements of the radiation dose on the lunar surface*, Sci. Adv. 6, eaaz1334, doi:10.1126/sciadv.aaz1334 (texto completo abierto: PMC7518862): "LND measured an average dose equivalent of 1369 μSv/day on the surface of the Moon". El mismo artículo compara con **LRO/CRaTER**: "CRaTER measured a dose rate of 13.29 μGy/hour (reported by the CRaTER team as converted to water and to the lunar surface) … while LND measured … 13.2 ± 1.4 μGy/hour converted to water" |
 
-- **Marte (MSL/RAD):** la referencia es Hassler et al. 2014, Science 343, 1244797
-  (doi:10.1126/science.1244797; NTRS 20180007641), pero su resumen no trae la cifra y el texto
-  completo no fue accesible en la sesión (science.org y las revistas de los artículos de
-  comparación bloquean la descarga automática). La celda queda **"pending citation"** hasta
-  copiar la cifra de una fuente verificada; no se usa un valor de memoria.
-- **Tierra:** igual, sin dosis de referencia verificada (UNSCEAR y NRC bloquean la descarga).
+- **Marte (MSL/RAD):** 0.64 ± 0.12 mSv/día de dosis equivalente en el cráter Gale, Hassler
+  et al. 2014, *Mars' surface radiation environment measured with the Mars Science Laboratory's
+  Curiosity rover*, Science 343, 1244797, doi:10.1126/science.1244797 (NTRS 20180007641).
+  Reproducido en Matthiä et al. 2016, J. Space Weather Space Clim. 6, A13, tabla 2:
+  https://www.swsc-journal.org/articles/swsc/full_html/2016/01/swsc150074/T2.html. Valor y
+  citas aportados por Esteban; la página de la tabla respondió 403 a la descarga automática, así
+  que no se verificó en la sesión.
+- **Tierra:** ≈ 3.0 mSv/año de fuentes naturales (≈ 8 μSv/día), estimación más reciente de
+  UNSCEAR. Comunicado UNIS/OUS/453 del Servicio de Información de la ONU en Viena, 12 de febrero
+  de 2026 (https://unis.unvienna.org/unis/en/pressrels/2026/unisous453.html), verificado en la
+  sesión: "the worldwide average annual effective dose from natural sources is approximately
+  3.0 millisieverts (mSv). The largest contributor is inhalation of radon, thoron and their decay
+  products (1.8 mSv) … cosmic radiation (0.3 mSv). The increase from the previously reported
+  global average of 2.4 mSv (UNSCEAR 2008) reflects improved data availability…".
+- **Nota que se muestra bajo la tabla:** el valor de la Tierra incluye radón (exposición
+  interna); los de la Luna y Marte son sobre todo rayos cósmicos. Es una comparación de orden de
+  magnitud.
 - **Presión del sitio terrestre:** fórmula barométrica estándar (atmósfera estándar ISA,
   troposfera): p = 1013.25 hPa · (1 − 2.25577·10⁻⁵ · h)^5.25588, con h = elevación del sitio
   en el mapa de altura NASA SRTMGL30 que usa el globo (rejilla de ~10 km). Se muestra como

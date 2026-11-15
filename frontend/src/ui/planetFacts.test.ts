@@ -8,11 +8,13 @@ test('standard barometric formula: 1013.25 hPa at sea level, about 616 hPa at 4,
   assert.equal(pressureAtElevationHpa(-100), 1013.25);
 });
 
-test('every shown fact carries a source; unsourced radiation stays null (never invented)', () => {
+test('every shown fact carries its source', () => {
   for (const body of ['earth', 'moon', 'mars'] as const) {
-    for (const key of ['gravity', 'pressure', 'day'] as const) assert.ok(FACTS[body][key].source.length > 10);
+    for (const key of ['gravity', 'pressure', 'day', 'radiation'] as const) assert.ok((FACTS[body][key]?.source.length ?? 0) > 10, `${body} ${key}`);
   }
   assert.ok(FACTS.moon.radiation?.source.includes('Zhang'));
-  assert.equal(FACTS.mars.radiation, null);
-  assert.equal(FACTS.earth.radiation, null);
+  assert.ok(FACTS.mars.radiation?.source.includes('Hassler'));
+  assert.ok(FACTS.earth.radiation?.source.includes('UNSCEAR'));
+  // 3.0 mSv/year ≈ 8.2 µSv/day
+  assert.ok(Math.abs(3000 / 365.25 - 8) < 0.5);
 });
