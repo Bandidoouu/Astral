@@ -1,39 +1,27 @@
-// Original ASTRAL logo: a drill boring through an orbit (planetary sampling meets orbital
-// mechanics). Three variants for the team to choose; the header uses LOGO_VARIANT.
-// Colors: interface lime (#c9f68b) on the dark header (#0b1119).
-export type LogoVariant = 'a' | 'b' | 'c';
-export const LOGO_VARIANT: LogoVariant = 'b';
-
-export default function AstralLogo({ size = 30, variant = LOGO_VARIANT }: { size?: number; variant?: LogoVariant }) {
-  return <svg width={size} height={size} viewBox="0 0 64 64" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-    {variant === 'a' && <><defs><clipPath id="a-body"><path d="M25 14 h14 v30 l-7 12 l-7 -12 z"/></clipPath></defs>
-  <g transform="rotate(-16 32 34)"><path d="M5 34 A27 9 0 0 1 59 34" stroke="#c9f68b" strokeWidth="2.6" opacity="0.5"/></g>
-  <g transform="rotate(38 32 32)">
-    <rect x="29.5" y="3" width="5" height="12" rx="1" fill="#c9f68b"/>
-    <path d="M25 14 h14 v30 l-7 12 l-7 -12 z" fill="#0b1119"/>
-    <g clipPath="url(#a-body)" fill="#c9f68b">
-      <path d="M20 12 L44 22 L44 28 L20 18 z"/><path d="M20 24 L44 34 L44 40 L20 30 z"/><path d="M20 36 L44 46 L44 52 L20 42 z"/>
-      <path d="M20 48 L44 58 L44 64 L20 54 z"/>
+// ASTRAL logo (team design): a drill bit inside a flame-shaped outline. Interface lime
+// (#c9f68b) on the dark header (#0b1119). The favicon (public/favicon.svg) is the same design
+// with a thicker outline and three wider grooves so it reads at 16 px.
+export default function AstralLogo({ size = 30 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 64 64" fill="none" strokeLinecap="round" aria-hidden="true" focusable="false">
+    <defs>
+    <clipPath id="astral-logo-clip">
+    <path d="M0 -27 L12 13 L-12 13 Z"/>
+    </clipPath>
+    </defs>
+    <path d="M32 61 C17 61 9 52 11 40 C12 33 16 29 17 23 C21 28 21 33 23 35 C22 25 26 14 33 6 C33 15 39 20 42 27 C44 23 44 19 43 15 C51 23 55 33 53 43 C51 54 44 61 32 61 Z" stroke="#c9f68b" strokeWidth="2.4" strokeLinejoin="round"/>
+    <g transform="translate(32 33) scale(0.86)">
+    <path d="M0 -27 L12 13 L-12 13 Z" fill="#c9f68b" stroke="#0b1119" strokeWidth="5" strokeLinejoin="round"/>
+    <path d="M0 -27 L12 13 L-12 13 Z" fill="#c9f68b" stroke="#c9f68b" strokeWidth="1.5" strokeLinejoin="round"/>
+    <g clipPath="url(#astral-logo-clip)">
+    <path d="M-16 -14 Q0 -15 16 -24 L16 -21 Q0 -12 -16 -11 Z" fill="#0b1119"/>
+    <path d="M-16 -7 Q0 -8 16 -17 L16 -14 Q0 -5 -16 -4 Z" fill="#0b1119"/>
+    <path d="M-16 0 Q0 -1 16 -10 L16 -7 Q0 2 -16 3 Z" fill="#0b1119"/>
+    <path d="M-16 7 Q0 6 16 -3 L16 0 Q0 9 -16 10 Z" fill="#0b1119"/>
+    <path d="M-16 14 Q0 13 16 4 L16 7 Q0 16 -16 17 Z" fill="#0b1119"/>
+    <path d="M-16 21 Q0 20 16 11 L16 14 Q0 23 -16 24 Z" fill="#0b1119"/>
     </g>
-    <path d="M25 14 h14 v30 l-7 12 l-7 -12 z" stroke="#c9f68b" strokeWidth="2.6"/>
-  </g>
-  <g transform="rotate(-16 32 34)">
-    <path d="M59 34 A27 9 0 0 1 5 34" stroke="#0b1119" strokeWidth="7"/>
-    <path d="M59 34 A27 9 0 0 1 5 34" stroke="#c9f68b" strokeWidth="2.6"/>
-  </g></>}
-    {variant === 'b' && <><path d="M5 36 A27 8 0 0 1 59 36" stroke="#c9f68b" strokeWidth="2.4" opacity="0.55"/>
-  <path d="M29 3 h6 v8 h-6 z" fill="#0b1119" stroke="#c9f68b" strokeWidth="3"/>
-  <path d="M24 11 h16 v38 l-2.7 5 l-2.6 -5 l-2.7 5 l-2.7 -5 l-2.6 5 l-2.7 -5 z" fill="#0b1119" stroke="#c9f68b" strokeWidth="3"/>
-  <path d="M24 18 L40 25 M24 30 L40 37 M24 42 L40 49" stroke="#c9f68b" strokeWidth="2.6"/>
-  <path d="M59 36 A27 8 0 0 1 5 36" stroke="#0b1119" strokeWidth="7"/>
-  <path d="M59 36 A27 8 0 0 1 5 36" stroke="#c9f68b" strokeWidth="2.4"/>
-  <circle cx="53" cy="40.6" r="3.4" fill="#c9f68b"/></>}
-    {variant === 'c' && <><path d="M32 58 L32 49
-           C 40 49, 41 44.5, 32 44.5 C 23 44.5, 24 40, 32 40
-           C 44 40, 45 34, 32 34 C 19 34, 20 28, 32 28
-           C 50 28, 52 20.5, 32 20.5 C 12 20.5, 6 14, 32 14
-           C 52 14, 60 10, 46 8"
-        stroke="#c9f68b" strokeWidth="3.2"/>
-  <circle cx="44" cy="7.6" r="3.2" fill="#c9f68b"/></>}
+    <rect x="-13.5" y="13" width="27" height="4.5" rx="1" fill="#c9f68b" stroke="#0b1119" strokeWidth="2"/>
+    <rect x="-4.5" y="17.5" width="9" height="8" rx="1" fill="#c9f68b" stroke="#0b1119" strokeWidth="2"/>
+    </g>
   </svg>;
 }
