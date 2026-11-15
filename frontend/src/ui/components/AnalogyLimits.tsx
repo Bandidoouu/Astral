@@ -35,6 +35,7 @@ export default function AnalogyLimits({ origin, match }: { origin: Location; mat
           ? (elev === null ? '…' : <>≈ {fmt(pressureAtElevationHpa(elev))} hPa at {fmt(Math.max(0, elev))} m <small>(closest Earth gets)</small></>)
           : FACTS.earth[r.key]?.value ?? <em>pending citation</em>}</td>}
       </tr>)}</tbody></table>
+    <p className="limits-note">Radiation: Earth value includes radon (internal exposure); Moon and Mars values are mostly cosmic rays. Order-of-magnitude comparison.</p>
     <div className="limits-tags">{['dust_and_wind', 'subsurface'].filter(l => match.not_comparable.includes(l)).map(l => <span key={l}>{l.replaceAll('_', ' ')}</span>)}</div>
     <p className="limits-note">Dust/wind and subsurface: not modeled; future work.</p>
     <details className="limits-sources"><summary>Sources</summary><ul>{sources.map(s => <li key={s}>{s}</li>)}
