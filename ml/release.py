@@ -40,7 +40,7 @@ Generado: {date}. Encoder: `{encoder}`. Escalas: {scales}.
 1. Copia esta carpeta a la máquina del backend y apunta `ASTRAL_ARTIFACTS` (o
    `Searcher(art=...)`) a ella.
 2. `from ml.search import Searcher; s = Searcher(art="<esta carpeta>")`
-3. `s.search(body, lat, lon, target_bodies, k, profile, method="rrf", scale_m=...)`
+3. `s.search(body, lat, lon, target_bodies, k, profile, method="rrf", scale_m=..., scale_mode="same_size")`
    devuelve el JSON del contrato (`docs/contratos.md` §3).
 
 ## Qué trae
@@ -54,6 +54,9 @@ Generado: {date}. Encoder: `{encoder}`. Escalas: {scales}.
 | `earth_landcover_005deg.tif` | Máscara de zonas prometedoras (MODIS MCD12C1): clase IGBP y % prometedor; la búsqueda la usa para el aviso del clic |
 | `*_1000_gravity.*` | Índice para `scale_mode = gravity_scaled` (Luna con ventanas de 774 km, Marte de 338 km) |
 | `suitability/` | Capas de aptitud de la Luna (polo sur) y Marte (global 0.25°) (GeoTIFF + PNG), reglas y pesos, candidatos de la NASA, `recommended_zones.json` |
+
+Grad-CAM, cuando se incluye, va en `gradcam/` con su índice y límites en el README
+de esa carpeta. Solo explica el coseno de terreno a 1 km, `same_size`.
 
 `manifest.json` lista cada archivo con su tamaño y SHA-256 para verificar la copia.
 
@@ -79,16 +82,32 @@ def main():
     ap.add_argument("--encoder", required=True, help="nombre del encoder en data/artifacts/")
     ap.add_argument("--scales", type=int, nargs="+", default=[60])
     ap.add_argument("--extra-encoders", nargs="*", default=[], help="otros encoders (p. ej. el de 60 m)")
-    ap.add_argument("--notes", default="Precipitación de la Tierra pendiente (aridez = sin dato).")
+    ap.add_argument("--notes", default="Marte: temperatura, albedo y suelo sin dato (TES fuera de alcance).")
+    ap.add_argument("--gradcam", type=Path, help="Directorio de Grad-CAM revisado; se copia como gradcam/")
     a = ap.parse_args()
     out = ART / "release" / a.version
-    out.mkdir(parents=True, exist_ok=True)
+    if out.exists():
+        raise FileExistsError(f"Release already exists: {out}")
     files = [f.format(s=s) for s in a.scales for f in PER_SCALE]
     files += [f.format(k=k) for k in SUIT_K for f in SUIT] + SUIT_EXTRA + [a.encoder]
     files += [f.format(k=k) for k in SUIT_MARS_K for f in SUIT_MARS]
     if 1000 in a.scales:
         files += GRAVITY
     files += a.extra_encoders
+    gradcam_files = []
+    if a.gradcam:
+        doc = json.loads((a.gradcam / "index.json").read_text())
+        if not doc.get("complete") or not doc.get("pairs"):
+            raise ValueError("Grad-CAM sample/incomplete index cannot be released")
+        for name, digest in doc["source_sha256"].items():
+            if sha256(ART / name) != digest:
+                raise ValueError(f"Grad-CAM source changed: {name}")
+        gradcam_files = sorted({row["file"] for row in doc["pairs"]}) + ["index.json", "README.md"]
+        for name in gradcam_files:
+            if Path(name).name != name or not (a.gradcam / name).is_file():
+                raise ValueError(f"Invalid or missing Grad-CAM file: {name}")
+    out.mkdir(parents=True)
+
     manifest = dict(version=a.version, encoder=a.encoder, scales=a.scales,
                     created=dt.datetime.now().isoformat(timespec="seconds"), files=[])
     missing = []
@@ -101,6 +120,11 @@ def main():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
         manifest["files"].append(dict(path=f, bytes=dst.stat().st_size, sha256=sha256(dst)))
+    for name in gradcam_files:
+        dst = out / "gradcam" / name
+        dst.parent.mkdir(exist_ok=True)
+        shutil.copy2(a.gradcam / name, dst)
+        manifest["files"].append(dict(path=f"gradcam/{name}", bytes=dst.stat().st_size, sha256=sha256(dst)))
     manifest["missing"] = missing
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (out / "README.md").write_text(README.format(version=a.version, date=manifest["created"],

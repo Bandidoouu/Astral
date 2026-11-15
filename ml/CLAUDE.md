@@ -44,12 +44,12 @@ los portales del reto: por eso la capa es una sugerencia, no una elección final
 Marte: la misma idea con MOLA (pendiente y altitud baja) e hidrógeno de Mars Odyssey
 (TES quedó fuera por recorte de alcance; ver §1b). Minerales: fuera de alcance.
 
-## 1b. Estado actual (para retomar después de /compact o con otro agente) · 2026-11-14 17:40 (~H8.5)
+## 1b. Estado actual (para retomar después de /compact o con otro agente) · 2026-11-14 · revisión de entrega ML
 
 **Cambios por recomendación de un mentor (17:00), orden vigente:** (1) máscara de zonas
 prometedoras de la Tierra ✅ · (2) validación de 1 km (§1c) ✅ · (3) entrenamiento de 1 km
 con la receta de v2 ✅ · (4) modos de escala `same_size` / `gravity_scaled` ✅ · (5) aptitud
-de Marte ✅. Paquete vigente: **`release/v2-1km`** (60 m + 1 km + gravity, 233 MB).
+de Marte ✅. Paquete vigente local: **`release/v2-1km-r3`** (60 m + 1 km + gravity + Grad-CAM revisado, 240 MB).
 
 **Resultados de 1 km (17:30):** run `main1000v2` (12 épocas, 3 cuerpos, `--matched
 --aux-weight 0.1 --lambda-max 0.3`, ~1 min/época). Regla fija → **época 4**
@@ -195,16 +195,17 @@ siguen como "Moon"/"Mars" (sin nombres de accidentes).
 `encoder_v2_1000.pt` (1 km y gravity), `{meta,emb,index,baseline_feat,features}_60*`,
 `..._1000*`, `..._1000_gravity*`, `earth_landcover_005deg.tif` (3 bandas: clase IGBP,
 % prometedor, % agua), `suitability/` (Luna y Marte), `val_1000_*.json`,
-`checkpoints/main1000v2/`. Paquete para Backend: **`release/v2-1km`** (47 archivos,
-233 MB). Anteriores: `v2-60m`, `v2-60m-r2`, `v2-60m-r3` (máscara).
+`checkpoints/main1000v2/`. Paquete local para Backend: **`release/v2-1km-r3`**
+(123 archivos, 240 MB, SHA-256 verificados). Conserva los 49 archivos de r2 sin cambios
+y agrega 72 PNG + índice + README de Grad-CAM. Modelos e índices sin modificar.
 
-**Ramas y PR:** trabajar solo en ramas `ml/...`; commit ANTES de cambiar de rama; Claude
-abre los PR con `~/.local/bin/gh pr create` (para editar un PR usar `gh api -X PATCH
-repos/Bandidoouu/Astral/pulls/N`, porque `gh pr edit` falla por Projects classic);
-**las fusiones las hace una persona**. PR #1 y #2 fusionados. **PR #3**
-(`ml/v3-multimodal`) abierto. **PR #4** (`ml/earth-mask`, sale de #3: fusionar #3
-primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de contrato
-(esperan confirmación de Backend y Frontend). Rama actual: `ml/earth-mask`.
+**Ramas y PR:** trabajar solo en ramas `ml/...`; commit antes de cambiar de rama.
+Las fusiones las hace una persona. #1–#6 fusionados; #7 (resultados 1 km), #8
+(texturas, depende de #7), #9 (demo y aptitud, incluye #7), #10 (Grad-CAM, depende
+ de #9) abiertos al verificar GitHub, sin comentarios/revisiones de confirmación.
+Rama de revisión: `ml/artifact-review`, basada en #10; solo ML, documentación y
+su ejemplo de índice. Instrucción de Esteban: no implementar pendientes ajenos.
+Ver `ml/DELIVERY.md` para entrega y avisos que Esteban debe compartir.
 
 **Demo sin API** (`ml/demo_results.py`, rama `ml/demo-results`): resultados reales
 (RRF, general, k = 10; 1000 same_size y gravity, 60 donde aplica) de 17 sitios curados en
@@ -212,32 +213,45 @@ primero) abierto: máscara, 1 km, `scale_mode`, aptitud de Marte, cambios de con
 demo del frontend devuelve el sitio curado más cercano. Metadatos de aptitud para servir:
 `suitability/api_moon_south.json`, `api_mars.json` (copias en `contracts/`).
 
-**Grad-CAM** (`ml/gradcam_pairs.py`, rama `ml/gradcam`): 102 figuras (17 sitios curados ×
-2 destinos × 3 primeros, escala 1000) en `data/artifacts/gradcam/{query}__{result}.png` +
-`index.json` (15.6 MB, fuera de git). Sin revisar visualmente todavía.
+**Grad-CAM revisado:** `data/artifacts/gradcam-r3/` y copia en el paquete r3.
+102 asociaciones de sitios → **72 figuras únicas**. Los sitios lunares cercanos
+comparten parche: antes se sobrescribían sus títulos; ahora se rotulan IDs y centros
+reales, y el índice conserva sitio/rank/distancia. Gradientes del coseno del embedding
+normalizado de cuatro rotaciones contra el embedding indexado del otro parche;
+CAM crudos desrotados y promediados antes de normalizar. Error máximo de coseno
+0.000267; por componente del embedding 0.000716 (tolerancia BF16 0.005).
+Revisión visual de las 72 figuras en hojas de contacto y una figura a tamaño completo.
+Localización gruesa, normalizada por panel; **no explica ranking RRF, ambiente,
+gravity_scaled ni 60 m**. Artefactos anteriores conservados en `gradcam/`.
+
+**Revisión del encargo anterior:** 43 respuestas precalculadas reproducidas sin cambiar
+rankings/puntajes; dos JSON de aptitud coinciden con contratos. Texturas de #8 revisadas
+sin editar Frontend: lectura, 2:1, alturas, alfa, inspección visual de color/altura/normal/
+topografía. Faltantes del DEM (Antártida y polos marcianos) son relleno visual documentado,
+no observaciones. No se validó su renderizado sobre la esfera de Hanna.
+`ml/search.py`: avisos y errores de escala en inglés. Pruebas: `ml/tests/` (unittest)
+y `ml.check_delivery` sobre el paquete. Sin reentrenar ni repetir la prueba ciega.
 
 ### Siguientes pasos (en orden de prioridad)
 
-1. **Esperar confirmación** de Backend (pasar `scale_mode` a `searcher.search`) y de
-   Frontend (`window_km`, aviso de cobertura) sobre el PR #4; ayudar a Backend a cargar
-   `release/v2-1km`. Esteban fusiona #3 y luego #4.
-2. **Decisión pendiente de Esteban:** modelo de 1 km. Vigente `encoder_v2_1000.pt` (gana
-   4 de 5 parejas y la ciega); el de 60 m gana el promedio solo por los mares. Para
-   cambiar: reembeber con `encoder_v2sel.pt` (comandos abajo) y volver a publicar.
-3. **Unificar idioma de `warnings`** en `ml/search.py`: los nuevos están en inglés, los
-   viejos en español; lo que ve el jurado va en inglés (§4.4 de la raíz).
-4. Nombres de regiones para Luna y Marte (hoy "Moon"/"Mars"), si da tiempo.
-5. Figura en inglés de la validación de 1 km (formato de `ml/evaluate.py --plot-only`)
-   para el pitch: Olympus → Mauna Loa en el lugar 1 vs fórmula 1,720.
-6. Después de H16: Grad-CAM y UMAP (`galaxy.json`), §13. Antártida con Copernicus DEM
-   solo si sobra tiempo (requiere cuenta de Esteban).
-7. Pendientes para Ciencia: confirmar coordenadas de candidatos (Luna y Marte) y el
-   criterio de hielo lunar.
+1. Esteban comparte el PR de revisión y la ruta del paquete; confirmar recepción y
+   pruebas por los consumidores. No fusionar contratos sin confirmación.
+2. Pendientes **de sus dueños**: Backend transmite `scale_mode` y sirve aptitud;
+   Frontend integra texturas, `window_km` y criterios de Marte; Violeta revisa
+   `PRECOMPUTED` del #9. ML entrega evidencia y formatos, no implementa esos módulos.
+3. Modelo de 1 km sigue `encoder_v2_1000.pt`; cambiarlo solo por decisión de Esteban.
+4. Pendientes propios futuros: figura de validación 1 km desde resultados existentes;
+   UMAP/alturas de detalle no están en r3; nombres lunares/marcianos si hay tiempo.
+   No ampliar este bloque de cierre ni descargar Antártida automáticamente.
+5. Ciencia confirma coordenadas de candidatos y criterio de hielo. Pitch debe evitar
+   afirmar validación con Haughton/McMurdo o que la invariancia al planeta explica el
+   éxito de v2; README raíz y arquitectura conservan referencias antiguas.
 
 ### Comandos para retomar (desde `~/astral`, venv en `.venv`)
 
 ```bash
-git pull && git switch ml/earth-mask          # o la rama que toque; nunca trabajar en main
+git status --short --branch                  # preservar/commitear cambios antes de cambiar rama
+git pull --ff-only origin main               # integrar main en nuestra rama ml/...
 ~/.local/bin/gh pr list --state all --limit 5
 
 # probar la búsqueda (60 m y 1 km, ambos modos)

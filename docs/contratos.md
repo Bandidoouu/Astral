@@ -23,10 +23,20 @@ ML los genera en `data/artifacts/` (fuera de git).
 | `index_{scale}.faiss` | `faiss.IndexFlatIP` (producto punto = coseno, búsqueda exacta) | Backend |
 | `meta_{scale}.parquet` | Metadatos de todos los parches de esa escala, todos los cuerpos (columnas en §2) | Backend |
 | `galaxy.json` | Lista de `{id, body, x, y, z}`: UMAP 3D de una submuestra de ~30 mil parches | Frontend 3D (vía backend o archivo estático) |
-| `gradcam/{query_id}__{patch_id}.png` | Mapa de calor sobre el parche terrestre para una consulta | Backend → Frontend UI |
+| `gradcam/{query_id}__{patch_id}.png` | Atribución del coseno de terreno sobre ambos parches (1 km, same_size) | Backend → Frontend UI |
 | `heights/{patch_id}.bin` + `.json` | Float32 little-endian 128x128 (elevación absoluta, m) + `{min, max, m_per_px}` | Frontend 3D (vista de detalle) |
 
 `{scale}` es `1000` (escala global, los tres cuerpos) o `60` (detalle Luna ↔ Tierra).
+
+**Grad-CAM de la entrega r3:** mantiene el nombre PNG y endpoint acordados.
+`gradcam/index.json` conserva `pairs` (sitio, IDs, destino, rank, archivo y coseno) y
+agrega distancia al parche, procedencia SHA-256 y errores numéricos. Ejemplo real
+reducido: `contracts/gradcam.example.json`. Son 102 asociaciones para 72 pares únicos;
+varios sitios usan el mismo parche. La figura identifica el parche, no atribuye ese
+centro al sitio solicitado. Gradientes sobre cuatro rotaciones como `ml.embed`;
+explicación aproximada del coseno neuronal, no del ranking RRF ni de los puntajes
+ambientales. Solo 1000 m, `same_size`; no usarla para 60 m o `gravity_scaled`.
+
 
 **Cómo llegan los artefactos al backend:** ML los publica con un número de versión
 (`encoder_v1`, etc.) y avisa por el chat del equipo. *Pendiente acordar el medio
@@ -241,6 +251,7 @@ Marte 0.38 g), `vacuum` o `atmosphere` (vacío en la Luna, ~6 mbar en Marte) y
 
 | Fecha | Cambio | Afecta a | Confirmó |
 | --- | --- | --- | --- |
+| 2026-11-14 | Grad-CAM: mismo PNG/endpoint; índice con asociaciones compartidas, distancia y trazabilidad; alcance 1 km same_size | Backend, Frontend | Pendiente |
 | 2026-11-14 | Versión inicial | Todos | — |
 | 2026-11-14 | Dimensiones `ice`, `soil`, `aridity`; perfil por defecto `general` (pesos iguales; terreno ≤ 0.3 en todos los perfiles); `not_comparable` agrega `dust_and_wind` y `subsurface` | Backend, Frontend | Pendiente |
 | 2026-11-14 | `scores` con `terrain`, `operations`, `thermal`, `albedo` (sale `materials`); `null` = sin dato, `no_data`, `weights_used`, `attributes`; ranking de terreno por fusión RRF; capa de aptitud lunar (§4b) | Backend, Frontend | Pendiente |

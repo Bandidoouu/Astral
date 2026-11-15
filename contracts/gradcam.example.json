@@ -1,0 +1,58 @@
+{
+  "model": "v2",
+  "encoder": "encoder_v2_1000.pt",
+  "layer": "backbone.layer4",
+  "scale_m": 1000,
+  "scale_mode": "same_size",
+  "rotations": 4,
+  "unique_figures": 72,
+  "complete": true,
+  "objective": "cosine of normalized sum of four rotated embeddings against fixed indexed counterpart",
+  "aggregation": "inverse-rotate raw CAMs, mean, resize, ReLU, normalize per panel",
+  "numerical_tolerance": 0.005,
+  "source_sha256": {
+    "encoder_v2_1000.pt": "41c99136096a5be6e0c374efdc9fca6667cfca59551877ed73183f6613b5a8fe",
+    "meta_1000.parquet": "a8368c4c43e8d73758faaace0f23571196b0c1928c9526ec3c0470fd9bf14bdc",
+    "emb_1000.npy": "2d47db706a7742430f24ddb3616fec2c0a5c94298b0dcd41ee5eb99f4b487507"
+  },
+  "demo_sha256": "6da16117d94479d239c32267ffe048c57b2719d6d2092382e43922365be1af94",
+  "pairs": [
+    {
+      "site_id": "shackleton_rim",
+      "site": "Shackleton rim",
+      "query_patch_id": "moon-1000-002310",
+      "query_distance_km": 120.02,
+      "target": "earth",
+      "rank": 1,
+      "result_patch_id": "earth-1000-007087",
+      "region": "Salta, Argentina",
+      "terrain_score": 0.6314,
+      "file": "moon-1000-002310__earth-1000-007087.png",
+      "cosine": 0.631444,
+      "recomputed_cosine_query": 0.6311839818954468,
+      "recomputed_cosine_result": 0.6314178109169006,
+      "embedding_max_abs_error": 0.00038108229637145996,
+      "query_cam_peak": 0.0014641904272139072,
+      "result_cam_peak": 0.005694701336324215
+    },
+    {
+      "site_id": "shackleton_rim",
+      "site": "Shackleton rim",
+      "query_patch_id": "moon-1000-002310",
+      "query_distance_km": 120.02,
+      "target": "earth",
+      "rank": 2,
+      "result_patch_id": "earth-1000-003020",
+      "region": "Baghlan, Afghanistan",
+      "terrain_score": 0.5392,
+      "file": "moon-1000-002310__earth-1000-003020.png",
+      "cosine": 0.539192,
+      "recomputed_cosine_query": 0.539099931716919,
+      "recomputed_cosine_result": 0.5391141176223755,
+      "embedding_max_abs_error": 0.0003587454557418823,
+      "query_cam_peak": 0.0011180759174749255,
+      "result_cam_peak": 0.0033715548925101757
+    }
+  ],
+  "_note": "Real excerpt: first two site associations only; full index contains 102 associations and 72 unique images."
+}
