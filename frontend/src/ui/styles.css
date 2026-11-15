@@ -222,3 +222,16 @@ input { font-family: Consolas, monospace; }
 .dock-copy { position: absolute; right: 120px; top: 14px; font-size: 10.5px; }
 @keyframes twin-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .twin-card { animation: none; } }
+/* Header: one color per option (icon + label tint, stronger when active) */
+.nav-c-system { --nav: #5aa9ff; } .nav-c-galaxy { --nav: #b48cff; } .nav-c-suit { --nav: #c9f68b; }
+.nav-c-twin { --nav: #ff8a5c; } .nav-c-tour { --nav: #4fd6c8; } .nav-c-missions { --nav: #ffd166; } .nav-c-sources { --nav: #9aa9b9; }
+[class*="nav-c-"] { color: color-mix(in srgb, var(--nav) 80%, #ffffff 20%) !important; }
+[class*="nav-c-"] svg { color: var(--nav); }
+[class*="nav-c-"][aria-pressed="true"], [class*="nav-c-"][aria-expanded="true"] { background: color-mix(in srgb, var(--nav) 18%, transparent) !important; border-color: color-mix(in srgb, var(--nav) 55%, transparent) !important; color: #fff !important; }
+[class*="nav-c-"]:hover { background: color-mix(in srgb, var(--nav) 12%, transparent); }
+.twin-stats { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0 4px; }
+.twin-stats th, .twin-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.twin-stats thead th { color: var(--muted); font-weight: 500; font-size: 10.5px; }
+.twin-stats thead th:nth-child(2) { color: #9fc8ff; } .twin-stats thead th:nth-child(3) { color: #ffb08a; }
+.twin-stats tbody th { color: var(--muted); font-weight: 500; }
+.social-card-btn { background: linear-gradient(90deg, #f58529, #dd2a7b, #8134af) !important; color: #fff !important; border-radius: 6px; font-weight: 600; }
