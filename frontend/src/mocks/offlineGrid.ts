@@ -10,6 +10,8 @@ export interface OfflineCatalog {
   regions: string[]; land_cover: string[];
   patch_id: string[]; body: number[]; lat: number[]; lon: number[]; region: number[]; lc: number[]; lc_code: number[];
   attrs: (number | null)[][];
+  /** Pixel size per patch (gravity-scaled catalogs); absent = 1000 m everywhere. */
+  scale_m?: number[];
 }
 /** Result chunks keyed by `${body}/${chunk}` (results_{body}_{chunk}.bin). */
 export type OfflineBlocks = Partial<Record<string, Uint16Array>>;
@@ -35,6 +37,7 @@ const NOT_COMPARABLE: Record<Body, string[]> = {
 };
 
 const round = (v: number, n: number) => Math.round(v * 10 ** n) / 10 ** n;
+const windowKm = (cat: OfflineCatalog, i: number) => round(128 * (cat.scale_m?.[i] ?? 1000) / 1000, 1);
 function distanceKm(body: Body, lat1: number, lon1: number, lat2: number, lon2: number) {
   const r = Math.PI / 180;
   const c = Math.sin(lat1 * r) * Math.sin(lat2 * r) + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.cos((lon2 - lon1) * r);
@@ -106,8 +109,8 @@ export function gridSearch(query: SearchQuery, cat: OfflineCatalog, blocks: Offl
   const patches: Partial<Record<Body, QueryPatch>> = {};
   const results: Analog[] = [];
   for (const target of target_bodies) {
-    if (origin.distance > 128) warnings.push(`${body}: the point is ${origin.distance.toFixed(0)} km from the nearest patch at 1000 m (outside coverage at this scale)`);
-    patches[target] = { patch_id: cat.patch_id[origin.index], scale_m: 1000, distance_km: round(origin.distance, 2), window_km: 128 };
+    if (origin.distance > windowKm(cat, origin.index)) warnings.push(`${body}: the point is ${origin.distance.toFixed(0)} km from the nearest patch at 1000 m (outside coverage at this scale)`);
+    patches[target] = { patch_id: cat.patch_id[origin.index], scale_m: 1000, distance_km: round(origin.distance, 2), window_km: windowKm(cat, origin.index) };
     const start = base + order.indexOf(target) * K * ENTRY;
     for (let k = 0; k < Math.min(K, query.k); k++) {
       const o = start + k * ENTRY;
@@ -120,7 +123,7 @@ export function gridSearch(query: SearchQuery, cat: OfflineCatalog, blocks: Offl
         patch_id: cat.patch_id[j], body: target, lat: cat.lat[j], lon: cat.lon[j], region: cat.regions[cat.region[j]],
         scale_m: 1000, score, scores, no_data: cat.dims.filter(d => scores[d] === null), weights_used,
         attributes: attributesOf(cat, j), not_comparable: NOT_COMPARABLE[body === 'earth' ? target : body],
-        land_cover: target === 'earth' && cat.lc[j] >= 0 ? cat.land_cover[cat.lc[j]] : null, window_km: 128,
+        land_cover: target === 'earth' && cat.lc[j] >= 0 ? cat.land_cover[cat.lc[j]] : null, window_km: windowKm(cat, j),
       });
     }
   }

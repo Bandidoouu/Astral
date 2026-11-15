@@ -31,7 +31,10 @@ import numpy as np
 import pandas as pd
 
 API, REL = sys.argv[1].rstrip("/"), Path(sys.argv[2])
-OUT = Path(__file__).resolve().parents[1] / "public/data/offline1km"
+# optional 3rd argument: gravity_scaled (Moon windows 6x, Mars 2.6x; artifacts *_1000_gravity)
+MODE = sys.argv[3] if len(sys.argv) > 3 else "same_size"
+TAG = "_gravity" if MODE == "gravity_scaled" else ""
+OUT = Path(__file__).resolve().parents[1] / f"public/data/offline1km{TAG}"
 BODIES = ["earth", "moon", "mars"]
 DIMS = ["terrain", "operations", "thermal", "albedo", "ice", "soil", "aridity"]
 ATTRS = ["tmax_k", "tmin_k", "trange_k", "albedo", "ice_distance_km", "ice_frac", "soil_raw",
@@ -68,8 +71,8 @@ def num(v):
 
 
 def main():
-    meta = pd.read_parquet(REL / "meta_1000.parquet")
-    feats = pd.read_parquet(REL / "features_1000.parquet").reindex(columns=["patch_id"] + ATTRS)
+    meta = pd.read_parquet(REL / f"meta_1000{TAG}.parquet")
+    feats = pd.read_parquet(REL / f"features_1000{TAG}.parquet").reindex(columns=["patch_id"] + ATTRS)
     assert (feats.patch_id.values == meta.patch_id.values).all()
     index = {pid: i for i, pid in enumerate(meta.patch_id)}
     regions = sorted(meta.region.astype(str).unique())
@@ -79,7 +82,7 @@ def main():
         format="astral-offline-1km-v1", chunk=CHUNK,
         precomputed=dict(source="precomputed with the real ASTRAL search via the backend API", model="v2",
                          encoder="encoder_v2_1000.pt", release="v2-1km-r4", method="rrf", k=K,
-                         scale_m=1000, scale_mode="same_size",
+                         scale_m=1000, scale_mode=MODE,
                          generated=dt.datetime.now().isoformat(timespec="seconds")),
         bodies=BODIES, dims=DIMS, attr_cols=ATTRS, regions=regions, land_cover=lcs,
         patch_id=meta.patch_id.tolist(), body=[BODIES.index(b) for b in meta.body],
@@ -87,6 +90,7 @@ def main():
         region=[regions.index(str(r)) for r in meta.region],
         lc=[lcs.index(x) if isinstance(x, str) else -1 for x in meta.lc_name],
         lc_code=lc_class.tolist(),
+        scale_m=[int(x) for x in meta.scale_m],     # pixel size per patch: window_km = 128 * scale_m / 1000
         attrs=[[num(v) for v in row] for row in feats[ATTRS].to_numpy(np.float64)],
     )
     OUT.mkdir(parents=True, exist_ok=True)
@@ -96,7 +100,7 @@ def main():
         b = meta.body.iat[i]
         targets = [t for t in BODIES if t != b]
         r = post(dict(body=b, lat=float(meta.lat.iat[i]), lon=float(meta.lon.iat[i]), target_bodies=targets,
-                      k=K, profile="general", method="rrf", scale_m=1000, scale_mode="same_size"))
+                      k=K, profile="general", method="rrf", scale_m=1000, scale_mode=MODE))
         qp = {t: r["query"]["patches"][t]["patch_id"] for t in targets}
         assert all(p == meta.patch_id.iat[i] for p in qp.values()), (i, qp)
         buf = bytearray()

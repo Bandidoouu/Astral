@@ -117,8 +117,8 @@ live API** (same order, same scores, same percentages).
 
 **Offline limits.** Detail (60 m) is available only for the eight curated lunar south-pole sites
 (Shackleton, Mons Mouton, Malapert Massif and the Haworth, Nobile, de Gerlache, Faustini and
-Amundsen rims) and El Pinacate; Grad-CAM figures and the
-gravity-scaled mode only for the curated sites; the Earth land-cover notice uses the nearest
+Amundsen rims) and El Pinacate; Grad-CAM figures only for the
+curated sites (the gravity-scaled mode is also precomputed for all 18,648 patches); the Earth land-cover notice uses the nearest
 patch center instead of the exact clicked point. For anything else, run the backend:
 
 ```bash

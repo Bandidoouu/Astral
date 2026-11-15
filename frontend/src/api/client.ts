@@ -30,11 +30,14 @@ async function searchNow(query: SearchQuery, signal: AbortSignal): Promise<Searc
     prefetchOffline();
     // 1 km, same size: every index patch is precomputed (loaded on first use). Otherwise
     // (60 m, gravity-scaled) the nearest curated site is served.
-    if (payload.scale_m === 1000 && (payload.scale_mode ?? 'same_size') === 'same_size'
-        && !exactCuratedSite(payload.body, payload.lat, payload.lon, '1000')) {
-      const catalog = await loadCatalog(signal);
-      const where = originChunk(catalog, payload.body, payload.lat, payload.lon);
-      return gridSearch(payload, catalog, await loadChunk(where.key, where.file, signal));
+    if (payload.scale_m === 1000) {
+      const gravity = payload.scale_mode === 'gravity_scaled';
+      if (!exactCuratedSite(payload.body, payload.lat, payload.lon, gravity ? '1000_gravity' : '1000')) {
+        const dir = gravity ? 'offline1km_gravity' : 'offline1km';
+        const catalog = await loadCatalog(signal, dir);
+        const where = originChunk(catalog, payload.body, payload.lat, payload.lon);
+        return gridSearch(payload, catalog, await loadChunk(where.key, where.file, signal, dir));
+      }
     }
     return demoSearch(payload);
   }
@@ -76,9 +79,9 @@ export function gradcamUrl(queryPatchId: string, resultPatchId: string) {
   return `${apiUrl}/api/gradcam/${encodeURIComponent(queryPatchId)}/${encodeURIComponent(resultPatchId)}`;
 }
 
-let catalogPromise: Promise<OfflineCatalog> | null = null;
+const catalogPromises: Partial<Record<string, Promise<OfflineCatalog>>> = {};
 const blockPromises: Partial<Record<string, Promise<Uint16Array>>> = {};
-const blocks: OfflineBlocks = {};
+const blockStores: Record<string, OfflineBlocks> = {};
 const shared = () => new AbortController().signal;   // shared downloads are never cancelled by one search
 /** Waits for a shared download, but lets this search give up (abort) without cancelling it. */
 function abandonable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -90,18 +93,21 @@ function abandonable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
       e => { signal.removeEventListener('abort', onAbort); reject(e); });
   });
 }
-function loadCatalog(signal: AbortSignal) {
-  catalogPromise ??= request(`${staticBase}data/offline1km/catalog.json`, shared(), undefined, 180000)
+/** dir: offline1km (same size) or offline1km_gravity (gravity-scaled windows). */
+function loadCatalog(signal: AbortSignal, dir = 'offline1km') {
+  catalogPromises[dir] ??= request(`${staticBase}data/${dir}/catalog.json`, shared(), undefined, 180000)
     .then(r => r.json() as Promise<OfflineCatalog>)
-    .catch(e => { catalogPromise = null; throw e; });
-  return abandonable(catalogPromise, signal);
+    .catch(e => { delete catalogPromises[dir]; throw e; });
+  return abandonable(catalogPromises[dir]!, signal);
 }
-async function loadChunk(key: string, file: string, signal: AbortSignal): Promise<OfflineBlocks> {
-  blockPromises[key] ??= request(`${staticBase}data/offline1km/${file}`, shared(), undefined, 180000)
+async function loadChunk(key: string, file: string, signal: AbortSignal, dir = 'offline1km'): Promise<OfflineBlocks> {
+  const id = `${dir}/${key}`;
+  blockPromises[id] ??= request(`${staticBase}data/${dir}/${file}`, shared(), undefined, 180000)
     .then(r => r.arrayBuffer()).then(b => new Uint16Array(b))
-    .catch(e => { delete blockPromises[key]; throw e; });
-  blocks[key] = await abandonable(blockPromises[key]!, signal);
-  return blocks;
+    .catch(e => { delete blockPromises[id]; throw e; });
+  const store = (blockStores[dir] ??= {});
+  store[key] = await abandonable(blockPromises[id]!, signal);
+  return store;
 }
 
 /** After the first offline search, fetch the 1 km catalog in the background (low priority)

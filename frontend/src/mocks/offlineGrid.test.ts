@@ -51,3 +51,24 @@ test('profiles change the score but not the terrain order', () => {
     r.results.forEach(x => assert.equal(x.score, profileScore(x.scores, p).score));
   }
 });
+
+test('gravity-scaled grid reproduces the saved gravity_scaled API responses (windows included)', () => {
+  const gdir = new URL('../../public/data/offline1km_gravity/', import.meta.url);
+  const gcat = JSON.parse(readFileSync(new URL('catalog.json', gdir), 'utf8')) as OfflineCatalog;
+  const gblocks: OfflineBlocks = {};
+  for (const f of readdirSync(gdir)) {
+    const m = /^results_(\w+)_(\d+)\.bin$/.exec(f);
+    if (!m) continue;
+    const buf = readFileSync(new URL(f, gdir));
+    gblocks[`${m[1]}/${Number(m[2])}`] = new Uint16Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+  }
+  for (const site of curated.sites) {
+    const api = site.responses['1000_gravity'];
+    if (!api) continue;
+    const query: SearchQuery = { body: site.body, lat: site.lat, lon: site.lon, profile: 'general', k: 10, scale_m: 1000,
+      scale_mode: 'gravity_scaled', target_bodies: api.query.target_bodies };
+    const off = gridSearch(query, gcat, gblocks);
+    assert.deepEqual(off.results.map(r => r.patch_id), api.results.map((r: { patch_id: string }) => r.patch_id), site.name);
+    off.results.forEach((r, i) => assert.equal(r.window_km, api.results[i].window_km, `${site.name} window`));
+  }
+});
