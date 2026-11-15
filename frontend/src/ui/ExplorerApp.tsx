@@ -168,7 +168,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
             <span className={`body-disc ${r.body}`} /><span className="match-chip-name"><small>{bodyNames[r.body]}</small><strong>{r.region}</strong></span>
             <span className="match-chip-score" title="Profile score (all available dimensions). Order: terrain similarity.">{Math.round(r.score * 100)}<small>%</small></span><ArrowUpRight size={13} />
           </button>)}
-          {!result?.results.length && <button className="dock-empty" onClick={() => setPanel(error ? 'results' : 'search')}>{loading ? 'Finding matches…' : error ? 'Search unavailable. Open results for details.' : 'No matches yet. Choose a location to explore.'}<ArrowRight size={14} /></button>}
+          {!result?.results.length && <button className={`dock-empty${loading ? ' is-loading' : ''}`} role="status" aria-live="polite" onClick={() => setPanel(error ? 'results' : 'search')}>{loading ? <><span className="dock-spinner" aria-hidden="true" />{demoMode && scale === 1000 && scaleMode === 'same_size' ? 'Loading precomputed 1 km results… (the first search downloads ~0.5 MB)' : 'Finding matches…'}</> : error ? 'Search unavailable. Open results for details.' : 'No matches yet. Choose a location to explore.'}<ArrowRight size={14} /></button>}
         </div>
       </section>}
       <div className="atlas-status"><span><span className="status-dot" />{demoMode ? 'OFFLINE · Precomputed model v2 results · Similarity is not mission suitability' : 'LIVE API · Similarity is not mission suitability'}</span><span className="map-hint">Click a globe or match marker · Drag to orbit · Scroll to zoom</span></div>

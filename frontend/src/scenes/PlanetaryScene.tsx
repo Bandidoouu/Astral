@@ -135,8 +135,8 @@ export default function PlanetaryScene({ selected, results, onSelect, galaxy, vi
   const [layer, setLayer] = useState<SurfaceLayer>('color');
   const [heightSource, setHeightSource] = useState<HeightSource>('packaged');
   const [normalLighting, setNormalLighting] = useState(true);
-  const { fields, status, metadata, origins } = useTerrain(available, heightSource);
-  const surfaceMaps = useSurfaceTextures(available, layer, normalLighting && heightSource === 'packaged');
+  const { fields, status, metadata, origins } = useTerrain(available, heightSource, selected.body);
+  const surfaceMaps = useSurfaceTextures(available, layer, normalLighting && heightSource === 'packaged', selected.body);
   if (!available) return <div className="astral-scene-fallback">WebGL is unavailable. Use the site selector or coordinates below to explore.</div>;
   return <SceneBoundary><div className="astral-planetary-scene">
     {view === 'system' && <div className="astral-terrain-controls">

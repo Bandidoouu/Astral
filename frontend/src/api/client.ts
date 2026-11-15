@@ -1,4 +1,5 @@
 import { demoSearch, exactCuratedSite } from '../mocks/search';
+import { beginForeground } from '../shared/networkGate';
 import { gridSearch, originChunk } from '../mocks/offlineGrid';
 import type { OfflineBlocks, OfflineCatalog } from '../mocks/offlineGrid';
 import { toApiRequest } from './coordinates';
@@ -18,7 +19,12 @@ async function request(url: string, signal: AbortSignal, init?: RequestInit, tim
   if (!response.ok) throw new Error(`The API returned ${response.status}. Check the backend and try again.`);
   return response;
 }
+/** While a search waits for its data, background globe downloads pause (networkGate). */
 export async function search(query: SearchQuery, signal: AbortSignal): Promise<SearchResult> {
+  const release = beginForeground();
+  try { return await searchNow(query, signal); } finally { release(); }
+}
+async function searchNow(query: SearchQuery, signal: AbortSignal): Promise<SearchResult> {
   const payload = toApiRequest(query);
   if (demoMode) {
     prefetchOffline();
@@ -72,16 +78,28 @@ export function gradcamUrl(queryPatchId: string, resultPatchId: string) {
 let catalogPromise: Promise<OfflineCatalog> | null = null;
 const blockPromises: Partial<Record<string, Promise<Uint16Array>>> = {};
 const blocks: OfflineBlocks = {};
+const shared = () => new AbortController().signal;   // shared downloads are never cancelled by one search
+/** Waits for a shared download, but lets this search give up (abort) without cancelling it. */
+function abandonable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(v => { signal.removeEventListener('abort', onAbort); resolve(v); },
+      e => { signal.removeEventListener('abort', onAbort); reject(e); });
+  });
+}
 function loadCatalog(signal: AbortSignal) {
-  catalogPromise ??= request(`${staticBase}data/offline1km/catalog.json`, signal, undefined, 180000).then(r => r.json() as Promise<OfflineCatalog>)
+  catalogPromise ??= request(`${staticBase}data/offline1km/catalog.json`, shared(), undefined, 180000)
+    .then(r => r.json() as Promise<OfflineCatalog>)
     .catch(e => { catalogPromise = null; throw e; });
-  return catalogPromise;
+  return abandonable(catalogPromise, signal);
 }
 async function loadChunk(key: string, file: string, signal: AbortSignal): Promise<OfflineBlocks> {
-  blockPromises[key] ??= request(`${staticBase}data/offline1km/${file}`, signal, undefined, 180000)
+  blockPromises[key] ??= request(`${staticBase}data/offline1km/${file}`, shared(), undefined, 180000)
     .then(r => r.arrayBuffer()).then(b => new Uint16Array(b))
     .catch(e => { delete blockPromises[key]; throw e; });
-  blocks[key] = await blockPromises[key]!;
+  blocks[key] = await abandonable(blockPromises[key]!, signal);
   return blocks;
 }
 
@@ -91,5 +109,5 @@ let prefetched = false;
 function prefetchOffline() {
   if (prefetched || typeof window === 'undefined') return;
   prefetched = true;
-  window.setTimeout(() => { loadCatalog(new AbortController().signal).catch(() => { prefetched = false; }); }, 4000);
+  window.setTimeout(() => { loadCatalog(shared()).catch(() => { prefetched = false; }); }, 4000);
 }
