@@ -8,12 +8,15 @@ import type { Body } from '../api/types';
 import { decodeHeightPixels, parseHeightMetadata, textureUrl } from './textureLayers';
 import type { HeightMetadata, HeightSource } from './textureLayers';
 
-const urls: Record<Body, string> = { earth: earthUrl, moon: moonUrl, mars: marsUrl };
+// Fallback DEMs, all NASA: SRTMGL30 (Earth; replaces the former NOAA ETOPO grid), LOLA (Moon), MOLA (Mars).
+const urls: Partial<Record<Body, string>> = { earth: earthUrl, moon: moonUrl, mars: marsUrl };
 export type TerrainStatus = 'loading' | 'ready' | 'unavailable';
 export type TerrainOrigin = 'packaged' | 'global' | 'fallback';
 
 async function globalHeight(body: Body, signal: AbortSignal) {
-  const response = await fetch(urls[body], { signal });
+  const url = urls[body];
+  if (!url) throw new Error('No NASA fallback relief for this body');
+  const response = await fetch(url, { signal });
   if (!response.ok) throw new Error('Height resource unavailable');
   const bytes = await response.arrayBuffer();
   const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));

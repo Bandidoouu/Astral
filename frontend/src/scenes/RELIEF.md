@@ -7,13 +7,12 @@ Todo este trabajo pertenece a `frontend/src/scenes/`. No cambia los exports de
 
 | Cuerpo | Original | Unidades y referencia | Orientación |
 | --- | --- | --- | --- |
-| Tierra | NOAA ETOPO 2022 v1, 60 segundos, `ETOPO_2022_v1_60s_N90W180_surface.tif` | Metros respecto al geoide EGM2008, superficie de hielo. Horizontal WGS84. | 21600×10800, norte arriba, -180..180 este positivo; celdas de 1/60° |
+| Tierra | NASA SRTMGL30 v002 (Earthdata), promediado a 1440×720 con `frontend/tools/make_earth_height_nasa.py` (reemplaza a NOAA ETOPO 2022, retirado para que todo sea NASA) | Metros; océano = 0 m (sin batimetría); sur de 60° S sin dato, relleno 0 m | 1440×720, norte arriba, -180..180 este positivo |
 | Luna | NASA SVS CGI Moon Kit / LRO LOLA, `ldem_4_uint.tif` | Unsigned16 en medios metros respecto a 1727400 m: `m = valor*0.5 - 10000`, relativo a 1737400 m | 1440×720, norte arriba, -180..180, centro 0° |
 | Marte | NASA MGS MOLA, `megt90n000cb.img` y `.xml`, MEGDR v2 | Int16 big-endian en metros respecto al areoide GMM3. La esfera visual usa 3396 km; no modela la forma del areoide. | 1440×720, planetocéntrico, norte arriba, 0..360 este positivo; rotar 720 columnas |
 
 Fuentes primarias:
-- https://www.ncei.noaa.gov/products/etopo-global-relief-model
-- https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/docs/1.2%20ETOPO%202022%20User%20Guide.pdf
+- https://lpdaac.usgs.gov/products/srtmgl30v002/
 - https://svs.gsfc.nasa.gov/4720/
 - https://pds-geosciences.wustl.edu/missions/mgs/megdr.html
 - La etiqueta XML original se conserva en `assets/mars-height.xml`.
@@ -100,8 +99,7 @@ cráteres pequeños ni detalle de aterrizaje. La malla y las texturas son visual
 ## Integración pendiente (sin modificar archivos ajenos)
 
 Copiar procedencia, URLs, comandos y referencias de esta guía y del manifiesto a
-`docs/datos.md`; registrar NOAA ETOPO 2022 como fuente externa justificada para
-el relieve global terrestre. Sustituir los registros anteriores de LOLA float32 y
+`docs/datos.md`. (ETOPO se retiró: el relieve terrestre de respaldo es SRTMGL30 de la NASA.) Sustituir los registros anteriores de LOLA float32 y
 MOLA sin XML por estos recursos de presentación. Coordinar si se desea que `npm test`
 incluya `src/scenes/*.test.ts`. No se necesita cambiar contratos ni props compartidos.
 
@@ -125,3 +123,5 @@ El arranque actual usa las alturas PNG y normales de `public/textures`, con esca
 según el `height.json` de cada cuerpo. Los DEM ETOPO/LOLA/MOLA descritos en esta guía
 se conservan como opción `Global DEMs` y respaldo de carga. El detalle de recursos,
 normales, capas, cobertura y controles actual está en [LAYERS.md](LAYERS.md).
+
+> **2026-11-15:** se retiró NOAA ETOPO 2022 y la opción "Global DEMs" del selector *Height source*: todo el relieve es de la NASA (SRTMGL30, LOLA, MOLA). `earth.height.gz` ahora sale de SRTMGL30.
