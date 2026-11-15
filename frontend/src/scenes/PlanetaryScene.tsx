@@ -8,7 +8,7 @@ import { markerRadius } from './markerSize';
 import { fromVector } from '../api/coordinates';
 import type { Analog, Body, GalaxyPoint, Location } from '../api/types';
 import type { PlanetarySceneProps } from '../shared/visualization';
-import { bodyColors } from '../api/bodies';
+import { bodyColors, galaxyColors } from '../api/bodies';
 import CameraRig from './CameraRig';
 import { useGeographicGeometry, SurfaceMaterial } from './GlobeSurface';
 import { useSurfaceTextures } from './useSurfaceTextures';
@@ -122,7 +122,7 @@ function Galaxy({ points }: { points: GalaxyPoint[] }) {
     const positions = new Float32Array(points.length * 3), colors = new Float32Array(points.length * 3);
     points.forEach((point, i) => {
       positions.set([point.x, point.y, point.z], i * 3);
-      new Color(bodyColors[point.body]).toArray(colors, i * 3);
+      new Color(galaxyColors[point.body]).toArray(colors, i * 3);
     });
     return { positions, colors };
   }, [points]);

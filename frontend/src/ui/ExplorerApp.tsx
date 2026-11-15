@@ -6,6 +6,7 @@ import { detailAvailable, otherBodies, validCoordinates } from '../api/coordinat
 import MapPanel from './components/MapPanel';
 import MatchDetails from './components/MatchDetails';
 import AstralLogo from './AstralLogo';
+import { galaxyColors } from '../api/bodies';
 import AnalogyLimits from './components/AnalogyLimits';
 import StartTour from './components/StartTour';
 import { markTourSeen, tourSeen } from './startTour';
@@ -45,6 +46,8 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [scale, setScale] = useState<Scale>(60);
   const [scaleMode, setScaleMode] = useState<ScaleMode>('same_size');
   const [sortBy, setSortBy] = useState<SortMode>('terrain');
+  // The galaxy has its own scale: 1 km (all three bodies) by default, 60 m on request.
+  const [galaxyScale, setGalaxyScale] = useState<Scale>(1000);
   const [tourOpen, setTourOpen] = useState(() => !tourSeen(typeof window === 'undefined' ? undefined : window.localStorage));
   function closeTour() { setTourOpen(false); markTourSeen(typeof window === 'undefined' ? undefined : window.localStorage); }
   const [scaleNotice, setScaleNotice] = useState('');
@@ -126,11 +129,11 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
     if (view !== 'galaxy') return;
     const controller = new AbortController();
     setGalaxy([]); setGalaxyError(''); setGalaxyLoading(true);
-    getGalaxy(scale, controller.signal).then(data => { if (!controller.signal.aborted) setGalaxy(data); })
+    getGalaxy(galaxyScale, controller.signal).then(data => { if (!controller.signal.aborted) setGalaxy(data); })
       .catch(e => { if (!controller.signal.aborted) setGalaxyError(e instanceof Error ? e.message : 'Galaxy unavailable.'); })
       .finally(() => { if (!controller.signal.aborted) setGalaxyLoading(false); });
     return () => controller.abort();
-  }, [view, scale, attempt]);
+  }, [view, galaxyScale, attempt]);
 
 
   function chooseMission(nextProfile: Profile) {
@@ -152,7 +155,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       <a className="brand" href="#" aria-label="ASTRAL explorer" onClick={event => { event.preventDefault(); setPanel(null); }}><AstralLogo size={30} /><span>ASTRAL<small>PLANETARY ANALOG EXPLORER</small></span></a>
       <nav className="view-switch" aria-label="Visualization">
         <button aria-pressed={view === 'system'} onClick={() => setView('system')}><Orbit size={14} /><span>System</span></button>
-        <button aria-pressed={view === 'galaxy'} onClick={() => setView('galaxy')}><Sparkles size={14} /><span>Terrain galaxy</span></button>
+        <button aria-pressed={view === 'galaxy'} onClick={() => { setGalaxyScale(1000); setView('galaxy'); }}><Sparkles size={14} /><span>Terrain galaxy</span></button>
         <button aria-expanded={panel === 'suitability'} aria-controls={panel === 'suitability' ? 'suitability-panel' : undefined} onClick={() => togglePanel('suitability')}><Layers size={14} /><span>Base suitability</span></button>
       </nav>
       <div className="header-actions">
@@ -184,6 +187,15 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       </div>
       {view === 'galaxy' && (galaxyLoading || galaxyError || galaxy.length === 0) && <div className="galaxy-status" role="status">{galaxyLoading ? 'Loading terrain galaxy…' : galaxyError || 'No galaxy points available at this scale.'}{galaxyError && <button onClick={() => setAttempt(a => a + 1)}>Retry</button>}</div>}
       {tourOpen && <StartTour onClose={closeTour} onOpen={p => { setPanel(p); if (p !== 'details') setView('system'); }} />}
+      {view === 'galaxy' && <div className="galaxy-legend" aria-label="Terrain galaxy legend">
+        <strong>{galaxyScale === 1000 ? '1 km · Earth, Moon, Mars' : '60 m · lunar south pole vs Mexico'}</strong>
+        <ul>{(galaxyScale === 1000 ? ['earth', 'moon', 'mars'] as Body[] : ['earth', 'moon'] as Body[]).map(b => <li key={b}><i style={{ background: galaxyColors[b] }} />{bodyNames[b]}</li>)}</ul>
+        <div className="galaxy-scale" role="group" aria-label="Galaxy scale">
+          <button aria-pressed={galaxyScale === 1000} onClick={() => setGalaxyScale(1000)}>1 km</button>
+          <button aria-pressed={galaxyScale === 60} onClick={() => setGalaxyScale(60)}>60 m</button>
+        </div>
+        <small>Each point is a terrain patch placed by our network's embedding (3D UMAP); nearby points have similar terrain.</small>
+      </div>}
       <div className="map-notices" aria-live="polite">
         {loading && <p className="map-notice"><span className="loader" />Looking across worlds…</p>}
         {error && <button className="map-notice error" onClick={() => setPanel('results')}><Info size={14} />Search unavailable · View error</button>}

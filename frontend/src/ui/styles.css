@@ -198,3 +198,13 @@ input { font-family: Consolas, monospace; }
 .start-tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; }
 .start-tour-nav { display: inline-flex; gap: 6px; align-items: center; }
 @media (max-width: 720px) { .start-tour { left: 12px; top: 210px; } }
+.galaxy-legend { position: absolute; left: 26px; bottom: 250px; z-index: 6; width: min(300px, calc(100vw - 52px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(14px); font-size: 12px; color: #e8ecdf; }
+.galaxy-legend strong { display: block; font-size: 12.5px; margin-bottom: 8px; }
+.galaxy-legend ul { list-style: none; display: flex; gap: 14px; padding: 0; margin: 0 0 10px; }
+.galaxy-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.galaxy-legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 2px #0b1119; }
+.galaxy-scale { display: inline-flex; gap: 4px; margin-bottom: 8px; }
+.galaxy-scale button { padding: 4px 10px; border-radius: 5px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; }
+.galaxy-scale button[aria-pressed="true"] { background: var(--accent); color: #182316; border-color: transparent; font-weight: 600; }
+.galaxy-legend small { display: block; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+@media (max-width: 720px) { .galaxy-legend { left: 12px; bottom: 230px; } }
