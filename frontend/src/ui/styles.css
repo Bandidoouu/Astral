@@ -166,3 +166,4 @@ input { font-family: Consolas, monospace; }
 .evidence-explanation { padding: 14px; background: #ffffff04; border-radius: 6px; }.evidence-explanation strong { font-size: 12px; display: block; margin-bottom: 10px; }.evidence-explanation p:last-child { margin: 0; }
 .brief-download { display: flex; align-items: center; gap: 8px; border: 1px solid #c9f68b55; border-radius: 6px; background: #c9f68b0b; color: var(--accent); padding: 12px; font-size: 11px; }
 @media (max-width: 1000px) { .header-actions .mission-launcher span { display: inline; } }
+.gradcam { grid-column: 1 / -1; margin: 0; }.gradcam img { display: block; width: 100%; max-width: 640px; height: auto; border-radius: 6px; background: #fcfcfb; }.gradcam figcaption { color: var(--muted); font-size: 11px; line-height: 1.6; margin-top: 6px; }

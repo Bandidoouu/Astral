@@ -13,9 +13,11 @@ export interface Attributes {
   albedo: number | null; ice_distance_km: number | null;
   ice_frac: number | null; soil_raw: number | null; soil_pct: number | null; precip_mm: number | null;
 }
-export interface QueryPatch { patch_id: string; scale_m: Scale; distance_km: number }
+export interface QueryPatch { patch_id: string; scale_m: Scale; distance_km: number; window_km?: number }
 export interface Analog extends Location {
   patch_id: string; region: string; scale_m: Scale; score: number;
+  // Side of the compared patch in km (128 at 1 km, 7.7 at 60 m; larger in gravity_scaled).
+  window_km?: number; land_cover?: string | null;
   scores: Record<Dimension, number | null>;
   no_data: Dimension[];
   // Omitted in the team's example fixture; never infer missing weights.
@@ -37,10 +39,12 @@ export interface Precomputed {
 // demo = offline (no API). precomputed = the offline results are real model outputs.
 export interface SearchResult extends SimilarResponse { demo: boolean; precomputed?: Precomputed }
 export interface GalaxyPoint { id: string; body: Body; x: number; y: number; z: number }
-export type Criterion = 'landing' | 'rover' | 'ice' | 'temperature' | 'total';
+export type SuitabilityBody = 'moon' | 'mars';
+// Moon: landing, rover, ice, temperature. Mars: landing, rover, elevation, hydrogen.
+export type Criterion = 'landing' | 'rover' | 'ice' | 'temperature' | 'elevation' | 'hydrogen' | 'total';
 export interface Suitability {
-  weights: Record<Exclude<Criterion, 'total'>, number>;
-  rules: Record<Criterion, string>;
+  weights: Partial<Record<Exclude<Criterion, 'total'>, number>>;
+  rules: Partial<Record<Criterion, string>>;
   missing: string[]; caveat: string; grid: { crs: string; pixel_m: number };
   candidate_coordinates: string;
   candidates: { name: string; lat: number; lon: number; group: string;

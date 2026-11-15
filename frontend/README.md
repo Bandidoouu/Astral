@@ -74,18 +74,24 @@ surface traverses and astrobiology. Planetary origins target Earth analogs when
 choosing a mission; Earth origins compare with Moon and Mars. Match evidence
 explains individual dimensions and missing observations, and exports an
 investigation brief as Markdown. Mission exercises are proposals, not validated
-site recommendations. Demo rankings remain fixed; live ranking belongs to the API.
+site recommendations. Demo rankings are real precomputed model outputs for curated sites; live ranking belongs to the API.
 
 Search markers and cards focus the camera on a match;
 camera flights respect reduced-motion preferences. Stars are decorative.
 
 Before frontend work, pull origin/main while preserving local changes, as requested
-by the user. The latest integrated main revision is ccc87b9.
+by the user. 
 
-Pending: official globe textures and geographic overlays, real
-terrain detail, Grad-CAM, Spanish translation and guided tour.
-Backend suitability endpoints and real search artifacts require integration.
-There are no model weights, indexes or lunar rasters bundled with this frontend.
+Included since then: official NASA globe textures and layers (visible, relief, shadows,
+topography, Moon and Mars suitability overlays), the real terrain galaxy, base
+suitability for the Moon **and Mars** (weights, rules and candidates; the bundled ML
+export is shown if the data service is not connected), Grad-CAM figures for the curated
+1 km pairs, the compared-patch footprint (`window_km`) on the globe, and real precomputed
+model results in demo mode.
+
+Pending: Spanish translation, guided tour and a `gravity_scaled` control (the backend
+does not forward `scale_mode` yet). Mars suitability PNGs per criterion need the backend
+endpoint `GET /api/suitability/mars/{criterion}`.
 Passing UI/contract checks does not validate scientific similarity or model quality.
 
 Sources linked in the interface: [Earthdata](https://search.earthdata.nasa.gov/),
