@@ -5,6 +5,7 @@ import { demoMode, getGalaxy, search } from '../api/client';
 import { detailAvailable, otherBodies, validCoordinates } from '../api/coordinates';
 import MapPanel from './components/MapPanel';
 import MatchDetails from './components/MatchDetails';
+import AstralLogo from './AstralLogo';
 import SuitabilityPanel from './components/SuitabilityPanel';
 import MissionPanel from './components/MissionPanel';
 import AnalogEvidence from './components/AnalogEvidence';
@@ -137,7 +138,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
 
   return <div className="atlas-app">
     <header className="atlas-header">
-      <a className="brand" href="#" aria-label="ASTRAL explorer" onClick={event => { event.preventDefault(); setPanel(null); }}><Orbit size={26} strokeWidth={1.3} /><span>ASTRAL<small>PLANETARY ANALOG EXPLORER</small></span></a>
+      <a className="brand" href="#" aria-label="ASTRAL explorer" onClick={event => { event.preventDefault(); setPanel(null); }}><AstralLogo size={30} /><span>ASTRAL<small>PLANETARY ANALOG EXPLORER</small></span></a>
       <nav className="view-switch" aria-label="Visualization">
         <button aria-pressed={view === 'system'} onClick={() => setView('system')}><Orbit size={14} /><span>System</span></button>
         <button aria-pressed={view === 'galaxy'} onClick={() => setView('galaxy')}><Sparkles size={14} /><span>Terrain galaxy</span></button>
