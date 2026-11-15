@@ -158,7 +158,9 @@ export default function PlanetaryScene({ selected, results, onSelect, galaxy, vi
       <ambientLight intensity={0.4} />
       <directionalLight position={[-4, 5, 7]} intensity={2} color="#ffffff" />
       <directionalLight position={[4, -1, -3]} intensity={0.65} color="#c2cfdf" />
-      <Stars radius={70} depth={30} count={1400} factor={2} saturation={0} fade speed={0} />
+      {/* Star field: a dense, crisp base layer plus a sparse layer of bright stars for contrast (decorative). */}
+      <Stars radius={70} depth={30} count={3000} factor={6} saturation={0} fade speed={0} />
+      <Stars radius={90} depth={20} count={420} factor={13} saturation={0} fade speed={0} />
       {view === 'system' ? <>
         <OrbitalGuides earth={globeCenters.earth} />
         {bodies.map(body => <Globe key={body} labels={featureNames} body={body} selected={selected} results={results} onSelect={onSelect} onInspect={onInspect} focusedMatch={focusedMatch} fields={fields} exaggeration={renderedExaggeration}
