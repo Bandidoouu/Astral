@@ -191,3 +191,10 @@ input { font-family: Consolas, monospace; }
 .limits-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .limits-note { color: var(--muted); font-size: 10.5px; margin-top: 6px; }
 .limits-sources { font-size: 10px; color: var(--muted); margin-top: 6px; }.limits-sources ul { padding-left: 16px; margin: 4px 0 0; }
+.start-tour { position: absolute; left: 26px; top: 236px; width: min(340px, calc(100vw - 52px)); z-index: 20; background: var(--panel); border: 1px solid #c9f68b55; border-radius: 10px; padding: 14px 16px; backdrop-filter: blur(14px); box-shadow: 0 10px 30px #0008; }
+.start-tour-head { display: flex; align-items: center; justify-content: space-between; }
+.start-tour h3 { font-size: 15px; font-weight: 600; margin: 6px 0 6px; color: #e8ecdf; }
+.start-tour p { font-size: 12px; line-height: 1.55; color: var(--muted); margin: 0 0 10px; }
+.start-tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.start-tour-nav { display: inline-flex; gap: 6px; align-items: center; }
+@media (max-width: 720px) { .start-tour { left: 12px; top: 210px; } }
