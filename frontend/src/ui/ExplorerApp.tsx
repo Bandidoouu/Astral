@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, ExternalLink, Info, Layers, Minimize2, Orbit, PanelsTopLeft, RotateCcw, Search, Sparkles } from 'lucide-react';
 import ResultCard, { dimensions, labels, RadarChart } from './components/ResultCard';
 import { demoMode, getGalaxy, search } from '../api/client';
@@ -6,6 +6,8 @@ import { detailAvailable, otherBodies, validCoordinates } from '../api/coordinat
 import MapPanel from './components/MapPanel';
 import MatchDetails from './components/MatchDetails';
 import AstralLogo from './AstralLogo';
+import { sortResults } from './sortResults';
+import type { SortMode } from './sortResults';
 import SuitabilityPanel from './components/SuitabilityPanel';
 import MissionPanel from './components/MissionPanel';
 import AnalogEvidence from './components/AnalogEvidence';
@@ -39,6 +41,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const [targets, setTargets] = useState<Body[]>(['earth']);
   const [scale, setScale] = useState<Scale>(60);
   const [scaleMode, setScaleMode] = useState<ScaleMode>('same_size');
+  const [sortBy, setSortBy] = useState<SortMode>('terrain');
   const [scaleNotice, setScaleNotice] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
   const [activeId, setActiveId] = useState('');
@@ -53,7 +56,10 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
   const valid = lat.trim() !== '' && lon.trim() !== '' && validCoordinates(coordinates);
   const detailAllowed = valid && detailAvailable(coordinates, targets);
   const supported = targets.length > 0 && (scale === 1000 || detailAllowed);
-  const active = result?.results.find(r => r.patch_id === activeId) ?? result?.results[0];
+  // Terrain = order returned by the search (default). Overall = same results re-sorted by profile score.
+  const listed = useMemo(() => (result ? sortResults(result.results, sortBy) : []), [result, sortBy]);
+  const active = result?.results.find(r => r.patch_id === activeId) ?? listed[0];
+  const sortControl = <div className="sort-by"><label>Sort by <select aria-label="Sort results by" value={sortBy} onChange={e => setSortBy(e.target.value as SortMode)}><option value="terrain">Terrain similarity</option><option value="overall">Overall score</option></select></label><span>The network finds the candidates by terrain; Overall re-sorts them with the seven dimensions (profile score).</span></div>;
 
   function resetDetailIfNeeded(location: Location, nextTargets: Body[]) {
     if (scale === 60 && !detailAvailable(location, nextTargets)) {
@@ -181,10 +187,11 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
       </div>
       {dockVisible && <section className="match-dock" aria-label="Match overview">
         <div className="dock-heading"><button onClick={() => togglePanel('results')} aria-expanded={panel === 'results'}><span>{analogsTitle}</span><strong>{result?.results.length ?? '—'}</strong><ArrowRight size={14} /></button><span>{scale === 1000 ? '1 km / pixel' : '60 m / pixel'}</span></div>
-        <p className="rank-note">Ordered by terrain similarity (network + terrain formula). % = profile score across the available dimensions.</p>
+        <p className="rank-note">{sortBy === 'terrain' ? 'Ordered by terrain similarity (network + terrain formula).' : 'Ordered by overall profile score.'} % = profile score across the available dimensions.</p>
+        {sortControl}
         {scale === 60 && <p className="rank-note scale-note">Detail (60 m) compares the lunar south pole with Mexico only; Mars is compared only at Global (1 km). <button className="inline-action" onClick={repeatGlobally}>Repeat at 1 km · {otherBodies(body).map(t => bodyNames[t]).join(' + ')}</button></p>}
         <div className="match-strip">
-          {result?.results.map(r => <button key={r.patch_id} className={`match-chip ${active?.patch_id === r.patch_id ? 'active' : ''}`} aria-pressed={active?.patch_id === r.patch_id} aria-label={`Inspect ${r.region}`} onClick={() => showMatch(r.patch_id)}>
+          {listed.map(r => <button key={r.patch_id} className={`match-chip ${active?.patch_id === r.patch_id ? 'active' : ''}`} aria-pressed={active?.patch_id === r.patch_id} aria-label={`Inspect ${r.region}`} onClick={() => showMatch(r.patch_id)}>
             <span className={`body-disc ${r.body}`} /><span className="match-chip-name"><small>{bodyNames[r.body]}</small><strong>{r.region}</strong></span>
             <span className="match-chip-score" title="Profile score (all available dimensions). Order: terrain similarity.">{Math.round(r.score * 100)}<small>%</small></span><ArrowUpRight size={13} />
           </button>)}
@@ -221,7 +228,8 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
           </div></>}
         {panel === 'results' && <>        <aside className="results-panel" aria-label="Analog results">
           <div className="results-heading"><div><p className="eyebrow">ACROSS THE WORLDS</p><h2>{targets.length === 1 ? `${bodyNames[targets[0]]} analogs of this site` : 'Analogs of this site'}</h2></div><span className="count">{result?.results.length ?? '—'}</span></div>
-          <p className="rank-note">Ordered by terrain similarity (our network fused with a terrain formula, RRF). The % on each card is the <strong>profile score</strong>: the weighted mean of the dimensions with data for the selected mission profile, so it does not have to decrease down the list.</p>
+          <p className="rank-note">{sortBy === 'terrain' ? 'Ordered by terrain similarity (our network fused with a terrain formula, RRF).' : 'Ordered by the overall profile score of the retrieved candidates.'} The % on each card is the <strong>profile score</strong>: the weighted mean of the dimensions with data for the selected mission profile, so it does not have to decrease down the list.</p>
+          {sortControl}
           <div className="mode-note"><Info size={16} /><p>{demoMode ? <><strong>Offline mode</strong> · Precomputed outputs of the ASTRAL model v2 (nearest 1 km patch, or nearest curated site at 60 m and gravity-scaled). Similarity is not a safety or mission suitability assessment.</> : <><strong>Live API</strong> · Search across Earth, Moon and Mars. Similarity is not a safety or mission suitability assessment.</>}</p></div>
           {result && result.warnings.length > 0 && <div className="search-warnings" role="status">
             <strong>Coverage & data notices</strong><ul>{result.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>
@@ -235,7 +243,7 @@ export default function ExplorerApp({ PlanetaryScene, LunarSuitabilityMap }: Vis
             {result && targets.map(target => <section className="result-group" key={target} aria-label={`${bodyNames[target]} matches`}>
               <h3>{bodyNames[target]} <span>{result.results.filter(r => r.body === target).length} matches</span></h3>
               {result.results.filter(r => r.body === target).length === 0 && <p className="selection-note">No matches returned for this destination.</p>}
-              {result.results.filter(r => r.body === target).map((r, i) => <ResultCard key={r.patch_id} result={r} index={i} active={r.patch_id === active?.patch_id} onSelect={() => showMatch(r.patch_id)} demo={result.demo} />)}
+              {listed.filter(r => r.body === target).map((r, i) => <ResultCard key={r.patch_id} result={r} index={i} active={r.patch_id === active?.patch_id} onSelect={() => showMatch(r.patch_id)} demo={result.demo} />)}
             </section>)}
           </div>
         </aside></>}
