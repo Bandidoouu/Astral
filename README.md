@@ -211,3 +211,5 @@ React, Three.js, React Three Fiber, drei, lucide-react, Vite, TypeScript.
 
 Generative AI coding assistants were used during development, as declared on our
 submission page. The neural network that finds the analogs is our own, trained by us.
+The ASTRAL logo is an AI-assisted design (Claude); the demo video and the screenshots are
+automated recordings of the app.
